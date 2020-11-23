@@ -1,0 +1,12 @@
+
+* Greenland Ice Sheet mass balance from 1986 through next week
+
+This is the source for "Greenland Ice Sheet mass balance from 1986 through next week" and previous and subsequent versions.
+
++ Paper: In preparation
++ Data: doi:10.2008/promice/mass_balance
++ Code: https://github.com/GEUS-PROMICE/mass_balance
+
+* Early Access
+
+Contact kdm (at) geus (dot) dk if interested
