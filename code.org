@@ -418,11 +418,11 @@ cdo -sinfo ${DATADIR}/RACMO/daily/smb_rec.2020_JAS.BN_RACMO2.3p2_ERA5_3h_FGRN055
 #+END_SRC
 
 #+BEGIN_SRC bash
-g.region w=-638956 e=856044 s=-3354596 n=-655596 res=1000 -pa
-# g.region w=w-500 e=e+500 s=s-500 n=n+500 -pa
+g.region w=-638956 e=856044 s=-3354596 n=-655596 res=1000 -p
+g.region n=n+500 s=s-500 w=w-500 e=e+500 res=1000 -p
 g.region save=RCM
 
-g.region res=1000 -pa
+g.region res=1000 -p
 g.region save=sectors
 #+END_SRC
 
@@ -488,7 +488,12 @@ f = sys.argv[1]
 
 ds = xr.open_dataset(f)
 
-t = [str(_)[0:10] for _ in ds['time'].values]
+if 'time' in ds.variables:
+    tvar = 'time'
+if 'TIME' in ds.variables:
+    tvar = 'TIME'
+
+t = [str(_)[0:10] for _ in ds[tvar].values]
 for _ in t: print(_)
 #+END_SRC
 
@@ -590,7 +595,7 @@ done
 <<init_bash>>
 
 RCM=RACMO
-mkdir -p ${RCM}
+mkdir -p tmp/${RCM}
 
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
@@ -607,6 +612,7 @@ for f in ${dir}/*.nc; do
     if [[ -e ./tmp/${RCM}/Z_${d}.bsv ]]; then continue; fi
 
     r.in.gdal -o input="NetCDF:${f}:SMB_rec" band=${band} output=smb --o  --q
+    r.in.gdal -o input="NetCDF:${f}:smb_rec" band=${band} output=smb --o  --q
     r.region map=smb region=RCM
 
     r.univar -t --q map=smb zones=sectors_e@Zwally_2012 \
