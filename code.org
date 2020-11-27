@@ -81,8 +81,8 @@ ncdump -v rlat ~/data/HIRHAM/gridOBC_SD.nc
 ** Domain
 
 #+BEGIN_SRC bash
-g.region w=-13.65 e=1.3 s=-9.8 n=12.2 -pa res=0:03
-g.region w=w-0.025 e=e+0.025 s=s-0.025 n=n+0.025 -pa
+g.region w=-13.65 e=1.3 s=-9.8 n=12.2 res=0:03
+g.region w=w-0.025 e=e+0.025 s=s-0.025 n=n+0.025 -p
 g.region save=RCM
 
 g.region res=0:0.5 # ~1 km grid cell resolution
@@ -325,62 +325,31 @@ grass ./G_MAR/PERMANENT
 
 ** Find domain boundary
 
-#+name: MAR_bounds
-#+BEGIN_SRC jupyter-python
-import numpy as np
-import xarray as xr
+#+BEGIN_QUOTE
+Y21_155 and X12_84 are the X/Y axis from MAR after a selection by NOAA
+FERRET of a smaller domain covering Greenland only within the MAR 
+initial integration domain.
+The centre of the projection in the reduced grid corresponds to the
+pixel (39,60).
 
-<<get_DATADIR>>
-ds = xr.open_dataset("/home/kdm/data/MAR/daily/MARv3.11-20km-daily-NCEP-NCARv1-2000.nc")
-
-lon = ds['LON'].values.flatten()
-lat = ds['LAT'].values.flatten()
-
-lonmax_idx = np.argmax(lon)
-lonmin_idx = np.argmin(lon)
-latmax_idx = np.argmax(lat)
-latmin_idx = np.argmin(lat)
-
-R = lon[lonmax_idx],lat[lonmax_idx]
-L = lon[lonmin_idx],lat[lonmin_idx]
-T = lon[latmax_idx],lat[latmax_idx]
-B = lon[latmin_idx],lat[latmin_idx]
-
-# bounds
-pd.DataFrame(index=['T','B','L','R'], columns=['lon','lat'], data=np.vstack((T,B,L,R)))
-#+END_SRC
-
-#+RESULTS:
-|   |      lon |     lat |
-|---+----------+---------|
-| T |      -40 | 83.9276 |
-| B |  -53.307 |    59.2 |
-| L | -88.3578 | 80.9736 |
-| R |  5.11523 | 81.4796 |
+The dimension of the original grid is 95 x 165 and the centre of the
+projection is the pixel (50,80).
+I'm not a specialist of the projections and I can't help to resolve
+your problem. But as it comes from a old Fortran code into, it is
+likely that there are some errors explaining the differences you have.
+#+END_QUOTE
 
 ** Set up GRASS location
 
 #+BEGIN_SRC bash
-T=-40,83.9276
-B=-53.307,59.2
-L=-88.3578,80.9736
-R=5.11523,81.4796
-
-Txy=$(m.proj -i coordinates=$T)
-Bxy=$(m.proj -i coordinates=$B)
-Lxy=$(m.proj -i coordinates=$L)
-Rxy=$(m.proj -i coordinates=$R)
-echo $Txy $Bxy $Lxy $Rxy
-
-N=$(echo ${Txy} | cut -d"|" -f2)
-S=$(echo ${Bxy} | cut -d"|" -f2)
-E=$(echo ${Rxy} | cut -d"|" -f1)
-W=$(echo ${Lxy} | cut -d"|" -f1)
-
-g.region e=$E w=$W s=$S n=$N -pal res=20000
+C=$(m.proj -i coordinates=-40,70.5) # center of center grid cell
+echo $C ## 0.00|-2198452.92|0.00
+# The following numbers come from $c(y) and the X12_84 and Y21_155 arrays in the MAR NetCDF files
+g.region e=680000 w=-760000 s=$(( -1180000 - 2198452 )) n=$(( 1500000 - 2198452 )) rows=134 cols=72 -pl
+g.region e=e+10000 w=w-10000 s=s-10000 n=n+10000 -pl # adjust from cell center to edges
 g.region save=RCM
 
-g.region res=1000 -pa
+g.region res=1000 -p
 g.region save=sectors
 #+END_SRC
 
@@ -436,6 +405,11 @@ d.rast regions_e@Mouginot_2019
 :END:
 
 ** Set up GRASS location
+
+#+BEGIN_SRC bash
+<<init_bash>>
+<<init_grass>>
+#+END_SRC
 
 #+BEGIN_SRC bash :tangle no
 cdo -sinfo ${DATADIR}/RACMO/daily/smb_rec.2020_JAS.BN_RACMO2.3p2_ERA5_3h_FGRN055.1km.DD.nc
