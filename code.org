@@ -35,7 +35,9 @@ v.import input=${DATADIR}/Mouginot_2019/Greenland_Basins_PS_v1.4.2.shp output=ba
 # remove peripheral ice caps
 db.execute sql="DELETE FROM basins WHERE name LIKE 'ICE_CAPS_%'"
 
-v.db.addcolumn map=basins columns="SUBREGION1_num INT"
+v.db.addcolumn map=basins columns="SUBREGION1_num INT,cat_ INT"
+
+db.execute sql="UPDATE basins SET cat_=cat"
 
 # convert NW NO NE CW CE SW SE based on clock
 db.execute sql="UPDATE basins SET SUBREGION1_num=11 WHERE SUBREGION1='NW'"
@@ -178,12 +180,13 @@ This should be:
 But we're loading different files that have been converted to the rotated pole, so here I **duplicate** those code blocks but change the input filename.
 
 #+BEGIN_SRC bash
-
 log_info "Loading Zwally 2012"
 
 g.mapset -c Zwally_2012
-
 v.in.ogr -o input=Zwally_2012_HIRHAM.gpkg output=sectors
+
+v.db.dropcolumn map=sectors columns="cat_"
+v.db.renamecolumn map=sectors column=cat__1,cat_
 #+END_SRC
 
 #+BEGIN_SRC bash
@@ -267,7 +270,7 @@ log_info "Expanding Mouginot basins to cover RCM domain"
 g.mapset Mouginot_2019
 g.region region=sectors
 
-v.to.rast input=basins output=basins use=cat labelcolumn=SUBREGION1
+v.to.rast input=basins output=basins use=attr attribute_column=cat_ labelcolumn=SUBREGION1
 # r.mapcalc "outside = if(isnull(basins) & mask_ice, 1, null())"
 r.grow.distance input=basins value=value_b
 r.mapcalc "basins_e = if(mask_ice, int(value_b), null())"
@@ -308,6 +311,12 @@ d.rast regions_e@Mouginot_2019
 :PROPERTIES:
 :header-args:bash+: :tangle MAR.sh
 :END:
+** Init
+
+#+BEGIN_SRC bash
+<<init_bash>>
+<<init_grass>>
+#+END_SRC
 
 ** INFO MAR projection
 
@@ -477,7 +486,7 @@ d.rast regions_e@Mouginot_2019
 
 
 
-* RCM to sectors
+* SMB to sectors
 ** Print dates
 
 #+BEGIN_SRC jupyter-python :tangle nc_dates.py
@@ -492,7 +501,7 @@ if 'time' in ds.variables:
     tvar = 'time'
 if 'TIME' in ds.variables:
     tvar = 'TIME'
-
+    
 t = [str(_)[0:10] for _ in ds[tvar].values]
 for _ in t: print(_)
 #+END_SRC
@@ -512,7 +521,7 @@ f=$(ls ${dir}/*.nc|head -n1) # debug
 for f in ${dir}/*.nc; do
   dates=$(python ./nc_dates.py ${f})
   band=0
-  d=1985-09-01
+  d=1985-09-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 1 ))
 
@@ -520,22 +529,28 @@ for f in ${dir}/*.nc; do
 
     if [[ -e ./tmp/${RCM}/Z_${d}.bsv ]]; then continue; fi
 
-    r.in.gdal -ol input="NetCDF:${f}:smb" band=${band} output=smb --o --q
+    var=smb
+    if [[ ${f} == *"SMBmodel"* ]]; then var=gld; fi
+
+    r.in.gdal -ol input="NetCDF:${f}:${var}" band=${band} output=smb --o --q
     r.region map=smb region=RCM
     
     r.univar -t --q map=smb zones=sectors_e@Zwally_2012 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Z_${d}.bsv
 
     r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Mb_${d}.bsv
 
     r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Mr_${d}.bsv
     
   done
@@ -557,7 +572,7 @@ f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
 for f in ${dir}/MARv3.11*.nc; do
   dates=$(python ./nc_dates.py ${f})
   band=0
-  d=1986-01-01
+  d=1986-01-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 1 ))
 
@@ -572,16 +587,19 @@ for f in ${dir}/MARv3.11*.nc; do
     r.univar -t --q map=smb zones=sectors_e@Zwally_2012 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Z_${d}.bsv
 
     r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Mb_${d}.bsv
 
     r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Mr_${d}.bsv
     
   done
@@ -603,7 +621,7 @@ f=$(ls ${dir}/*.nc|head -n1) # debug
 for f in ${dir}/*.nc; do
   dates=$(python ./nc_dates.py ${f})
   band=0
-  d=1989-07-01
+  d=1989-07-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 1 ))
 
@@ -611,28 +629,893 @@ for f in ${dir}/*.nc; do
 
     if [[ -e ./tmp/${RCM}/Z_${d}.bsv ]]; then continue; fi
 
-    r.in.gdal -o input="NetCDF:${f}:SMB_rec" band=${band} output=smb --o  --q
-    r.in.gdal -o input="NetCDF:${f}:smb_rec" band=${band} output=smb --o  --q
+    var=SMB_rec
+    if [[ ${f} == *"ERA5"* ]]; then var=smb_rec; fi
+
+    r.in.gdal -o input="NetCDF:${f}:${var}" band=${band} output=smb --o  --q
     r.region map=smb region=RCM
 
     r.univar -t --q map=smb zones=sectors_e@Zwally_2012 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Z_${d}.bsv
 
     r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Mb_${d}.bsv
 
     r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/Mr_${d}.bsv
     
   done
 done
 #+END_SRC
+
+
+** Merge
+
+Raw (daily) BSV merged to one
+#+BEGIN_SRC bash
+for RCM in HIRHAM MAR RACMO; do
+  for ROI in Z Mb Mr; do
+    head -n1 ./tmp/${RCM}/${ROI}_2000-01-01.bsv > ./tmp/${RCM}_${ROI}.bsv
+    tail -q -n1 ./tmp/${RCM}/${ROI}_*.bsv >> ./tmp/${RCM}_${ROI}.bsv
+  done
+done
+#+END_SRC
+
+#+RESULTS:
+
+BSV to NetCDF
+
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+import xarray as xr
+import numpy as np
+import subprocess
+import datetime
+import glob
+from tqdm import tqdm
+
+time = pd.date_range(start = "1986-01-01",
+                     end = datetime.datetime.now() + datetime.timedelta(days = 10),
+                     freq = "D")
+
+ds = xr.Dataset()
+ds["time"] = (("time"), time)
+ds["time"].attrs["cf_role"] = "timeseries_id"
+ds["time"].attrs["standard_name"] = "time"
+ds["time"].attrs["axis"] = "T"
+
+ds["sector"] = pd.read_csv("./tmp/HIRHAM_Z.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+ds["sector"].attrs["standard_name"] = "Zwally 2012 sectors"
+
+ds["region"] = pd.read_csv("./tmp/HIRHAM_Mr.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+ds["region"].attrs["standard_name"] = "Mouginot 2019 regions"
+
+ds["basin"] = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+ds["basin"].attrs["standard_name"] = "Mouginot 2019 basins"
+
+
+
+
+df = pd.read_csv("./tmp/HIRHAM_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_HIRHAM_Z"] = (("time", "sector"), df.values)
+ds["SMB_HIRHAM_Z"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_HIRHAM_Z"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_HIRHAM_Z"].attrs["units"] = "Gt yr-1"
+ds["SMB_HIRHAM_Z"].attrs["coordinates"] = "time sector"
+
+df = pd.read_csv("./tmp/HIRHAM_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_HIRHAM_Mr"] = (("time", "region"), df.values)
+ds["SMB_HIRHAM_Mr"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_HIRHAM_Mr"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_HIRHAM_Mr"].attrs["units"] = "Gt yr-1"
+ds["SMB_HIRHAM_Mr"].attrs["coordinates"] = "time region"
+
+df = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_HIRHAM_Mb"] = (("time", "basin"), df.values)
+ds["SMB_HIRHAM_Mb"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_HIRHAM_Mb"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_HIRHAM_Mb"].attrs["units"] = "Gt yr-1"
+ds["SMB_HIRHAM_Mb"].attrs["coordinates"] = "time region"
+
+
+df = pd.read_csv("./tmp/MAR_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_MAR_Z"] = (("time", "sector"), df.values)
+ds["SMB_MAR_Z"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_MAR_Z"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_MAR_Z"].attrs["units"] = "Gt yr-1"
+ds["SMB_MAR_Z"].attrs["coordinates"] = "time sector"
+
+df = pd.read_csv("./tmp/MAR_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_MAR_Mr"] = (("time", "region"), df.values)
+ds["SMB_MAR_Mr"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_MAR_Mr"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_MAR_Mr"].attrs["units"] = "Gt yr-1"
+ds["SMB_MAR_Mr"].attrs["coordinates"] = "time region"
+
+df = pd.read_csv("./tmp/MAR_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_MAR_Mb"] = (("time", "basin"), df.values)
+ds["SMB_MAR_Mb"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_MAR_Mb"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_MAR_Mb"].attrs["units"] = "Gt yr-1"
+ds["SMB_MAR_Mb"].attrs["coordinates"] = "time region"
+
+
+df = pd.read_csv("./tmp/RACMO_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_RACMO_Z"] = (("time", "sector"), df.values)
+ds["SMB_RACMO_Z"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_RACMO_Z"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_RACMO_Z"].attrs["units"] = "Gt yr-1"
+ds["SMB_RACMO_Z"].attrs["coordinates"] = "time sector"
+
+df = pd.read_csv("./tmp/RACMO_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_RACMO_Mr"] = (("time", "region"), df.values)
+ds["SMB_RACMO_Mr"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_RACMO_Mr"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_RACMO_Mr"].attrs["units"] = "Gt yr-1"
+ds["SMB_RACMO_Mr"].attrs["coordinates"] = "time region"
+
+df = pd.read_csv("./tmp/RACMO_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+ds["SMB_RACMO_Mb"] = (("time", "basin"), df.values)
+ds["SMB_RACMO_Mb"].attrs["long_name"] = "Surface mass balance"
+ds["SMB_RACMO_Mb"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+ds["SMB_RACMO_Mb"].attrs["units"] = "Gt yr-1"
+ds["SMB_RACMO_Mb"].attrs["coordinates"] = "time region"
+
+
+
+
+
+
+
+ds.attrs["featureType"] = "timeSeries"
+ds.attrs["title"] = "Greenland mass balance"
+ds.attrs["summary"] = "Greenland mass balance"
+ds.attrs["keywords"] = "Greenland; Mass; Mass balance"
+# ds.attrs["Conventions"] = "CF-1.8"
+ds.attrs["source"] = "git commit: " + subprocess.check_output(["git", "describe", "--always"]).strip().decode('UTF-8')
+# ds.attrs["comment"] = "TODO"
+# ds.attrs["acknowledgment"] = "TODO"
+# ds.attrs["license"] = "TODO"
+# ds.attrs["date_created"] = datetime.datetime.now().strftime("%Y-%m-%d")
+ds.attrs["creator_name"] = "Ken Mankoff"
+ds.attrs["creator_email"] = "kdm@geus.dk"
+ds.attrs["creator_url"] = "http://kenmankoff.com"
+ds.attrs["institution"] = "GEUS"
+# ds.attrs["time_coverage_start"] = "TODO"
+# ds.attrs["time_coverage_end"] = "TODO"
+# ds.attrs["time_coverage_resolution"] = "TODO"
+ds.attrs["references"] = "10.22008/promice/mass_balance"
+ds.attrs["product_version"] = 1.0
+
+comp = dict(zlib=True, complevel=9)
+encoding = {var: comp for var in ds.data_vars} # all
+
+ds.to_netcdf('./TMB/mb.nc', mode='w', encoding=encoding)
+
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+# [goto error]
+#+begin_example
+
+ValueErrorTraceback (most recent call last)
+<ipython-input-194-529e49efdd5f> in <module>
+     51 
+     52 
+---> 53 df = pd.read_csv("./tmp/MAR_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+     54 ds["SMB_MAR_Z"] = (("time", "sector"), df.values)
+     55 ds["SMB_MAR_Z"].attrs["long_name"] = "Surface mass balance"
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/util/_decorators.py in wrapper(*args, **kwargs)
+    307         @wraps(func)
+    308         def wrapper(*args, **kwargs) -> Callable[..., Any]:
+--> 309             return func(*args, **kwargs)
+    310 
+    311         kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/frame.py in reindex(self, *args, **kwargs)
+   4034         kwargs.pop("axis", None)
+   4035         kwargs.pop("labels", None)
+-> 4036         return super().reindex(**kwargs)
+   4037 
+   4038     def drop(
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/generic.py in reindex(self, *args, **kwargs)
+   4459 
+   4460         # perform the reindex on the axes
+-> 4461         return self._reindex_axes(
+   4462             axes, level, limit, tolerance, method, fill_value, copy
+   4463         ).__finalize__(self, method="reindex")
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/frame.py in _reindex_axes(self, axes, level, limit, tolerance, method, fill_value, copy)
+   3880         index = axes["index"]
+   3881         if index is not None:
+-> 3882             frame = frame._reindex_index(
+   3883                 index, method, copy, level, fill_value, limit, tolerance
+   3884             )
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/frame.py in _reindex_index(self, new_index, method, copy, level, fill_value, limit, tolerance)
+   3899             new_index, method=method, level=level, limit=limit, tolerance=tolerance
+   3900         )
+-> 3901         return self._reindex_with_indexers(
+   3902             {0: [new_index, indexer]},
+   3903             copy=copy,
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/generic.py in _reindex_with_indexers(self, reindexers, fill_value, copy, allow_dups)
+   4522 
+   4523             # TODO: speed up on homogeneous DataFrame objects
+-> 4524             new_data = new_data.reindex_indexer(
+   4525                 index,
+   4526                 indexer,
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/internals/managers.py in reindex_indexer(self, new_axis, indexer, axis, fill_value, allow_dups, copy, consolidate)
+   1274         # some axes don't allow reindexing with dups
+   1275         if not allow_dups:
+-> 1276             self.axes[axis]._can_reindex(indexer)
+   1277 
+   1278         if axis >= self.ndim:
+
+~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/indexes/base.py in _can_reindex(self, indexer)
+   3287         # trying to reindex on an axis with duplicates
+   3288         if not self.is_unique and len(indexer):
+-> 3289             raise ValueError("cannot reindex from a duplicate axis")
+   3290 
+   3291     def reindex(self, target, method=None, level=None, limit=None, tolerance=None):
+
+ValueError: cannot reindex from a duplicate axis
+#+end_example
+:END:
+
+#+BEGIN_SRC jupyter-python
+# df_HIRHAM_Z = pd.read_csv('./tmp/HIRHAM_z.bsv', index_col=0, parse_dates=True)
+# df_err = pd.read_csv('./out/' + csvfile + '_err.csv', index_col=0, parse_dates=True)
+# df_coverage = pd.read_csv('./out/' + csvfile + '_coverage.csv', index_col=0, parse_dates=True)
+
+# meta = pd.read_csv("./out/gate_meta.csv")
+
+# ds = xr.Dataset()
+
+# ds["time"] = (("time"), df_D.index)
+# ds["time"].attrs["cf_role"] = "timeseries_id"
+# ds["time"].attrs["standard_name"] = "time"
+# # ds["time"].attrs["units"] = "day of year"
+# # ds["time"].attrs["calendar"] = "julian"
+# ds["time"].attrs["axis"] = "T"
+
+# ds["gate"] = (("gate"), df_D.columns.astype(np.int32))
+# ds["gate"].attrs["long_name"] = "Gate"
+# ds["gate"].attrs["standard_name"] = "N/A"
+
+# ds["discharge"] = (("gate", "time"), df_D.T.values.astype(np.float32))
+# ds["discharge"].attrs["long_name"] = "Discharge"
+# ds["discharge"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
+# ds["discharge"].attrs["units"] = "Gt yr-1"
+# ds["discharge"].attrs["coordinates"] = "time gate"
+
+# ds["err"] = (("gate", "time"), df_err.T.values.astype(np.float32))
+# ds["err"].attrs["long_name"] = "Error"
+# ds["err"].attrs["standard_name"] = "Uncertainty"
+# ds["err"].attrs["units"] = "Gt yr-1"
+# ds["err"].attrs["coordinates"] = "time gate"
+
+# ds["coverage"] = (("gate", "time"), df_coverage.T.values.astype(np.float32))
+# ds["coverage"].attrs["long_name"] = "Coverage"
+# ds["coverage"].attrs["standard_name"] = "Coverage"
+# # ds["coverage"].attrs["units"] = "-"
+# ds["coverage"].attrs["coordinates"] = "time gate"
+
+# ds["mean_x"] = (("gate"), meta.mean_x.astype(np.int32))
+# ds["mean_x"].attrs["long_name"] = "Mean x coordinate of gate in EPSG:3413"
+# ds["mean_x"].attrs["standard_name"] = "Mean x"
+
+# ds["mean_y"] = (("gate"), meta.mean_y.astype(np.int32))
+# ds["mean_y"].attrs["long_name"] = "Mean y coordinate of gate in EPSG:3413"
+# ds["mean_y"].attrs["standard_name"] = "Mean y"
+
+# ds["mean_lon"] = (("gate"), meta.lon.astype(np.float32))
+# ds["mean_lon"].attrs["long_name"] = "Mean lon coordinate of gate"
+# ds["mean_lon"].attrs["standard_name"] = "Longitude"
+
+# ds["mean_lat"] = (("gate"), meta.lat.astype(np.float32))
+# ds["mean_lat"].attrs["long_name"] = "Mean lat coordinate of gate"
+# ds["mean_lat"].attrs["standard_name"] = "Latitude"
+
+# ds["sector"] = (("gate"), meta.sector.astype(np.int32))
+# ds["sector"].attrs["long_name"] = "Mouginot 2019 sector containing gate"
+
+# ds["region"] = (("gate"), meta.region)
+# ds["region"].attrs["long_name"] = "Mouginot 2019 region containing gate"
+
+# ds["Zwally_2012"] = (("gate"), meta.Zwally_2012)
+# ds["Zwally_2012"].attrs["long_name"] = "Zwally 2012 sector containing gate"
+
+# ds["name_Bjørk"] = (("gate"), meta.Bjork_2015)
+# ds["name_Bjørk"].attrs["long_name"] = "Nearest name from Bjørk (2015)"
+
+# ds["name_Mouginot"] = (("gate"), meta.Mouginot_2019)
+# ds["name_Mouginot"].attrs["long_name"] = "Nearest name from Mouginot (2019)"
+
+# ds.attrs["featureType"] = "timeSeries"
+# ds.attrs["title"] = "Greenland discharge"
+# ds.attrs["summary"] = "Greenland discharge per gate"
+# ds.attrs["keywords"] = "Greenland; Ice Discharge; Calving; Submarine Melt"
+# # ds.attrs["Conventions"] = "CF-1.8"
+# ds.attrs["source"] = "git commit: " + subprocess.check_output(["git", "describe", "--always"]).strip().decode('UTF-8')
+# # ds.attrs["comment"] = "TODO"
+# # ds.attrs["acknowledgment"] = "TODO"
+# # ds.attrs["license"] = "TODO"
+# # ds.attrs["date_created"] = datetime.datetime.now().strftime("%Y-%m-%d")
+# ds.attrs["creator_name"] = "Ken Mankoff"
+# ds.attrs["creator_email"] = "kdm@geus.dk"
+# ds.attrs["creator_url"] = "http://kenmankoff.com"
+# ds.attrs["institution"] = "GEUS"
+# # ds.attrs["time_coverage_start"] = "TODO"
+# # ds.attrs["time_coverage_end"] = "TODO"
+# # ds.attrs["time_coverage_resolution"] = "TODO"
+# ds.attrs["references"] = "10.22008/promice/ice_discharge"
+# ds.attrs["product_version"] = 2.0
+
+# comp = dict(zlib=True, complevel=9)
+# encoding = {var: comp for var in ds.data_vars} # all
+
+# ds.to_netcdf('./out/gate.nc', mode='w', encoding=encoding)
+
+#+END_SRC
+
+#+RESULTS:
+:   0%|          | 0/3 [00:00<?, ?it/s]100%|██████████| 3/3 [00:00<00:00, 10356.31it/s]HIRHAM
+: MAR
+: RACMO
+: 
+
+
+* MMB to ROI
+** Mankoff 2020
+#+BEGIN_SRC jupyter-python :tangle D_to_sector.py
+import xarray as xr
+
+ds = xr.open_dataset("/home/kdm/data/Mankoff_2020/ice/latest/gate.nc")
+
+ds_Z = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector"])\
+          .groupby("Zwally_2012")\
+          .sum()
+
+ds_Mb = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat"])\
+          .groupby("sector")\
+          .sum()
+
+ds_Mr = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector"])\
+          .groupby("region")\
+          .sum()
+
+print(ds_Z['discharge'].to_dataframe().unstack().T.head())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Zwally_2012                  11     12     13         21         31         32         33  \
+          time                                                                              
+discharge 1986-04-15  15.504001  4.844  0.803  21.589001  15.722001  11.582000  34.144005   
+          1986-05-15  14.807000  4.844  0.803  21.708000  15.662001  11.475000  34.777004   
+          1986-06-15  18.068998  4.843  0.803  21.833000  16.401001  11.731999  36.752995   
+          1986-07-15  19.074999  4.844  0.803  19.969000  16.516001  11.771999  35.920002   
+          1986-08-15  18.014999  4.844  0.803  21.770000  16.478001  11.165000  36.254002   
+
+Zwally_2012                  41         42         43         50     61     62         71  \
+          time                                                                              
+discharge 1986-04-15  40.632000  62.001999  40.166000  29.128998  6.737  1.972  23.174000   
+          1986-05-15  44.097000  60.396004  39.656998  29.122000  6.740  1.931  30.070000   
+          1986-06-15  44.028000  58.748009  39.128002  29.115999  6.743  1.887  30.006001   
+          1986-07-15  45.708996  58.844002  38.619003  29.113003  6.746  1.845  29.944000   
+          1986-08-15  43.092999  62.721001  38.094006  29.105003  6.749  1.803  29.879999   
+
+Zwally_2012                  72         81        82  
+          time                                        
+discharge 1986-04-15  46.439999  83.981003  7.387001  
+          1986-05-15  46.694004  84.958000  7.380000  
+          1986-06-15  46.781002  87.003983  7.375000  
+          1986-07-15  46.840996  89.250000  7.368001  
+          1986-08-15  45.588997  88.822014  7.361000  
+#+end_example
+
+
+** Mouginot 2019
+
+#+BEGIN_SRC jupyter-python
+df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
+
+c0 = 29 # Column containing 1986
+c1 = 61 # Last column
+r0 = 8  # sub-table start
+r1 = 15 # sub-table stop
+D =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+                  data = df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values,
+                  columns = df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int)).T
+D.index.name = "Date"
+D
+
+c2  = 96
+c3 = 128
+D_err =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+                      data = df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values,
+                      columns = df.iloc[r0-1][df.columns[c2:(c3 + 1)]].astype(np.int)).T
+D_err.index.name = "Date"
+D_err
+
+
+
+
+
+
+
+# r0 = 18  # sub-table start
+# r1 = 15 # sub-table stop
+# D =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+#                   data = df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values,
+#                   columns = df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int)).T
+# D.index.name = "Date"
+# D
+
+# c2  = 96
+# c3 = 128
+# D_err =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+#                       data = df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values,
+#                       columns = df.iloc[r0-1][df.columns[c2:(c3 + 1)]].astype(np.int)).T
+# D_err.index.name = "Date"
+# D_err
+
+
+
+
+
+
+
+
+
+#+END_SRC
+
+#+RESULTS:
+| Date |      SW |      CW |      NW |      NO |      NE |      CE |      SE |
+|------+---------+---------+---------+---------+---------+---------+---------|
+| 1986 | 6.39625 | 4.72754 | 2.38358 | 1.63729 | 3.90171 | 3.58464 | 6.26399 |
+| 1987 | 5.75199 | 4.96941 | 2.45813 | 1.56809 | 3.18116 | 3.80129 |  5.9118 |
+| 1988 |    5.16 | 4.71652 |  2.4065 | 1.59757 | 2.88738 |  3.2834 | 6.06374 |
+| 1989 | 4.62963 | 4.79985 | 2.42505 | 1.47593 | 2.18272 | 3.70168 | 5.17736 |
+| 1990 | 4.17212 | 4.83942 | 2.48977 | 1.43793 | 2.14466 | 3.76175 | 5.27879 |
+| 1991 | 3.82206 | 4.85328 | 2.39979 | 1.48182 | 2.26422 | 3.91059 | 5.47042 |
+| 1992 | 3.65411 | 4.55641 | 2.43593 | 1.44005 | 2.14691 | 5.30484 |  5.6089 |
+| 1993 | 3.64839 | 4.69709 | 2.39624 |  1.6146 | 2.30081 | 5.26971 | 7.09088 |
+| 1994 | 3.64255 | 4.60775 | 2.54011 | 1.44794 | 2.10937 | 5.74289 | 6.89653 |
+| 1995 | 3.62894 | 4.39499 | 2.61485 | 1.56702 | 2.11486 |  4.9321 | 6.82442 |
+| 1996 | 3.51352 | 4.68193 | 2.54174 |  1.4639 | 2.00207 | 5.19833 | 5.48101 |
+| 1997 | 3.46357 | 4.36486 | 2.64467 |  1.5321 | 2.01441 | 6.37345 | 5.67094 |
+| 1998 |   3.415 | 4.61574 | 2.36702 | 1.66198 | 1.99784 | 6.26478 | 5.58793 |
+| 1999 | 3.35585 | 4.53863 | 2.32118 |   1.677 | 1.98387 |  6.7796 | 5.52591 |
+| 2000 | 3.39966 |  5.8818 | 3.42818 | 1.51398 | 2.04081 | 4.12785 | 7.05655 |
+| 2001 | 3.67663 | 6.12703 | 2.69904 | 1.53292 | 1.95297 | 4.12014 | 5.64725 |
+| 2002 | 4.27788 | 4.28093 | 2.72628 | 1.60927 | 2.15423 | 4.04651 | 6.89033 |
+| 2003 | 4.26662 | 6.71444 | 2.49513 |  1.7854 | 2.20818 | 4.17898 | 6.86905 |
+| 2004 | 3.89778 | 6.91594 | 2.63926 | 1.79659 | 2.04922 | 4.34439 | 6.18362 |
+| 2005 | 3.71913 | 6.81152 | 2.61378 | 1.65053 | 2.08252 | 7.49266 | 6.26086 |
+| 2006 |  4.5809 |   6.767 | 2.61186 | 1.77084 | 2.02779 | 8.20212 |  5.7107 |
+| 2007 | 5.51983 | 6.70576 | 2.56404 | 1.77298 | 2.06704 |  7.3861 | 5.59826 |
+| 2008 | 4.85753 |  6.9526 | 2.63584 | 1.71374 | 2.08598 | 7.18677 | 5.86512 |
+| 2009 | 4.61921 | 6.66087 | 2.69473 | 1.51692 |  2.0466 | 6.53872 | 6.13972 |
+| 2010 | 4.30496 | 7.35043 | 2.65021 | 1.61146 | 2.19988 | 6.33188 | 6.25135 |
+| 2011 | 4.72156 | 6.77581 |  2.8259 | 1.79008 | 2.20814 | 6.52244 | 6.63427 |
+| 2012 | 4.76317 | 7.29886 | 2.85012 | 1.77425 | 2.35668 |  6.8472 | 6.51387 |
+| 2013 | 4.59133 | 7.45694 | 2.77906 | 1.94955 | 2.18406 | 6.47556 | 6.06294 |
+| 2014 | 4.12034 | 7.56739 | 2.96806 | 2.09472 | 2.33947 |  6.2547 | 6.03204 |
+| 2015 | 4.32102 | 7.41726 | 3.00687 | 1.91911 | 2.45207 | 6.00333 | 6.12812 |
+| 2016 | 4.28208 | 7.33231 | 2.98299 | 1.78163 | 2.48866 | 5.81663 | 5.87333 |
+| 2017 | 3.86859 | 6.32904 |  3.3492 | 1.76588 | 2.49688 | 5.90265 | 5.82881 |
+| 2018 | 4.06431 | 6.00724 | 3.54655 | 1.89799 | 2.72033 | 6.49952 | 5.95446 |
+
+
+
+* BMB
+** GHF
+** Velocity
+** Surface runoff
+:PROPERTIES:
+:header-args:bash+: :tangle VHD.sh
+:END:
+
+*** Source contribution map
+
++ Determine VHD routing map as per citet:mankoff_2017_VHD
++ For each source cell, estimate the contribution to that sector VHD per unit mass of water
+  + That is, from the water source, the integrated VHD between source and outlet.
+  + Rather than doing full routing for each and every interior cell, the integrated VHD per cell can be estimated as the difference between the source pressure+elevation and the basal pressure+elevation terms.
++ Then, use this source map applied to each day of runoff from one of the RCMs.
+
+Do this work in the RACMO location because it is EPSG:3413 and so is BedMachine (used for the basal routing)
+
+
+*** Import BedMachine v3
++ from [[textcite:Morlighem:2017BedMachine][Morlighem /et al./ (2017)]]
+#+BEGIN_SRC bash :results verbatim
+g.mapset -c BedMachine
+
+for var in $(echo mask surface thickness bed errbed); do
+  echo $var
+  # r.external source=netCDF:${DATADIR}/Morlighem_2017/BedMachineGreenland-2020-07-16.nc:${var} output=${var}
+  r.external source=netCDF:${DATADIR}/Morlighem_2017/BedMachineGreenland-2017-09-20.nc:${var} output=${var}
+done
+
+g.region raster=surface
+g.region save=BedMachine
+
+r.colors map=mask color=haxby
+r.mapcalc "mask_ice_0 = if(mask == 2, 1, null())"
+#+END_SRC
+
+*** Expand Mask
+
+The ice mask needs to be expanded so that land terminating glaciers need 1 grid cell outside the ice domain are included in the model, so that the discharge location has 0 thickness (0 pressure term) and all pressure energy is released. Only gravitational potential energy remains. Submarine discharge remains pressurized.
+
+#+BEGIN_SRC bash
+r.grow input=mask_ice_0 output=mask_ice_1 radius=1.5 new=1
+r.mapcalc "mask_ice = if((mask == 0) | (mask == 3), null(), mask_ice_1)"
+#+END_SRC
+
+*** Expand ROIs to BedMachine ice domain
+
+Copied from <<expand_zwally>> and <<expand_mouginot>>, but run here so that it is in the BedMachine mapset
+
+#+BEGIN_SRC bash
+r.grow.distance input=sectors@Zwally_2012 value=value_Z
+r.mapcalc "sectors_e = if(mask_ice, int(value_Z), null())"
+
+r.grow.distance input=regions@Mouginot_2019 value=value_Mr
+r.mapcalc "regions_e = if(mask_ice, int(value_Mr), null())"
+
+r.grow.distance input=basins@Mouginot_2019 value=value_Mb
+r.mapcalc "basins_e = if(mask_ice, int(value_Mb), null())"
+#+END_SRC
+
+*** COMMENT Fill in small holes
+
+Also fills in nunatuks.
+
+This is done because hydrologic routing will terminate at domain boundaries, even if they're inland. We want to route to the ice edge.
+
+#+BEGIN_SRC bash :results verbatim
+r.colors map=mask color=haxby
+r.mapcalc "not_ice = if(isnull(mask) ||| (mask != 2), 1, 0)"
+
+# No mask, NULLS are not clumped
+r.clump input=not_ice output=clumps
+# d.rast clumps
+main_clump=$(r.stats -c -n clumps sort=desc | head -n1 | cut -d" " -f1)
+r.mask -i raster=clumps maskcats=${main_clump} --o
+
+r.mapcalc "all_ice = 1"
+r.clump input=all_ice output=clumps2
+# d.rast clumps2
+main_clump=$(r.stats -c -n clumps2 sort=desc | head -n1 | cut -d" " -f1)
+r.mask raster=clumps2 maskcats=${main_clump} --o
+
+r.mapcalc "mask_ice = MASK"
+# ice mask with no islands
+
+# original mask ice
+r.mask -r
+r.mapcalc "mask_ice_islands = if(mask == 2, 1, null())"
+#+END_SRC
+#+RESULTS:
+
+
+*** Hydropotential head
+
+#+BEGIN_SRC bash :results verbatim
+log_info "Calculating subglacial head with k = 1.0"
+r.mapcalc "head = mask_ice * bed + 1 * 0.917 * thickness"
+#+END_SRC
+
+**** Streams
+
+After calculating the head, we use 3rd party tools to get the flow direction and streams
+
+#+NAME: streams
+#+BEGIN_SRC bash :results verbatim
+THRESH=300
+log_warn "Using threshold: ${THRESH}"
+log_info "r.stream.extract..."
+
+r.stream.extract elevation=head threshold=${THRESH} memory=16384 direction=dir stream_raster=streams stream_vector=streams
+#+END_SRC
+
+**** Outlets
+
++ The flow direction =dir= is negative where flow leaves the domain. These are the outlets.
++ Encode each outlet with a unique id
+
+#+NAME: outlets
+#+BEGIN_SRC bash :results verbatim
+log_info "Calculating outlets"
+r.mapcalc "outlets_1 = if(dir < 0, 1, null())"
+r.out.xyz input=outlets_1 | \
+    cat -n | \
+    tr '\t' '|' | \
+    cut -d"|" -f1-3 | \
+    v.in.ascii input=- output=outlets_uniq separator=pipe \
+        columns="x int, y int, cat int" x=2 y=3 cat=1
+#+END_SRC
+
+**** Basins
+
+Using =r.stream.basins=, we can get basins for every outlet.
+
+#+NAME: basins
+#+BEGIN_SRC bash :results verbatim
+log_info "r.stream.basins..."
+
+r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=16384 --verbose
+#+END_SRC
+
+
+*** Find outlet (x,y) for each inland cell
+**** Extract the x and y coordinates of each outlet
+#+BEGIN_SRC bash :results verbatim
+log_info "Exporting outlet coordinates"
+
+r.out.xyz input=outlets | awk -F'|' '{print \$3, \$1}' > ./tmp/outlets_x
+r.out.xyz input=outlets | awk -F'|' '{print \$3, \$2}' > ./tmp/outlets_y
+#+END_SRC
+
+**** Basins map where pixel encodes the x and y coordinate of its outlet
+
++ First encode the outlet location as the category information of each basin, rather than as the value for each (x,y) cell.
+  + This means we encode n basin bits of info (20,000?) rather than n grid cells bits of info (4.5M?)
++ Then create new rasters where the grid cells contain the outlet info directly. Easier for math further down in the code.
+
+#+BEGIN_SRC bash :results verbatim
+
+log_info "Encoding outlet coordinates"
+
+g.copy basins,cat_x
+g.copy basins,cat_y
+
+r.category map=cat_x rules=./tmp/outlets_x separator=space
+r.category map=cat_y rules=./tmp/outlets_y separator=space
+
+r.mapcalc "outlet_x = @cat_x"
+r.mapcalc "outlet_y = @cat_y"
+#+END_SRC
+
+
+
+*** More complex stats in Python                        :noexport:
+**** Export to CSV
+
+#+BEGIN_SRC bash :results verbatim
+
+log_info "Exporting cells..."
+log_warn "Reducing resolution."
+
+LIST=$(g.list type=raster pattern='^outlet_[x|y]$' separator=,)
+echo "x,y,${LIST}" | tr "," "|" > ./tmp/cells_xy.bsv
+g.region res=1000 -a
+r.out.xyz input=${LIST} output=- >> ./tmp/cells_xy.bsv
+g.region BedMachine
+#+END_SRC
+
+
+**** Import & process in Python
+
+#+BEGIN_SRC jupyter-python :tangle VHD.py
+import pandas as pd
+import numpy as np
+
+df_xy = pd.read_csv("./tmp/cells_xy.bsv", delimiter="|", usecols=['x','y']).astype(np.int)
+
+header = pd.read_csv("./tmp/cells_xy.bsv", delimiter="|", nrows=1)
+cols_in = header.columns[['ice' in _ for _ in header.columns]]
+df = pd.read_csv("./tmp/cells_xy.bsv", delimiter="|", usecols=cols_in)
+
+multi_hdr = [np.array([_.split("_")[1] for _ in cols_in]).astype(np.int), 
+             [_.split("_")[2] for _ in cols_in]]
+df.columns = pd.MultiIndex.from_arrays(multi_hdr, names=['k','coord'])
+
+k = np.unique(multi_hdr[0])
+
+for kk in k:
+
+    # mean distance for this k =
+    # all other columns minus this column squared for x
+    # also for y
+    # square root of all that
+    # take the mean of all columns
+
+    df[(kk,'avg_dist')] = (((df.xs('x', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('x', level='coord', axis='columns')[kk]))**2 + (df.xs('y', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('y', level='coord', axis='columns')[kk]))**2)**0.5).mean(axis='columns')
+
+    # same for max, except last step
+
+    df[(kk,'max_dist')] = (((df.xs('x', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('x', level='coord', axis='columns')[kk]))**2 + (df.xs('y', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('y', level='coord', axis='columns')[kk]))**2)**0.5).max(axis='columns')
+
+    # df[(kk,'std_dist')] = (((df.xs('x', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('x', level='coord', axis='columns')[kk]))**2 + (df.xs('y', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('y', level='coord', axis='columns')[kk]))**2)**0.5).std(axis='columns')
+
+df_out = pd.DataFrame()
+df_out['avg_avg'] = df.xs('avg_dist', level='coord', axis='columns').mean(axis='columns')
+# df_out['avg_max'] = df.xs('max_dist', level='coord', axis='columns').mean(axis='columns')
+# df_out['avg_std'] = df.xs('std_dist', level='coord', axis='columns').mean(axis='columns')
+
+# df_out['max_avg'] = df.xs('avg_dist', level='coord', axis='columns').max(axis='columns')
+df_out['max_max'] = df.xs('max_dist', level='coord', axis='columns').max(axis='columns')
+# df_out['max_std'] = df.xs('std_dist', level='coord', axis='columns').max(axis='columns')
+
+# df_out['std_avg'] = df.xs('avg_dist', level='coord', axis='columns').std(axis='columns')
+# df_out['std_max'] = df.xs('max_dist', level='coord', axis='columns').std(axis='columns')
+# df_out['std_std'] = df.xs('std_dist', level='coord', axis='columns').std(axis='columns')
+
+df_out = df_out.merge(df_xy, left_index=True, right_index=True)
+df_out.to_csv("./tmp/cells_xy_ice_stats.bsv", sep="|", float_format='%d')
+#+END_SRC
+
+
+**** Import Python results back to GRASS
+
+#+BEGIN_SRC bash :results verbatim
+
+# run python code above to calculate basin outlet statistics
+
+log_info "Calculating cell outlet statistics..."
+
+python ./VHD.py 
+
+log_info "Re-importing rasters."
+log_warn "Reduced resolution."
+
+g.region res=1000 -a
+r.in.xyz input=./tmp/cells_xy_ice_stats.bsv output=ice_max method=mean x=4 y=5 z=3 skip=1
+r.in.xyz input=./tmp/cells_xy_ice_stats.bsv output=ice_avg method=mean x=4 y=5 z=2 skip=1
+
+# r.in.xyz input=./tmp/cells_xy_land_stats.bsv output=land_max method=mean x=4 y=5 z=3 skip=1
+# r.in.xyz input=./tmp/cells_xy_land_stats.bsv output=land_avg method=mean x=4 y=5 z=2 skip=1
+#+END_SRC
+
+
+*** Find outlet pressure head and elevation head for each inland cell
+
+*** Determine integrated VHD contribution from each inland cell per unit water
+
+*** NOTDONE Volumetric flow through each cell              :grass:
+
+#+BEGIN_SRC bash :results verbatim
+r.mask raster=mask_ice_1 --o # CHECKME
+
+r.mapcalc 'phi_z = 1000 * 9.8 * bed@BedMachine' --o --q
+r.mapcalc 'phi_p = 0.9 * (917 * 9.8 * (surface@BedMachine - bed@BedMachine))' --o --q
+r.mapcalc 'phi = phi_z + phi_p' --o --q
+
+# r.watershed doesn't work with extreme values larger than "normal"
+# terrain (presumably due to buffer overflow), so scale things from Pa to kPa.
+r.mapcalc 'phi_1E4 = phi / 10000' --o  --q # [Pa] to [kpa]
+# See: https://trac.osgeo.org/grass/ticket/2935
+
+r.watershed -s -m -a elevation=phi_1E4 accumulation=V_1000 drainage=fdir
+#+END_SRC
+#+RESULTS:
+
+*** NOTDONE Convert from mmWE to mWE                       :grass:
+
+We left runoff in its original [mmWE] form and therefore accumulation is also in [mmWE], because if we converted to [m] earlier, the small numbers appeared to cause underflow somewhere (probably in =r.watershed=?).
+
+#+BEGIN_SRC bash :results verbatim
+r.mapcalc 'V = V_1000 / 1000'
+#+END_SRC
+#+RESULTS:
+*** NOTDONE \nabla h, h_z, h_p
+#+BEGIN_SRC bash :results verbatim
+
+r.mask mask_ice_1 --o # CHECKME
+r.mapcalc "phi = if(isnull(phi), 0, phi)" --o
+r.mapcalc "delta_phi = 0" --o
+r.mapcalc "delta_phi_z = 0" --o
+r.mapcalc "delta_phi_p = 0" --o
+r.mapcalc "fdir_abs = abs(fdir)" --o
+for dir in $(seq 8); do 
+  if [[ ${dir} == '1' ]]; then r=-1; c=1;  fi # 45 CCW from E; /°
+  if [[ ${dir} == '2' ]]; then r=-1; c=0;  fi # 90 °|
+  if [[ ${dir} == '3' ]]; then r=-1; c=-1; fi # 135 °\
+  if [[ ${dir} == '4' ]]; then r=0;  c=-1; fi # 180 .-
+  if [[ ${dir} == '5' ]]; then r=1;  c=-1; fi # 225 ./
+  if [[ ${dir} == '6' ]]; then r=1;  c=0;  fi # 270 .|
+  if [[ ${dir} == '7' ]]; then r=1;  c=1;  fi # 315 \.
+  if [[ ${dir} == '8' ]]; then r=0;  c=1;  fi # 360 ->
+
+  r.mapcalc "delta_phi = if(fdir_abs == ${dir}, phi - phi[${r},${c}], delta_phi)" --o
+  r.mapcalc "delta_phi_z = if(fdir_abs == ${dir}, phi_z - phi_z[${r},${c}], delta_phi_z)" --o
+  r.mapcalc "delta_phi_p = if(fdir_abs == ${dir}, phi_p - phi_p[${r},${c}], delta_phi_p)" --o
+  echo ${dir}
+done
+
+# r.mapcalc "delta_phi = if(delta_phi < 0, 0, delta_phi)" --o
+#+END_SRC
+#+RESULTS:
+*** NOTDONE Energy dissipated at each point
+
+0.36 is the scaling due to the changing phase change temperature (see Python code embedded in Methods section)
+
+V is in [m^3]
+h should be in [m] since we used unique phi_1E4 for flow routing
+     See https://trac.osgeo.org/grass/ticket/2935
+result is [J] per grid cell per year
+
+#+BEGIN_SRC bash :results verbatim
+r.mask mask_ice_1 --o # CHECKME
+r.mapcalc "VHD = V * ( delta_phi - 0.36 * delta_phi_p )" --o
+#+END_SRC
+
+
+* IMBIE
+
+This spreadsheet contains the IMBIE-2019 datasets for Greenland, which includes data on the annual rate of change and cumulative change in Greenland’s ice sheet mass, its surface mass balance and ice discharge anomalies, and their estimated uncertainty. The data are expressed in units of rate of mass change (Gigatons per year – sheet 1, columns B, C, F, G, J and K) mass (Gigatons – sheet 1, columns D, E, H, I, L and M) and in units of equivalent mean global sea level rise (millimetres per year – sheet 2, columns B, C, F, G, J and K, and millimetres – sheet 2, columns D, E, H, I, L and M).
+
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+df = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+       .rename(columns={"Rate of ice sheet mass change (Gt/yr)":"mb",
+                        "Rate of ice sheet mass change uncertainty (Gt/yr)":"mb_err",
+                        "Cumulative ice sheet mass change (Gt)" : "mb_cum",
+	                "Cumulative ice sheet mass change uncertainty (Gt)" : "mb_cum_err",
+                        "Rate of mass balance anomaly (Gt/yr)":"smb",
+                        "Rate of mass balance anomaly uncertainty (Gt/yr)":"smb_err",
+                        "Rate of ice dynamics anomaly (Gt/yr)":"D",
+                        "Rate of ice dyanamics anomaly uncertainty (Gt/yr)":"D_err"})
+
+df['index'] = pd.to_datetime('1980-01-01') + pd.to_timedelta((df.index-1980) * 365, unit="D")
+# Appears that these fractional dates are supposed to be start-of-month? I think so...
+# Let's hard-code this.
+df['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in df.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+df.tail(30)
+#+END_SRC
+
+#+RESULTS:
+|    Year |       mb |  mb_err |   mb_cum | mb_cum_err |      smb | smb_err |        D |   D_err | index               |
+|---------+----------+---------+----------+------------+----------+---------+----------+---------+---------------------|
+|  2016.5 | -231.338 | 62.4089 | -3704.86 |     330.44 | -174.559 | 86.9118 | -56.7792 | 106.998 | 2016-07-01 00:00:00 |
+| 2016.58 | -269.403 | 65.6814 | -3727.31 |    330.984 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-08-01 00:00:00 |
+| 2016.67 | -269.403 | 65.6814 | -3749.76 |    331.526 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-09-01 00:00:00 |
+| 2016.75 | -269.403 | 65.6814 | -3772.21 |    332.068 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-10-01 00:00:00 |
+| 2016.83 | -269.403 | 65.6814 | -3794.66 |    332.609 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-11-01 00:00:00 |
+| 2016.92 | -269.403 | 65.6814 | -3817.11 |    333.149 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-12-01 00:00:00 |
+|    2017 |  -84.583 | 75.4958 | -3824.16 |    333.861 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-01-01 00:00:00 |
+| 2017.08 |  -84.583 | 75.4958 | -3831.21 |    334.572 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-02-01 00:00:00 |
+| 2017.17 |  -84.583 | 75.4958 | -3838.26 |    335.281 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-03-01 00:00:00 |
+| 2017.25 |  -84.583 | 75.4958 | -3845.31 |    335.988 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-04-01 00:00:00 |
+| 2017.33 |  -84.583 | 75.4958 | -3852.36 |    336.694 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-05-01 00:00:00 |
+| 2017.42 |  -84.583 | 75.4958 |  -3859.4 |    337.399 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-06-01 00:00:00 |
+|  2017.5 |  -84.583 | 75.4958 | -3866.45 |    338.102 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-07-01 00:00:00 |
+| 2017.58 |  -84.583 | 75.4958 |  -3873.5 |    338.804 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-08-01 00:00:00 |
+| 2017.67 |  -84.583 | 75.4958 | -3880.55 |    339.504 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-09-01 00:00:00 |
+| 2017.75 |  -84.583 | 75.4958 |  -3887.6 |    340.203 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-10-01 00:00:00 |
+| 2017.83 |  -84.583 | 75.4958 | -3894.65 |      340.9 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-11-01 00:00:00 |
+| 2017.92 |  -84.583 | 75.4958 |  -3901.7 |    341.596 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-12-01 00:00:00 |
+|    2018 | -75.4444 | 66.0924 | -3907.98 |    342.129 |  45.6531 | 77.0317 | -121.097 | 101.499 | 2018-01-01 00:00:00 |
+| 2018.08 |   -143.8 |    56.8 | -3919.97 |    342.521 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-02-01 00:00:00 |
+| 2018.17 |   -143.8 |    56.8 | -3931.95 |    342.914 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-03-01 00:00:00 |
+| 2018.25 |   -143.8 |    56.8 | -3943.93 |    343.305 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-04-01 00:00:00 |
+| 2018.33 |   -143.8 |    56.8 | -3955.92 |    343.697 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-05-01 00:00:00 |
+| 2018.42 |   -143.8 |    56.8 |  -3967.9 |    344.088 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-06-01 00:00:00 |
+|  2018.5 |   -143.8 |    56.8 | -3979.88 |    344.478 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-07-01 00:00:00 |
+| 2018.58 |   -143.8 |    56.8 | -3991.87 |    344.868 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-08-01 00:00:00 |
+| 2018.67 |   -143.8 |    56.8 | -4003.85 |    345.258 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-09-01 00:00:00 |
+| 2018.75 |   -143.8 |    56.8 | -4015.83 |    345.647 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-10-01 00:00:00 |
+| 2018.83 |   -143.8 |    56.8 | -4027.82 |    346.035 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-11-01 00:00:00 |
+| 2018.92 |   -143.8 |    56.8 |  -4039.8 |    346.424 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-12-01 00:00:00 |
+
 
 * Environment
 ** Python
@@ -926,28 +1809,36 @@ set -x # print commands to STDOUT before running them
 This code, and all code files in this project, are derived products tangled from the sob.org source file.
 
 #+BEGIN_SRC makefile :tangle Makefile :tangle-mode (identity #o444)
-PROMICE_MB: run
+PROMICE_MB: all
 # dist
 
 mar_proj = "+proj=sterea +lat_0=90 +lat_ts=70.5 +lon_0=-40 +k=1 +x_0=0 +y_0=0 	+datum=WGS84 +units=m +no_defs"
 
-run: FORCE
+all: FORCE
 	mkdir -p tmp dat
 
 	# set up
-	grass -c EPSG:4326 G_HIRHAM --exec ./HIRHAM.sh
+	grass -e -c EPSG:4326 G_HIRHAM
+	grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
 	
 	grass -e -c G_tmp --exec g.proj -c location=G_MAR proj4=$(mar_proj)
 	rm -fR G_tmp
 	grass ./G_MAR/PERMANENT --exec ./MAR.sh
 
-	grass -c EPSG:3413 G_RACMO --exec ./RACMO.sh
+	grass -e -c EPSG:3413 G_RACMO
+	grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
 
+	make SMB
+	make dist
+
+SMB: FORCE
 	# partition RCM by Zwally sectors, Mouginot basins, and Mouginot regions
 	grass ./G_HIRHAM/PERMANENT --exec ./HIRHAM_to_sectors.sh
 	grass ./G_MAR/PERMANENT --exec ./MAR_to_sectors.sh
 	grass ./G_RACMO/PERMANENT --exec ./RACMO_to_sectors.sh
-	
+
+dist: FORCE
+	echo "Not done yet"
 	# create end-user data product
 	# parallel --bar "python bsv2netcdf.py {}" ::: $(ls dat/*_runoff_*.bsv)
 
@@ -956,7 +1847,10 @@ run: FORCE
 
 FORCE: # dummy target
 
-clean:
+clean_all:
 	rm -fR G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB
 
+clean_SMB:
+	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
+	
 #+END_SRC
