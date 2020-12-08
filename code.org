@@ -486,7 +486,7 @@ d.rast regions_e@Mouginot_2019
 
 
 
-* SMB to sectors
+* SMB to ROIs
 ** Print dates
 
 #+BEGIN_SRC jupyter-python :tangle nc_dates.py
@@ -661,9 +661,10 @@ done
 ** Merge
 
 Raw (daily) BSV merged to one
-#+BEGIN_SRC bash
+#+BEGIN_SRC bash :tangle merge.sh
 for RCM in HIRHAM MAR RACMO; do
   for ROI in Z Mb Mr; do
+    log_info ${RCM} ${ROI}
     head -n1 ./tmp/${RCM}/${ROI}_2000-01-01.bsv > ./tmp/${RCM}_${ROI}.bsv
     tail -q -n1 ./tmp/${RCM}/${ROI}_*.bsv >> ./tmp/${RCM}_${ROI}.bsv
   done
@@ -671,457 +672,6 @@ done
 #+END_SRC
 
 #+RESULTS:
-
-BSV to NetCDF
-
-#+BEGIN_SRC jupyter-python
-import pandas as pd
-import xarray as xr
-import numpy as np
-import subprocess
-import datetime
-import glob
-from tqdm import tqdm
-
-time = pd.date_range(start = "1986-01-01",
-                     end = datetime.datetime.now() + datetime.timedelta(days = 10),
-                     freq = "D")
-
-ds = xr.Dataset()
-ds["time"] = (("time"), time)
-ds["time"].attrs["cf_role"] = "timeseries_id"
-ds["time"].attrs["standard_name"] = "time"
-ds["time"].attrs["axis"] = "T"
-
-ds["sector"] = pd.read_csv("./tmp/HIRHAM_Z.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
-ds["sector"].attrs["standard_name"] = "Zwally 2012 sectors"
-
-ds["region"] = pd.read_csv("./tmp/HIRHAM_Mr.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
-ds["region"].attrs["standard_name"] = "Mouginot 2019 regions"
-
-ds["basin"] = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
-ds["basin"].attrs["standard_name"] = "Mouginot 2019 basins"
-
-
-
-
-df = pd.read_csv("./tmp/HIRHAM_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_HIRHAM_Z"] = (("time", "sector"), df.values)
-ds["SMB_HIRHAM_Z"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_HIRHAM_Z"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_HIRHAM_Z"].attrs["units"] = "Gt yr-1"
-ds["SMB_HIRHAM_Z"].attrs["coordinates"] = "time sector"
-
-df = pd.read_csv("./tmp/HIRHAM_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_HIRHAM_Mr"] = (("time", "region"), df.values)
-ds["SMB_HIRHAM_Mr"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_HIRHAM_Mr"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_HIRHAM_Mr"].attrs["units"] = "Gt yr-1"
-ds["SMB_HIRHAM_Mr"].attrs["coordinates"] = "time region"
-
-df = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_HIRHAM_Mb"] = (("time", "basin"), df.values)
-ds["SMB_HIRHAM_Mb"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_HIRHAM_Mb"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_HIRHAM_Mb"].attrs["units"] = "Gt yr-1"
-ds["SMB_HIRHAM_Mb"].attrs["coordinates"] = "time region"
-
-
-df = pd.read_csv("./tmp/MAR_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_MAR_Z"] = (("time", "sector"), df.values)
-ds["SMB_MAR_Z"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_MAR_Z"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_MAR_Z"].attrs["units"] = "Gt yr-1"
-ds["SMB_MAR_Z"].attrs["coordinates"] = "time sector"
-
-df = pd.read_csv("./tmp/MAR_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_MAR_Mr"] = (("time", "region"), df.values)
-ds["SMB_MAR_Mr"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_MAR_Mr"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_MAR_Mr"].attrs["units"] = "Gt yr-1"
-ds["SMB_MAR_Mr"].attrs["coordinates"] = "time region"
-
-df = pd.read_csv("./tmp/MAR_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_MAR_Mb"] = (("time", "basin"), df.values)
-ds["SMB_MAR_Mb"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_MAR_Mb"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_MAR_Mb"].attrs["units"] = "Gt yr-1"
-ds["SMB_MAR_Mb"].attrs["coordinates"] = "time region"
-
-
-df = pd.read_csv("./tmp/RACMO_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_RACMO_Z"] = (("time", "sector"), df.values)
-ds["SMB_RACMO_Z"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_RACMO_Z"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_RACMO_Z"].attrs["units"] = "Gt yr-1"
-ds["SMB_RACMO_Z"].attrs["coordinates"] = "time sector"
-
-df = pd.read_csv("./tmp/RACMO_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_RACMO_Mr"] = (("time", "region"), df.values)
-ds["SMB_RACMO_Mr"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_RACMO_Mr"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_RACMO_Mr"].attrs["units"] = "Gt yr-1"
-ds["SMB_RACMO_Mr"].attrs["coordinates"] = "time region"
-
-df = pd.read_csv("./tmp/RACMO_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-ds["SMB_RACMO_Mb"] = (("time", "basin"), df.values)
-ds["SMB_RACMO_Mb"].attrs["long_name"] = "Surface mass balance"
-ds["SMB_RACMO_Mb"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-ds["SMB_RACMO_Mb"].attrs["units"] = "Gt yr-1"
-ds["SMB_RACMO_Mb"].attrs["coordinates"] = "time region"
-
-
-
-
-
-
-
-ds.attrs["featureType"] = "timeSeries"
-ds.attrs["title"] = "Greenland mass balance"
-ds.attrs["summary"] = "Greenland mass balance"
-ds.attrs["keywords"] = "Greenland; Mass; Mass balance"
-# ds.attrs["Conventions"] = "CF-1.8"
-ds.attrs["source"] = "git commit: " + subprocess.check_output(["git", "describe", "--always"]).strip().decode('UTF-8')
-# ds.attrs["comment"] = "TODO"
-# ds.attrs["acknowledgment"] = "TODO"
-# ds.attrs["license"] = "TODO"
-# ds.attrs["date_created"] = datetime.datetime.now().strftime("%Y-%m-%d")
-ds.attrs["creator_name"] = "Ken Mankoff"
-ds.attrs["creator_email"] = "kdm@geus.dk"
-ds.attrs["creator_url"] = "http://kenmankoff.com"
-ds.attrs["institution"] = "GEUS"
-# ds.attrs["time_coverage_start"] = "TODO"
-# ds.attrs["time_coverage_end"] = "TODO"
-# ds.attrs["time_coverage_resolution"] = "TODO"
-ds.attrs["references"] = "10.22008/promice/mass_balance"
-ds.attrs["product_version"] = 1.0
-
-comp = dict(zlib=True, complevel=9)
-encoding = {var: comp for var in ds.data_vars} # all
-
-ds.to_netcdf('./TMB/mb.nc', mode='w', encoding=encoding)
-
-#+END_SRC
-
-#+RESULTS:
-:RESULTS:
-# [goto error]
-#+begin_example
-
-ValueErrorTraceback (most recent call last)
-<ipython-input-194-529e49efdd5f> in <module>
-     51 
-     52 
----> 53 df = pd.read_csv("./tmp/MAR_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-     54 ds["SMB_MAR_Z"] = (("time", "sector"), df.values)
-     55 ds["SMB_MAR_Z"].attrs["long_name"] = "Surface mass balance"
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/util/_decorators.py in wrapper(*args, **kwargs)
-    307         @wraps(func)
-    308         def wrapper(*args, **kwargs) -> Callable[..., Any]:
---> 309             return func(*args, **kwargs)
-    310 
-    311         kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/frame.py in reindex(self, *args, **kwargs)
-   4034         kwargs.pop("axis", None)
-   4035         kwargs.pop("labels", None)
--> 4036         return super().reindex(**kwargs)
-   4037 
-   4038     def drop(
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/generic.py in reindex(self, *args, **kwargs)
-   4459 
-   4460         # perform the reindex on the axes
--> 4461         return self._reindex_axes(
-   4462             axes, level, limit, tolerance, method, fill_value, copy
-   4463         ).__finalize__(self, method="reindex")
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/frame.py in _reindex_axes(self, axes, level, limit, tolerance, method, fill_value, copy)
-   3880         index = axes["index"]
-   3881         if index is not None:
--> 3882             frame = frame._reindex_index(
-   3883                 index, method, copy, level, fill_value, limit, tolerance
-   3884             )
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/frame.py in _reindex_index(self, new_index, method, copy, level, fill_value, limit, tolerance)
-   3899             new_index, method=method, level=level, limit=limit, tolerance=tolerance
-   3900         )
--> 3901         return self._reindex_with_indexers(
-   3902             {0: [new_index, indexer]},
-   3903             copy=copy,
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/generic.py in _reindex_with_indexers(self, reindexers, fill_value, copy, allow_dups)
-   4522 
-   4523             # TODO: speed up on homogeneous DataFrame objects
--> 4524             new_data = new_data.reindex_indexer(
-   4525                 index,
-   4526                 indexer,
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/internals/managers.py in reindex_indexer(self, new_axis, indexer, axis, fill_value, allow_dups, copy, consolidate)
-   1274         # some axes don't allow reindexing with dups
-   1275         if not allow_dups:
--> 1276             self.axes[axis]._can_reindex(indexer)
-   1277 
-   1278         if axis >= self.ndim:
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/indexes/base.py in _can_reindex(self, indexer)
-   3287         # trying to reindex on an axis with duplicates
-   3288         if not self.is_unique and len(indexer):
--> 3289             raise ValueError("cannot reindex from a duplicate axis")
-   3290 
-   3291     def reindex(self, target, method=None, level=None, limit=None, tolerance=None):
-
-ValueError: cannot reindex from a duplicate axis
-#+end_example
-:END:
-
-#+BEGIN_SRC jupyter-python
-# df_HIRHAM_Z = pd.read_csv('./tmp/HIRHAM_z.bsv', index_col=0, parse_dates=True)
-# df_err = pd.read_csv('./out/' + csvfile + '_err.csv', index_col=0, parse_dates=True)
-# df_coverage = pd.read_csv('./out/' + csvfile + '_coverage.csv', index_col=0, parse_dates=True)
-
-# meta = pd.read_csv("./out/gate_meta.csv")
-
-# ds = xr.Dataset()
-
-# ds["time"] = (("time"), df_D.index)
-# ds["time"].attrs["cf_role"] = "timeseries_id"
-# ds["time"].attrs["standard_name"] = "time"
-# # ds["time"].attrs["units"] = "day of year"
-# # ds["time"].attrs["calendar"] = "julian"
-# ds["time"].attrs["axis"] = "T"
-
-# ds["gate"] = (("gate"), df_D.columns.astype(np.int32))
-# ds["gate"].attrs["long_name"] = "Gate"
-# ds["gate"].attrs["standard_name"] = "N/A"
-
-# ds["discharge"] = (("gate", "time"), df_D.T.values.astype(np.float32))
-# ds["discharge"].attrs["long_name"] = "Discharge"
-# ds["discharge"].attrs["standard_name"] = "land_ice_mass_tranport_due_to_calving_and_ice_front_melting"
-# ds["discharge"].attrs["units"] = "Gt yr-1"
-# ds["discharge"].attrs["coordinates"] = "time gate"
-
-# ds["err"] = (("gate", "time"), df_err.T.values.astype(np.float32))
-# ds["err"].attrs["long_name"] = "Error"
-# ds["err"].attrs["standard_name"] = "Uncertainty"
-# ds["err"].attrs["units"] = "Gt yr-1"
-# ds["err"].attrs["coordinates"] = "time gate"
-
-# ds["coverage"] = (("gate", "time"), df_coverage.T.values.astype(np.float32))
-# ds["coverage"].attrs["long_name"] = "Coverage"
-# ds["coverage"].attrs["standard_name"] = "Coverage"
-# # ds["coverage"].attrs["units"] = "-"
-# ds["coverage"].attrs["coordinates"] = "time gate"
-
-# ds["mean_x"] = (("gate"), meta.mean_x.astype(np.int32))
-# ds["mean_x"].attrs["long_name"] = "Mean x coordinate of gate in EPSG:3413"
-# ds["mean_x"].attrs["standard_name"] = "Mean x"
-
-# ds["mean_y"] = (("gate"), meta.mean_y.astype(np.int32))
-# ds["mean_y"].attrs["long_name"] = "Mean y coordinate of gate in EPSG:3413"
-# ds["mean_y"].attrs["standard_name"] = "Mean y"
-
-# ds["mean_lon"] = (("gate"), meta.lon.astype(np.float32))
-# ds["mean_lon"].attrs["long_name"] = "Mean lon coordinate of gate"
-# ds["mean_lon"].attrs["standard_name"] = "Longitude"
-
-# ds["mean_lat"] = (("gate"), meta.lat.astype(np.float32))
-# ds["mean_lat"].attrs["long_name"] = "Mean lat coordinate of gate"
-# ds["mean_lat"].attrs["standard_name"] = "Latitude"
-
-# ds["sector"] = (("gate"), meta.sector.astype(np.int32))
-# ds["sector"].attrs["long_name"] = "Mouginot 2019 sector containing gate"
-
-# ds["region"] = (("gate"), meta.region)
-# ds["region"].attrs["long_name"] = "Mouginot 2019 region containing gate"
-
-# ds["Zwally_2012"] = (("gate"), meta.Zwally_2012)
-# ds["Zwally_2012"].attrs["long_name"] = "Zwally 2012 sector containing gate"
-
-# ds["name_Bjørk"] = (("gate"), meta.Bjork_2015)
-# ds["name_Bjørk"].attrs["long_name"] = "Nearest name from Bjørk (2015)"
-
-# ds["name_Mouginot"] = (("gate"), meta.Mouginot_2019)
-# ds["name_Mouginot"].attrs["long_name"] = "Nearest name from Mouginot (2019)"
-
-# ds.attrs["featureType"] = "timeSeries"
-# ds.attrs["title"] = "Greenland discharge"
-# ds.attrs["summary"] = "Greenland discharge per gate"
-# ds.attrs["keywords"] = "Greenland; Ice Discharge; Calving; Submarine Melt"
-# # ds.attrs["Conventions"] = "CF-1.8"
-# ds.attrs["source"] = "git commit: " + subprocess.check_output(["git", "describe", "--always"]).strip().decode('UTF-8')
-# # ds.attrs["comment"] = "TODO"
-# # ds.attrs["acknowledgment"] = "TODO"
-# # ds.attrs["license"] = "TODO"
-# # ds.attrs["date_created"] = datetime.datetime.now().strftime("%Y-%m-%d")
-# ds.attrs["creator_name"] = "Ken Mankoff"
-# ds.attrs["creator_email"] = "kdm@geus.dk"
-# ds.attrs["creator_url"] = "http://kenmankoff.com"
-# ds.attrs["institution"] = "GEUS"
-# # ds.attrs["time_coverage_start"] = "TODO"
-# # ds.attrs["time_coverage_end"] = "TODO"
-# # ds.attrs["time_coverage_resolution"] = "TODO"
-# ds.attrs["references"] = "10.22008/promice/ice_discharge"
-# ds.attrs["product_version"] = 2.0
-
-# comp = dict(zlib=True, complevel=9)
-# encoding = {var: comp for var in ds.data_vars} # all
-
-# ds.to_netcdf('./out/gate.nc', mode='w', encoding=encoding)
-
-#+END_SRC
-
-#+RESULTS:
-:   0%|          | 0/3 [00:00<?, ?it/s]100%|██████████| 3/3 [00:00<00:00, 10356.31it/s]HIRHAM
-: MAR
-: RACMO
-: 
-
-
-* MMB to ROI
-** Mankoff 2020
-#+BEGIN_SRC jupyter-python :tangle D_to_sector.py
-import xarray as xr
-
-ds = xr.open_dataset("/home/kdm/data/Mankoff_2020/ice/latest/gate.nc")
-
-ds_Z = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector"])\
-          .groupby("Zwally_2012")\
-          .sum()
-
-ds_Mb = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat"])\
-          .groupby("sector")\
-          .sum()
-
-ds_Mr = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector"])\
-          .groupby("region")\
-          .sum()
-
-print(ds_Z['discharge'].to_dataframe().unstack().T.head())
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-Zwally_2012                  11     12     13         21         31         32         33  \
-          time                                                                              
-discharge 1986-04-15  15.504001  4.844  0.803  21.589001  15.722001  11.582000  34.144005   
-          1986-05-15  14.807000  4.844  0.803  21.708000  15.662001  11.475000  34.777004   
-          1986-06-15  18.068998  4.843  0.803  21.833000  16.401001  11.731999  36.752995   
-          1986-07-15  19.074999  4.844  0.803  19.969000  16.516001  11.771999  35.920002   
-          1986-08-15  18.014999  4.844  0.803  21.770000  16.478001  11.165000  36.254002   
-
-Zwally_2012                  41         42         43         50     61     62         71  \
-          time                                                                              
-discharge 1986-04-15  40.632000  62.001999  40.166000  29.128998  6.737  1.972  23.174000   
-          1986-05-15  44.097000  60.396004  39.656998  29.122000  6.740  1.931  30.070000   
-          1986-06-15  44.028000  58.748009  39.128002  29.115999  6.743  1.887  30.006001   
-          1986-07-15  45.708996  58.844002  38.619003  29.113003  6.746  1.845  29.944000   
-          1986-08-15  43.092999  62.721001  38.094006  29.105003  6.749  1.803  29.879999   
-
-Zwally_2012                  72         81        82  
-          time                                        
-discharge 1986-04-15  46.439999  83.981003  7.387001  
-          1986-05-15  46.694004  84.958000  7.380000  
-          1986-06-15  46.781002  87.003983  7.375000  
-          1986-07-15  46.840996  89.250000  7.368001  
-          1986-08-15  45.588997  88.822014  7.361000  
-#+end_example
-
-
-** Mouginot 2019
-
-#+BEGIN_SRC jupyter-python
-df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
-
-c0 = 29 # Column containing 1986
-c1 = 61 # Last column
-r0 = 8  # sub-table start
-r1 = 15 # sub-table stop
-D =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
-                  data = df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values,
-                  columns = df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int)).T
-D.index.name = "Date"
-D
-
-c2  = 96
-c3 = 128
-D_err =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
-                      data = df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values,
-                      columns = df.iloc[r0-1][df.columns[c2:(c3 + 1)]].astype(np.int)).T
-D_err.index.name = "Date"
-D_err
-
-
-
-
-
-
-
-# r0 = 18  # sub-table start
-# r1 = 15 # sub-table stop
-# D =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
-#                   data = df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values,
-#                   columns = df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int)).T
-# D.index.name = "Date"
-# D
-
-# c2  = 96
-# c3 = 128
-# D_err =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
-#                       data = df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values,
-#                       columns = df.iloc[r0-1][df.columns[c2:(c3 + 1)]].astype(np.int)).T
-# D_err.index.name = "Date"
-# D_err
-
-
-
-
-
-
-
-
-
-#+END_SRC
-
-#+RESULTS:
-| Date |      SW |      CW |      NW |      NO |      NE |      CE |      SE |
-|------+---------+---------+---------+---------+---------+---------+---------|
-| 1986 | 6.39625 | 4.72754 | 2.38358 | 1.63729 | 3.90171 | 3.58464 | 6.26399 |
-| 1987 | 5.75199 | 4.96941 | 2.45813 | 1.56809 | 3.18116 | 3.80129 |  5.9118 |
-| 1988 |    5.16 | 4.71652 |  2.4065 | 1.59757 | 2.88738 |  3.2834 | 6.06374 |
-| 1989 | 4.62963 | 4.79985 | 2.42505 | 1.47593 | 2.18272 | 3.70168 | 5.17736 |
-| 1990 | 4.17212 | 4.83942 | 2.48977 | 1.43793 | 2.14466 | 3.76175 | 5.27879 |
-| 1991 | 3.82206 | 4.85328 | 2.39979 | 1.48182 | 2.26422 | 3.91059 | 5.47042 |
-| 1992 | 3.65411 | 4.55641 | 2.43593 | 1.44005 | 2.14691 | 5.30484 |  5.6089 |
-| 1993 | 3.64839 | 4.69709 | 2.39624 |  1.6146 | 2.30081 | 5.26971 | 7.09088 |
-| 1994 | 3.64255 | 4.60775 | 2.54011 | 1.44794 | 2.10937 | 5.74289 | 6.89653 |
-| 1995 | 3.62894 | 4.39499 | 2.61485 | 1.56702 | 2.11486 |  4.9321 | 6.82442 |
-| 1996 | 3.51352 | 4.68193 | 2.54174 |  1.4639 | 2.00207 | 5.19833 | 5.48101 |
-| 1997 | 3.46357 | 4.36486 | 2.64467 |  1.5321 | 2.01441 | 6.37345 | 5.67094 |
-| 1998 |   3.415 | 4.61574 | 2.36702 | 1.66198 | 1.99784 | 6.26478 | 5.58793 |
-| 1999 | 3.35585 | 4.53863 | 2.32118 |   1.677 | 1.98387 |  6.7796 | 5.52591 |
-| 2000 | 3.39966 |  5.8818 | 3.42818 | 1.51398 | 2.04081 | 4.12785 | 7.05655 |
-| 2001 | 3.67663 | 6.12703 | 2.69904 | 1.53292 | 1.95297 | 4.12014 | 5.64725 |
-| 2002 | 4.27788 | 4.28093 | 2.72628 | 1.60927 | 2.15423 | 4.04651 | 6.89033 |
-| 2003 | 4.26662 | 6.71444 | 2.49513 |  1.7854 | 2.20818 | 4.17898 | 6.86905 |
-| 2004 | 3.89778 | 6.91594 | 2.63926 | 1.79659 | 2.04922 | 4.34439 | 6.18362 |
-| 2005 | 3.71913 | 6.81152 | 2.61378 | 1.65053 | 2.08252 | 7.49266 | 6.26086 |
-| 2006 |  4.5809 |   6.767 | 2.61186 | 1.77084 | 2.02779 | 8.20212 |  5.7107 |
-| 2007 | 5.51983 | 6.70576 | 2.56404 | 1.77298 | 2.06704 |  7.3861 | 5.59826 |
-| 2008 | 4.85753 |  6.9526 | 2.63584 | 1.71374 | 2.08598 | 7.18677 | 5.86512 |
-| 2009 | 4.61921 | 6.66087 | 2.69473 | 1.51692 |  2.0466 | 6.53872 | 6.13972 |
-| 2010 | 4.30496 | 7.35043 | 2.65021 | 1.61146 | 2.19988 | 6.33188 | 6.25135 |
-| 2011 | 4.72156 | 6.77581 |  2.8259 | 1.79008 | 2.20814 | 6.52244 | 6.63427 |
-| 2012 | 4.76317 | 7.29886 | 2.85012 | 1.77425 | 2.35668 |  6.8472 | 6.51387 |
-| 2013 | 4.59133 | 7.45694 | 2.77906 | 1.94955 | 2.18406 | 6.47556 | 6.06294 |
-| 2014 | 4.12034 | 7.56739 | 2.96806 | 2.09472 | 2.33947 |  6.2547 | 6.03204 |
-| 2015 | 4.32102 | 7.41726 | 3.00687 | 1.91911 | 2.45207 | 6.00333 | 6.12812 |
-| 2016 | 4.28208 | 7.33231 | 2.98299 | 1.78163 | 2.48866 | 5.81663 | 5.87333 |
-| 2017 | 3.86859 | 6.32904 |  3.3492 | 1.76588 | 2.49688 | 5.90265 | 5.82881 |
-| 2018 | 4.06431 | 6.00724 | 3.54655 | 1.89799 | 2.72033 | 6.49952 | 5.95446 |
-
-
 
 * BMB
 ** GHF
@@ -1459,10 +1009,494 @@ r.mapcalc "VHD = V * ( delta_phi - 0.36 * delta_phi_p )" --o
 #+END_SRC
 
 
-* IMBIE
+* TMB
+Generate a TMB netcdf file from SMB, MMB, and BMB
+
+** Load SMB
+
+#+NAME: load_smb
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+import xarray as xr
+import numpy as np
+import datetime
+
+time = pd.date_range(start = "1986-01-01",
+                     end = datetime.date.today() + datetime.timedelta(days = 10),
+                     freq = "D")
+
+smb = xr.Dataset()
+smb["time"] = (("time"), time)
+
+smb["sector"] = pd.read_csv("./tmp/HIRHAM_Z.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+
+rstr = {11:'NW', 12:'NO', 1:'NE', 3:'CE', 9:'CW', 5:'SE', 7:'SW'}
+rnum = pd.read_csv("./tmp/HIRHAM_Mr.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+smb["region"] = [rstr[n] for n in rnum]
+
+smb["basin"] = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+
+df = pd.read_csv("./tmp/HIRHAM_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["HIRHAM_Z"] = (("time", "sector"), df.values)
+
+df = pd.read_csv("./tmp/HIRHAM_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["HIRHAM_Mr"] = (("time", "region"), df.values)
+
+df = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["HIRHAM_Mb"] = (("time", "basin"), df.values)
+
+df = pd.read_csv("./tmp/MAR_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["MAR_Z"] = (("time", "sector"), df.values)
+
+df = pd.read_csv("./tmp/MAR_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["MAR_Mr"] = (("time", "region"), df.values)
+
+df = pd.read_csv("./tmp/MAR_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["MAR_Mb"] = (("time", "basin"), df.values)
+
+df = pd.read_csv("./tmp/RACMO_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["RACMO_Z"] = (("time", "sector"), df.values)
+
+df = pd.read_csv("./tmp/RACMO_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["RACMO_Mr"] = (("time", "region"), df.values)
+
+df = pd.read_csv("./tmp/RACMO_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+smb["RACMO_Mb"] = (("time", "basin"), df.values)
+
+
+#           mm->m   grid cells    m^3->kg  kg->Gt
+smb = smb * 1E-3  * 1000 * 1000 * 1E3    / 1E12
+#+END_SRC
+
+#+RESULTS: load_smb
+
+** Load MMB (Mankoff 2020)
+
+#+NAME: load_mmb
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+
+ds = xr.open_dataset("/home/kdm/data/Mankoff_2020/ice/latest/gate.nc")
+
+# rstr = {'NW':11, 'NO':12, 'NE':1, 'CE':3, 'CW':9, 'SE':5, 'SW':7}
+# rnum = [rstr[r] for r in ds['region'].values]
+# ds['region'] = (('gate'), rnum)
+
+ds_Z = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","region","coverage"])\
+          .groupby("Zwally_2012")\
+          .sum()\
+          .rename({"Zwally_2012":"sector",
+                   "discharge":"D_Z",
+                   "err":"err_Z"})
+
+ds_Mr = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwally_2012","coverage"])\
+          .groupby("region")\
+          .sum()\
+          .rename({"discharge":"D_Mr",
+                   "err":"err_Mr"})
+
+
+ds_Mb = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","Zwally_2012","region","coverage"])\
+          .groupby("sector")\
+          .sum()\
+          .rename({"sector":"basin",
+                   "discharge":"D_Mb",
+                   "err":"err_Mb"})
+
+mmb = ds_Z
+mmb = mmb.merge(ds_Mr)
+mmb = mmb.merge(ds_Mb)
+
+
+
+# convert from Gt/year @ misc time-steps -> Gt/day @ daily timestep
+mmb = (mmb / 365).resample({"time":"1D"})\
+                 .mean()\
+                 .interpolate_na(dim="time")
+#+END_SRC
+
+#+RESULTS: load_mmb
+
+** Create TMB output
+
+#+BEGIN_SRC jupyter-python
+<<load_smb>>
+# Populates smb dataset
+
+<<load_mmb>>
+# Populates mmb dataset
+
+
+# match times
+t0 = np.min([smb['time'].min().values,
+             mmb['time'].min().values,
+             np.datetime64(datetime.datetime(year=1986, month=1, day=1))])
+t1 = np.max([smb['time'].max().values,
+             mmb['time'].max().values,
+             np.datetime64(datetime.date.today() + datetime.timedelta(days = 7))])
+time = pd.date_range(start=t0, end=t1, freq="D")
+smb = smb.reindex({'time':time})
+mmb = mmb.reindex({'time':time})
+
+# add the sectors from SMB to MMB (14 and 21(?) don't have any MMB)
+mmb = mmb.reindex({'sector': smb['sector']}).fillna(0)
+mmb = mmb.reindex({'basin': smb['basin']}).fillna(0)
+mmb = mmb.ffill(dim='time')
+#+END_SRC
+
+#+RESULTS:
+
+
+#+BEGIN_SRC jupyter-python
+mb = xr.Dataset()
+mb["time"] = (("time"), time)
+mb["time"].attrs["cf_role"] = "timeseries_id"
+mb["time"].attrs["standard_name"] = "time"
+mb["time"].attrs["axis"] = "T"
+
+mb['sector'] = smb['sector']
+mb["sector"].attrs["standard_name"] = "Zwally 2012 sectors"
+
+mb['region'] = smb['region']
+mb["region"].attrs["standard_name"] = "Mouginot 2019 regions"
+
+mb['basin'] = smb['basin']
+mb["basin"].attrs["standard_name"] = "Mouginot 2019 basins"
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC jupyter-python
+import subprocess
+
+mb["HIRHAM_sector"] = (("time", "sector"), smb['HIRHAM_Z']-mmb['D_Z'])
+mb["HIRHAM_sector"].attrs["long_name"] = "Mass balance"
+mb["HIRHAM_sector"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["HIRHAM_sector"].attrs["units"] = "Gt yr-1"
+mb["HIRHAM_sector"].attrs["coordinates"] = "time sector"
+
+mb["HIRHAM_region"] = (("time", "region"), smb['HIRHAM_Mr']-mmb['D_Mr'])
+mb["HIRHAM_region"].attrs["long_name"] = "Mass balance"
+mb["HIRHAM_region"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["HIRHAM_region"].attrs["units"] = "Gt yr-1"
+mb["HIRHAM_region"].attrs["coordinates"] = "time region"
+
+mb["HIRHAM_basin"] = (("time", "basin"), smb['HIRHAM_Mb']-mmb['D_Mb'])
+mb["HIRHAM_basin"].attrs["long_name"] = "Mass balance"
+mb["HIRHAM_basin"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["HIRHAM_basin"].attrs["units"] = "Gt yr-1"
+mb["HIRHAM_basin"].attrs["coordinates"] = "time region"
+
+
+
+
+
+mb["MAR_sector"] = (("time", "sector"), smb['MAR_Z']-mmb['D_Z'])
+mb["MAR_sector"].attrs["long_name"] = "Mass balance"
+mb["MAR_sector"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["MAR_sector"].attrs["units"] = "Gt yr-1"
+mb["MAR_sector"].attrs["coordinates"] = "time sector"
+
+mb["MAR_region"] = (("time", "region"), smb['MAR_Mr']-mmb['D_Mr'])
+mb["MAR_region"].attrs["long_name"] = "Mass balance"
+mb["MAR_region"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["MAR_region"].attrs["units"] = "Gt yr-1"
+mb["MAR_region"].attrs["coordinates"] = "time region"
+
+mb["MAR_basin"] = (("time", "basin"), smb['MAR_Mb']-mmb['D_Mb'])
+mb["MAR_basin"].attrs["long_name"] = "Mass balance"
+mb["MAR_basin"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["MAR_basin"].attrs["units"] = "Gt yr-1"
+mb["MAR_basin"].attrs["coordinates"] = "time region"
+
+
+
+
+mb["RACMO_sector"] = (("time", "sector"), smb['RACMO_Z']-mmb['D_Z'])
+mb["RACMO_sector"].attrs["long_name"] = "Mass balance"
+mb["RACMO_sector"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["RACMO_sector"].attrs["units"] = "Gt yr-1"
+mb["RACMO_sector"].attrs["coordinates"] = "time sector"
+
+mb["RACMO_region"] = (("time", "region"), smb['RACMO_Mr']-mmb['D_Mr'])
+mb["RACMO_region"].attrs["long_name"] = "Mass balance"
+mb["RACMO_region"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["RACMO_region"].attrs["units"] = "Gt yr-1"
+mb["RACMO_region"].attrs["coordinates"] = "time region"
+
+mb["RACMO_basin"] = (("time", "basin"), smb['RACMO_Mb']-mmb['D_Mb'])
+mb["RACMO_basin"].attrs["long_name"] = "Mass balance"
+mb["RACMO_basin"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["RACMO_basin"].attrs["units"] = "Gt yr-1"
+mb["RACMO_basin"].attrs["coordinates"] = "time region"
+
+
+mb["HIRHAM_sector"] = (("time", "sector"), smb['HIRHAM_Z']-mmb['D_Z'])
+
+mb['MB_sector'] = ( mb['HIRHAM_sector'].fillna(0) \
+                    + mb['MAR_sector'].fillna(0) \
+                    + mb['RACMO_sector'].fillna(0) ) \
+                    / ( mb['HIRHAM_sector'].notnull() \
+                        + mb['MAR_sector'].notnull() \
+                        + mb['RACMO_sector'].notnull() )
+mb["MB_sector"].attrs["long_name"] = "Mass balance (RCM mean)"
+mb["MB_sector"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["MB_sector"].attrs["units"] = "Gt yr-1"
+mb["MB_sector"].attrs["coordinates"] = "time region"
+
+mb['MB_region'] = ( mb['HIRHAM_region'].fillna(0) \
+                    + mb['MAR_region'].fillna(0) \
+                    + mb['RACMO_region'].fillna(0) ) \
+                    / ( mb['HIRHAM_region'].notnull() \
+                        + mb['MAR_region'].notnull() \
+                        + mb['RACMO_region'].notnull() )
+mb["MB_region"].attrs["long_name"] = "Mass balance (RCM mean)"
+mb["MB_region"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["MB_region"].attrs["units"] = "Gt yr-1"
+mb["MB_region"].attrs["coordinates"] = "time region"
+
+mb['MB_basin'] = ( mb['HIRHAM_basin'].fillna(0) \
+                    + mb['MAR_basin'].fillna(0) \
+                    + mb['RACMO_basin'].fillna(0) ) \
+                    / ( mb['HIRHAM_basin'].notnull() \
+                        + mb['MAR_basin'].notnull() \
+                        + mb['RACMO_basin'].notnull() )
+mb["MB_basin"].attrs["long_name"] = "Mass balance (RCM mean)"
+mb["MB_basin"].attrs["standard_name"] = "land_ice_mass_tranport"
+mb["MB_basin"].attrs["units"] = "Gt yr-1"
+mb["MB_basin"].attrs["coordinates"] = "time region"
+
+
+
+mb.attrs["featureType"] = "timeSeries"
+mb.attrs["title"] = "Greenland mass balance"
+mb.attrs["summary"] = "Greenland mass balance"
+mb.attrs["keywords"] = "Greenland; Mass; Mass balance"
+# mb.attrs["Conventions"] = "CF-1.8"
+mb.attrs["source"] = "git commit: " + subprocess.check_output(["git", "describe", "--always"]).strip().decode('UTF-8')
+# mb.attrs["comment"] = "TODO"
+# mb.attrs["acknowledgment"] = "TODO"
+# mb.attrs["license"] = "TODO"
+# mb.attrs["date_created"] = datetime.datetime.now().strftime("%Y-%m-%d")
+mb.attrs["creator_name"] = "Ken Mankoff"
+mb.attrs["creator_email"] = "kdm@geus.dk"
+mb.attrs["creator_url"] = "http://kenmankoff.com"
+mb.attrs["institution"] = "GEUS"
+# mb.attrs["time_coverage_start"] = "TODO"
+# mb.attrs["time_coverage_end"] = "TODO"
+# mb.attrs["time_coverage_resolution"] = "TODO"
+mb.attrs["references"] = "10.22008/promice/mass_balance"
+mb.attrs["product_version"] = 1.0
+
+comp = dict(zlib=True, complevel=9)
+encoding = {var: comp for var in mb.data_vars} # all
+
+mb.to_netcdf('./TMB/mb.nc', mode='w', encoding=encoding)
+
+#+END_SRC
+
+#+RESULTS:
+
+
+
+*** Old
+
+#+BEGIN_SRC jupyter-python
+
+
+smb = tmb.load_smb()
+r_conv = ast.literal_eval(smb['region'].attrs['region_names'])
+smb['region'] = [r_conv[_] for _ in smb['region'].values]
+
+
+mb_HIRHAM_Z = smb['SMB_HIRHAM_Z'] - D_Z['discharge'].rename({'Zwally_2012':'sector'})
+mb_HIRHAM_Mr = smb['SMB_HIRHAM_Mr'] - D_Mr['discharge']
+mb_HIRHAM_Mb = smb['SMB_HIRHAM_Mb'] - D_Mb['discharge'].rename({'sector':'basin'})
+
+mb['MB_sector'].to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').cumsum().plot()
+mb['MB_sector'].to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').cumsum().sum(axis='columns').plot()
+
+mb_HIRHAM_Z.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_HIRHAM_Z.csv")
+mb_HIRHAM_Mr.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_HIRHAM_Mr.csv")
+mb_HIRHAM_Mb.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_HIRHAM_Mb.csv")
+
+mb_MAR_Z = smb['SMB_MAR_Z'] - D_Z['discharge'].rename({'Zwally_2012':'sector'})
+mb_MAR_Mr = smb['SMB_MAR_Mr'] - D_Mr['discharge']
+mb_MAR_Mb = smb['SMB_MAR_Mb'] - D_Mb['discharge'].rename({'sector':'basin'})
+
+mb_MAR_Z.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_MAR_Z.csv")
+mb_MAR_Mr.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_MAR_Mr.csv")
+mb_MAR_Mb.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_MAR_Mb.csv")
+
+mb_RACMO_Z = smb['SMB_RACMO_Z'] - D_Z['discharge'].rename({'Zwally_2012':'sector'})
+mb_RACMO_Mr = smb['SMB_RACMO_Mr'] - D_Mr['discharge']
+mb_RACMO_Mb = smb['SMB_RACMO_Mb'] - D_Mb['discharge'].rename({'sector':'basin'})
+
+mb_RACMO_Z.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_RACMO_Z.csv")
+mb_RACMO_Mr.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_RACMO_Mr.csv")
+mb_RACMO_Mb.to_dataframe(name='mb').unstack().droplevel(level=0, axis='columns').to_csv("./TMB/MB_RACMO_Mb.csv")
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+# [goto error]
+: 
+: NameErrorTraceback (most recent call last)
+: <ipython-input-176-596a76579fef> in <module>
+: ----> 1 smb = tmb.load_smb()
+:       2 r_conv = ast.literal_eval(smb['region'].attrs['region_names'])
+:       3 smb['region'] = [r_conv[_] for _ in smb['region'].values]
+:       4 
+:       5 
+: 
+: NameError: name 'tmb' is not defined
+:END:
+
+#+BEGIN_SRC jupyter-python
+tmb_GIS = smb_GIS - D_GIS['discharge']
+
+# all of GIS
+D_GIS = D_Z.sum(dim="Zwally_2012")
+# 
+
+### SMB
+# all of GIS
+smb_GIS = smb[["SMB_HIRHAM_Z","SMB_MAR_Z","SMB_RACMO_Z"]].sum(dim="sector")
+
+# fig.clf(); ax = fig.add_subplot(111); (smb_GIS*1E-3*1000*1000/1E9).to_dataframe().loc['2019-09':].plot(ax=ax)
+
+print(smb_GIS)
+print(D_GIS)
+
+print(tmb_GIS)
+
+t0 = imbie.dropna().index[0]
+(tmb_GIS.to_dataframe().loc[t0:].cumsum()).plot(ax=ax)
+
+#+END_SRC
+
+* Validation prep
+** SEC
+:PROPERTIES:
+:header-args:bash+: :tangle SEC.sh
+:END:
+
+Convert SEC NetCDF to CSV - easier import into GRASS
+
+#+BEGIN_SRC jupyter-python :tangle SEC_prep.py
+import pandas as pd
+import numpy as np
+import xarray as xr
+import pyproj
+from pyproj import Transformer
+from pyproj import CRS
+
+ds = xr.open_dataset("/home/kdm/data/CCI/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers2.0_2020-08-26.nc")
+
+time = pd.to_datetime(ds['time'].values.flatten()).strftime("%Y-%m")
+cols = np.append(np.array(['x','y']),time)
+lon = ds['lon'].values.flatten()
+lat = ds['lat'].values.flatten()
+SEC = pd.DataFrame(index=np.arange(lon.size), columns=cols)
+
+SECer = SEC.copy(deep=True)
+for i,t in enumerate(time):
+    SEC[t] = ds['SEC'].isel({'t':i}).values.flatten()
+    SECer[t] = ds['SECer'].isel({'t':i}).values.flatten()
+
+CRS.from_epsg(4326) # lat,lon
+CRS.from_epsg(3413) # x,y
+transformer = Transformer.from_crs(4326, 3413, always_xy=True)
+x,y = transformer.transform(lon, lat)
+SEC['x'] = x
+SEC['y'] = y
+SECer['x'] = x
+SECer['y'] = y
+
+SEC.dropna(axis='rows', how='all', subset=time, inplace=True)
+SECer.dropna(axis='rows', how='all', subset=time, inplace=True)
+
+SEC.replace(np.nan, 0, inplace=True)
+SECer.replace(np.nan, 0, inplace=True)
+
+SEC.to_csv("./tmp/SEC.bsv", sep="|", index=False)
+SECer.to_csv("./tmp/SECer.bsv", sep="|", index=False)
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC bash
+
+<<init_bash>>
+<<init_grass>>
+
+g.mapset -c SEC
+
+eval $(r.in.xyz -sg input=./tmp/SEC.bsv skip=1)
+g.region e=${e} w=${w} n=${n} s=${s}
+
+# manually tune resolution until coverage is >= 1
+g.region res=5000 -pa
+r.in.xyz skip=1 input=./tmp/SEC.bsv output=n method=n
+r.info n
+g.region save=SEC
+
+g.mapset PERMANENT
+g.region region=SEC@SEC # 
+g.region res=1000 -pa
+g.region save=sectors
+g.mapset SEC
+g.region region=SEC
+
+times=( $(head -n1 ./tmp/SEC.bsv | tr '|' '\n') )
+ntimes=4 # debug
+ntimes=$(( ${#times[@]} - 1 ))
+for i in $(seq $ntimes); do
+    if [[ "${times[${i}]}" == @(x|y) ]]; then continue; fi
+    log_info ${i} of ${#times[@]}: ${times[${i}]}
+    r.in.xyz skip=1 input=./tmp/SEC.bsv z=$(( ${i} + 1 )) output=SEC_${times[${i}]}
+    r.in.xyz skip=1 input=./tmp/SECer.bsv z=$(( ${i} + 1 )) output=SECer_${times[${i}]}
+done
+#+END_SRC
+
+*** ROIs
+#+BEGIN_SRC bash
+<<import_mouginot>>
+<<import_zwally>>
+
+g.mapset Mouginot_2019
+g.region region=sectors	 
+r.mapcalc "mask_ice = if( \"SEC_1994-07@SEC\" )"
+
+g.mapset Zwally_2012
+g.region region=sectors	 
+r.mapcalc "mask_ice = if( \"SEC_1994-07@SEC\" )"
+	
+<<expand_mouginot>>
+<<expand_zwally>>
+
+g.mapset SEC	
+#+END_SRC
+
+*** Partition SEC to ROIs
+#+BEGIN_SRC bash
+
+mkdir -p tmp/SEC
+
+SEC=$(g.list type=raster pattern=SEC_????-?? separator=comma)
+SECer=$(g.list type=raster pattern=SECer_????-?? separator=comma)
+LIST=sectors_e@Zwally_2012,regions_e@Mouginot_2019,basins_e@Mouginot_2019,${SEC},${SECer}
+
+# (echo ${LIST}; r.out.xyz input=${LIST} separator=comma | cut -d, -f3-) | head
+(echo ${LIST}; r.out.xyz input=${LIST} separator=comma | cut -d, -f3-) > ./tmp/SEC_SECer.csv
+
+#+END_SRC
+** GRACE
+** IMBIE
 
 This spreadsheet contains the IMBIE-2019 datasets for Greenland, which includes data on the annual rate of change and cumulative change in Greenland’s ice sheet mass, its surface mass balance and ice discharge anomalies, and their estimated uncertainty. The data are expressed in units of rate of mass change (Gigatons per year – sheet 1, columns B, C, F, G, J and K) mass (Gigatons – sheet 1, columns D, E, H, I, L and M) and in units of equivalent mean global sea level rise (millimetres per year – sheet 2, columns B, C, F, G, J and K, and millimetres – sheet 2, columns D, E, H, I, L and M).
 
+#+NAME: load_imbie
 #+BEGIN_SRC jupyter-python
 import pandas as pd
 df = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
@@ -1479,42 +1513,192 @@ df['index'] = pd.to_datetime('1980-01-01') + pd.to_timedelta((df.index-1980) * 3
 # Appears that these fractional dates are supposed to be start-of-month? I think so...
 # Let's hard-code this.
 df['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in df.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+df.index = df['index']
+df = df.drop('index', axis='columns')
 df.tail(30)
 #+END_SRC
 
+#+RESULTS: load_imbie
+| index               |       mb |  mb_err |   mb_cum | mb_cum_err |      smb | smb_err |        D |   D_err |
+|---------------------+----------+---------+----------+------------+----------+---------+----------+---------|
+| 2016-07-01 00:00:00 | -231.338 | 62.4089 | -3704.86 |     330.44 | -174.559 | 86.9118 | -56.7792 | 106.998 |
+| 2016-08-01 00:00:00 | -269.403 | 65.6814 | -3727.31 |    330.984 | -174.559 | 86.9118 | -94.8442 | 108.939 |
+| 2016-09-01 00:00:00 | -269.403 | 65.6814 | -3749.76 |    331.526 | -174.559 | 86.9118 | -94.8442 | 108.939 |
+| 2016-10-01 00:00:00 | -269.403 | 65.6814 | -3772.21 |    332.068 | -174.559 | 86.9118 | -94.8442 | 108.939 |
+| 2016-11-01 00:00:00 | -269.403 | 65.6814 | -3794.66 |    332.609 | -174.559 | 86.9118 | -94.8442 | 108.939 |
+| 2016-12-01 00:00:00 | -269.403 | 65.6814 | -3817.11 |    333.149 | -174.559 | 86.9118 | -94.8442 | 108.939 |
+| 2017-01-01 00:00:00 |  -84.583 | 75.4958 | -3824.16 |    333.861 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-02-01 00:00:00 |  -84.583 | 75.4958 | -3831.21 |    334.572 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-03-01 00:00:00 |  -84.583 | 75.4958 | -3838.26 |    335.281 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-04-01 00:00:00 |  -84.583 | 75.4958 | -3845.31 |    335.988 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-05-01 00:00:00 |  -84.583 | 75.4958 | -3852.36 |    336.694 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-06-01 00:00:00 |  -84.583 | 75.4958 |  -3859.4 |    337.399 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-07-01 00:00:00 |  -84.583 | 75.4958 | -3866.45 |    338.102 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-08-01 00:00:00 |  -84.583 | 75.4958 |  -3873.5 |    338.804 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-09-01 00:00:00 |  -84.583 | 75.4958 | -3880.55 |    339.504 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-10-01 00:00:00 |  -84.583 | 75.4958 |  -3887.6 |    340.203 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-11-01 00:00:00 |  -84.583 | 75.4958 | -3894.65 |      340.9 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2017-12-01 00:00:00 |  -84.583 | 75.4958 |  -3901.7 |    341.596 |  32.2868 | 110.905 |  -116.87 | 134.163 |
+| 2018-01-01 00:00:00 | -75.4444 | 66.0924 | -3907.98 |    342.129 |  45.6531 | 77.0317 | -121.097 | 101.499 |
+| 2018-02-01 00:00:00 |   -143.8 |    56.8 | -3919.97 |    342.521 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-03-01 00:00:00 |   -143.8 |    56.8 | -3931.95 |    342.914 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-04-01 00:00:00 |   -143.8 |    56.8 | -3943.93 |    343.305 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-05-01 00:00:00 |   -143.8 |    56.8 | -3955.92 |    343.697 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-06-01 00:00:00 |   -143.8 |    56.8 |  -3967.9 |    344.088 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-07-01 00:00:00 |   -143.8 |    56.8 | -3979.88 |    344.478 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-08-01 00:00:00 |   -143.8 |    56.8 | -3991.87 |    344.868 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-09-01 00:00:00 |   -143.8 |    56.8 | -4003.85 |    345.258 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-10-01 00:00:00 |   -143.8 |    56.8 | -4015.83 |    345.647 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-11-01 00:00:00 |   -143.8 |    56.8 | -4027.82 |    346.035 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+| 2018-12-01 00:00:00 |   -143.8 |    56.8 |  -4039.8 |    346.424 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
+
+* Figures
+** TMB vs. Mouginot 2019
+
+#+BEGIN_SRC jupyter-python
+df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
+
+c0 = 29 # Column containing 1986
+c1 = 61 # Last column
+r0 = 8  # sub-table start
+r1 = 15 # sub-table stop
+D =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+                  data = df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values,
+                  columns = df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int)).T
+D.index.name = "Date"
+D
+
+c2  = 96
+c3 = 128
+D_err =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+                      data = df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values,
+                      columns = df.iloc[r0-1][df.columns[c2:(c3 + 1)]].astype(np.int)).T
+D_err.index.name = "Date"
+D_err
+
+# r0 = 18  # sub-table start
+# r1 = 15 # sub-table stop
+# D =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+#                   data = df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values,
+#                   columns = df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int)).T
+# D.index.name = "Date"
+# D
+
+# c2  = 96
+# c3 = 128
+# D_err =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
+#                       data = df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values,
+#                       columns = df.iloc[r0-1][df.columns[c2:(c3 + 1)]].astype(np.int)).T
+# D_err.index.name = "Date"
+# D_err
+
+#+END_SRC
+
+** TMB vs. SEC
+** TMB vs. GRACE
+** TMB vs. IMBIE
+#+BEGIN_SRC jupyter-python
+import tmb
+import matplotlib.pyplot as plt
+import matplotlib
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+# plt.close(1)
+fig = plt.figure(1, figsize=(5,4)) # w,h
+# get_current_fig_manager().window.move(0,0)
+fig.clf()
+fig.set_tight_layout(True)
+# import matplotlib.gridspec as gridspec
+# gs = gridspec.GridSpec(1, 1) #w,h
+# ax = plt.subplot(gs[:,:])
+ax = fig.add_subplot(111)
+
+D_Z, D_Mb, D_Mr = tmb.load_bmb_mankoff2020()
+smb = tmb.load_smb()
+
+### MMB
+# all of GIS
+D_GIS = D_Z.sum(dim="Zwally_2012")
+# Gt/year @ misc time-steps -> Gt/day @ daily timestep
+D_GIS = (D_GIS / 365).resample({"time":"1D"})\
+                     .mean()\
+                     .interpolate_na(dim="time")
+
+### SMB
+# all of GIS
+smb_GIS = smb[["SMB_HIRHAM_Z","SMB_MAR_Z","SMB_RACMO_Z"]].sum(dim="sector")
+# mmW/day @ grid resolution -> Gt/day @ Greenland resolution
+smb_GIS = smb_GIS * 1E-3  * 1000 * 1000 * 1E3        / 1E12
+#                   mm->m   grid cells    m^3->kg      kg->Gt
+
+# fig.clf(); ax = fig.add_subplot(111); (smb_GIS*1E-3*1000*1000/1E9).to_dataframe().loc['2019-09':].plot(ax=ax)
+
+print(smb_GIS)
+print(D_GIS)
+
+tmb_GIS = smb_GIS - D_GIS['discharge']
+print(tmb_GIS)
+
+t0 = imbie.dropna().index[0]
+(tmb_GIS.to_dataframe().loc[t0:].cumsum()).plot(ax=ax)
+
+imbie = tmb.load_imbie()
+imbie['mb_cum'].plot(ax=ax)
+# imbie['mb'].cumsum().plot(ax=ax)
+# plt.savefig('.png', transparent=True, bbox_inches='tight', dpi=300)
+#+END_SRC
+
 #+RESULTS:
-|    Year |       mb |  mb_err |   mb_cum | mb_cum_err |      smb | smb_err |        D |   D_err | index               |
-|---------+----------+---------+----------+------------+----------+---------+----------+---------+---------------------|
-|  2016.5 | -231.338 | 62.4089 | -3704.86 |     330.44 | -174.559 | 86.9118 | -56.7792 | 106.998 | 2016-07-01 00:00:00 |
-| 2016.58 | -269.403 | 65.6814 | -3727.31 |    330.984 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-08-01 00:00:00 |
-| 2016.67 | -269.403 | 65.6814 | -3749.76 |    331.526 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-09-01 00:00:00 |
-| 2016.75 | -269.403 | 65.6814 | -3772.21 |    332.068 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-10-01 00:00:00 |
-| 2016.83 | -269.403 | 65.6814 | -3794.66 |    332.609 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-11-01 00:00:00 |
-| 2016.92 | -269.403 | 65.6814 | -3817.11 |    333.149 | -174.559 | 86.9118 | -94.8442 | 108.939 | 2016-12-01 00:00:00 |
-|    2017 |  -84.583 | 75.4958 | -3824.16 |    333.861 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-01-01 00:00:00 |
-| 2017.08 |  -84.583 | 75.4958 | -3831.21 |    334.572 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-02-01 00:00:00 |
-| 2017.17 |  -84.583 | 75.4958 | -3838.26 |    335.281 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-03-01 00:00:00 |
-| 2017.25 |  -84.583 | 75.4958 | -3845.31 |    335.988 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-04-01 00:00:00 |
-| 2017.33 |  -84.583 | 75.4958 | -3852.36 |    336.694 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-05-01 00:00:00 |
-| 2017.42 |  -84.583 | 75.4958 |  -3859.4 |    337.399 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-06-01 00:00:00 |
-|  2017.5 |  -84.583 | 75.4958 | -3866.45 |    338.102 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-07-01 00:00:00 |
-| 2017.58 |  -84.583 | 75.4958 |  -3873.5 |    338.804 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-08-01 00:00:00 |
-| 2017.67 |  -84.583 | 75.4958 | -3880.55 |    339.504 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-09-01 00:00:00 |
-| 2017.75 |  -84.583 | 75.4958 |  -3887.6 |    340.203 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-10-01 00:00:00 |
-| 2017.83 |  -84.583 | 75.4958 | -3894.65 |      340.9 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-11-01 00:00:00 |
-| 2017.92 |  -84.583 | 75.4958 |  -3901.7 |    341.596 |  32.2868 | 110.905 |  -116.87 | 134.163 | 2017-12-01 00:00:00 |
-|    2018 | -75.4444 | 66.0924 | -3907.98 |    342.129 |  45.6531 | 77.0317 | -121.097 | 101.499 | 2018-01-01 00:00:00 |
-| 2018.08 |   -143.8 |    56.8 | -3919.97 |    342.521 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-02-01 00:00:00 |
-| 2018.17 |   -143.8 |    56.8 | -3931.95 |    342.914 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-03-01 00:00:00 |
-| 2018.25 |   -143.8 |    56.8 | -3943.93 |    343.305 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-04-01 00:00:00 |
-| 2018.33 |   -143.8 |    56.8 | -3955.92 |    343.697 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-05-01 00:00:00 |
-| 2018.42 |   -143.8 |    56.8 |  -3967.9 |    344.088 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-06-01 00:00:00 |
-|  2018.5 |   -143.8 |    56.8 | -3979.88 |    344.478 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-07-01 00:00:00 |
-| 2018.58 |   -143.8 |    56.8 | -3991.87 |    344.868 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-08-01 00:00:00 |
-| 2018.67 |   -143.8 |    56.8 | -4003.85 |    345.258 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-09-01 00:00:00 |
-| 2018.75 |   -143.8 |    56.8 | -4015.83 |    345.647 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-10-01 00:00:00 |
-| 2018.83 |   -143.8 |    56.8 | -4027.82 |    346.035 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-11-01 00:00:00 |
-| 2018.92 |   -143.8 |    56.8 |  -4039.8 |    346.424 |  45.6531 | 77.0317 | -189.453 | 95.7085 | 2018-12-01 00:00:00 |
+:RESULTS:
+#+begin_example
+<xarray.Dataset>
+Dimensions:       (time: 12767)
+Coordinates:
+  ,* time          (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2020-12-14
+Data variables:
+    SMB_HIRHAM_Z  (time) float64 0.0 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0 0.0
+    SMB_MAR_Z     (time) float64 2.347 3.352 4.199 1.821 ... 0.0 0.0 0.0 0.0
+    SMB_RACMO_Z   (time) float64 2.282 3.005 4.281 1.284 ... 0.0 0.0 0.0 0.0
+<xarray.Dataset>
+Dimensions:    (time: 12621)
+Coordinates:
+  ,* time       (time) datetime64[ns] 1986-04-15 1986-04-16 ... 2020-11-02
+Data variables:
+    discharge  (time) float32 1.2213918 1.2222424 ... 1.4117306 1.4111918
+    err        (time) float32 0.13205205 0.13212812 ... 0.14634544 0.14624931
+    coverage   (time) float32 0.19985208 0.1990224 ... 0.68221825 0.6854493
+<xarray.Dataset>
+Dimensions:       (time: 12621)
+Coordinates:
+  ,* time          (time) datetime64[ns] 1986-04-15 1986-04-16 ... 2020-11-02
+Data variables:
+    SMB_HIRHAM_Z  (time) float64 -1.221 -1.222 -1.223 ... 0.3178 -0.08367 0.5593
+    SMB_MAR_Z     (time) float64 2.132 0.878 0.2117 ... -0.07281 -1.09 -0.1384
+    SMB_RACMO_Z   (time) float64 2.041 2.134 -0.02701 ... -1.412 -1.412 -1.411
+#+end_example
+: <AxesSubplot:xlabel='index'>
+:END:
+
+* Helper functions
+
+#+BEGIN_SRC jupyter-python :tangle tmb.py
+import xarray as xr
+import pandas as pd
+import numpy as np
+
+def load_smb():
+    ds = xr.open_dataset("./tmp/smb.nc")
+    return ds
+   
+def load_imbie():
+    <<load_imbie>>
+    return df
+    
+def load_bmb_mankoff2020():
+    <<load_bmb_mankoff2020>>
+    return ds_Z, ds_Mb, ds_Mr
+#+END_SRC
 
 
 * Environment
@@ -1836,9 +2020,15 @@ SMB: FORCE
 	grass ./G_HIRHAM/PERMANENT --exec ./HIRHAM_to_sectors.sh
 	grass ./G_MAR/PERMANENT --exec ./MAR_to_sectors.sh
 	grass ./G_RACMO/PERMANENT --exec ./RACMO_to_sectors.sh
+	./merge.sh
 
+validate: FORCE
+	grass -e -c EPSG:3413 G
+#	# python ./SEC_prep.py
+	grass ./G/PERMANENT/ --exec ./SEC.sh
+#	# grass ./G/PERMANENT/ --exec ./GRACE.sh
+	
 dist: FORCE
-	echo "Not done yet"
 	# create end-user data product
 	# parallel --bar "python bsv2netcdf.py {}" ::: $(ls dat/*_runoff_*.bsv)
 
@@ -1848,7 +2038,7 @@ dist: FORCE
 FORCE: # dummy target
 
 clean_all:
-	rm -fR G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB
+	rm -fR G G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB
 
 clean_SMB:
 	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
