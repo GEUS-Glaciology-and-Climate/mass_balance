@@ -1,4 +1,4 @@
-For#+Latex_Class: copernicus
+#+Latex_Class: copernicus
 #+AUTHOR: 
 #+LaTeX_CLASS_OPTIONS: [essd, manuscript]
 #+Options: toc:nil ^:t {}:t
@@ -47,6 +47,7 @@ For#+Latex_Class: copernicus
 #+BEGIN_EXPORT LaTeX
 \title{Greenland ice sheet daily mass balance from from 1986 through next week}
 \Author[1]{Kenneth D.}{Mankoff}
+\author[1]{\url{https://docs.google.com/spreadsheets/d/1tK3_IjpTSBbbw5cgW3vTZMKTsgwss6FF207QXAxlZ-4/edit#gid=0}
 %\Author[2]{Brice}{Noël}
 %\Author[3]{Xavier}{Fettweis}
 %\Author[1]{Andreas P.}{Ahlstrøm}
@@ -278,8 +279,6 @@ The gravity method (GRACE) does not have the spatial resolution of the IO method
   + Includes marginal ice?
 + GRACE
   + Includes marginal ice
-
-
 ** Uncertainty
 :PROPERTIES:
 :CUSTOM_ID: sec:uncertainty
