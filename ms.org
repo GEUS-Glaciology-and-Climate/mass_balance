@@ -171,6 +171,18 @@ This is captured programatically by [[workflow-update]]
 
 \introduction
 
+Three different methods
+
+GRACE is only "operational"
+
+GRACE as standard but suffers from
++ Low spatial resolution
++ Does not distinguish between processes (SMB and BMB v. dynamics)
+
+SEC is high spatial resolution, becoming "operational", but also does not distinguish processes.
+
+Only IO can separate processes, use multiple RCMs, and is now operational.
+
 # Over the past decades, liquid runoff from Greenland has increased citep:mernild_2012,bamber_2018_freshwater,trusel_2018,perner_2019 contributing to mass decrease citep:sasgen_2020. When that runoff leaves the ice sheet and discharges into fjords and coastal seas, it influences a wide range of physical citep:straneo_2011,an_2012,mortensen_2013,bendtsen_2015,cowton_2015,mankoff_2016,fried_2019,cowton_2019,beckmann_2019, chemical citep:kanna_2018,balmonte_2019, and biological citep:kamenos_2012,kanna_2018,balmonte_2019 systems citep:catania_2020. The scales of the impacts range from instantaneous at the ice--ocean boundary to decadal in the distal ocean citep:gillard_2016. The influence of freshwater on multiple domains and disciplines citep:catania_2020 is the reason several past studies have estimated runoff and discharge at various temporal and spatial scales (e.g., citet:mernild_2008,mernild_2009,mernild_2010,langen_2015,ahlstrom_2017,citterio_2017,van-as_2018,bamber_2018_freshwater,perner_2019,slater_2019).
 
 # To date no product provides discharge estimates at high spatial resolution (~100 m; resolving individual streams), daily temporal resolution, for all of Greenland, covering a broad time span (1958 through 2019), from multiple regional climate models (RCMs), and with a simple database access software to support downstream users. Here we present these data. In the following description and methods, we document the inputs, assumptions, methodologies, and results we use to estimate Greenland discharge from 1958 through 2019.
