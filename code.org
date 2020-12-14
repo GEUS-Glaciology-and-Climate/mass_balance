@@ -368,7 +368,9 @@ r.external -o source=NetCDF:${DATADIR}/MAR/daily/MARv3.11-20km-daily-NCEP-NCARv1
 r.region map=mask region=RCM
 r.colors map=mask color=haxby
 
-r.mapcalc "mask_ice_all = if(mask == 0, null(), 1)"
+# r.mapcalc "mask_ice_all = if(mask == 0, null(), 1)"
+r.mapcalc "mask_ice_1 = if(mask == 1, 1, null())"
+r.grow input=mask_ice_1 output=mask_ice_all radius=5 new=1
 
 r.clump input=mask_ice_all output=mask_clump
 main_clump=$(r.stats -c -n mask_clump sort=desc | head -n1 | cut -d" " -f1)
@@ -1312,80 +1314,37 @@ mb.to_netcdf('./TMB/mb.nc', mode='w', encoding=encoding)
 
 #+name: load_mouginot
 #+BEGIN_SRC jupyter-python
+
+ds = xr.Dataset()
+
 df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
 
+## Discharge
 c0 = 15 # Column containing 1972
 c1 = 61 # Last column
-r0 = 30 # sub-table start
-r1 = 37 # sub-table stop
-M =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
-                  data = df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values,
-                  columns = df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int)).T
-M.index = pd.to_datetime(M.index, format='%Y')
-M.index.name = "Date"
-M
+r0 = 8 # sub-table start [LibreOffice is 1-based, Python is 0-based]
+r1 = 15 # sub-table stop
 
-c2  = 82
-c3 = 128
-M_err =  pd.DataFrame(index = df.iloc[r0:r1][df.columns[1]],
-                      data = df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values,
-                      columns = df.iloc[r0-1][df.columns[c2:(c3 + 1)]]).T
-# M_err.index = pd.to_datetime(M_err.index, format='%Y')
-M_err.index = M.index
-M_err.index.name = "Date"
-# M_err
+ds['time'] = (('time'), pd.to_datetime(df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int).values, format="%Y"))
+ds['region'] = (('region'), df.iloc[r0:r1][df.columns[1]])
+ds['D'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
+
+c2  = 82; c3 = 128
+ds['D_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+
+r0 = 20; r1=27
+ds['SMB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
+ds['SMB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+
+r0 = 30; r1=37
+ds['MB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
+ds['MB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+
+mouginot = ds
+# print(mouginot)
 #+END_SRC
 
 #+RESULTS: load_mouginot
-| Date                |      SW |      CW |      NW |      NO |      NE |      CE |      SE |
-|---------------------+---------+---------+---------+---------+---------+---------+---------|
-| 1972-01-01 00:00:00 | 18.1084 | 17.7086 | 15.4343 | 6.48401 | 8.21288 | 24.0786 | 25.7445 |
-| 1973-01-01 00:00:00 | 18.1084 | 16.1314 | 14.2655 | 6.08707 | 7.94735 | 22.2909 | 24.0785 |
-| 1974-01-01 00:00:00 | 18.1063 | 14.7527 |  13.147 | 5.76098 | 7.81424 | 20.6225 | 22.5849 |
-| 1975-01-01 00:00:00 | 18.0951 | 13.6102 | 12.1232 | 5.54693 | 7.71855 | 19.0735 |  21.255 |
-| 1976-01-01 00:00:00 | 18.0852 | 12.8103 | 11.2326 | 5.42609 | 7.74586 | 17.6567 | 20.0771 |
-| 1977-01-01 00:00:00 | 18.0767 | 12.2711 | 10.4528 | 5.35282 | 7.92991 | 16.3691 | 19.0572 |
-| 1978-01-01 00:00:00 | 17.9698 | 11.9116 | 9.78121 | 5.32584 | 8.09695 | 15.2108 | 18.1123 |
-| 1979-01-01 00:00:00 | 17.4074 | 11.7076 | 9.21818 | 5.34529 | 8.29683 | 14.1904 | 16.9734 |
-| 1980-01-01 00:00:00 | 16.7838 |  11.659 | 8.77116 | 5.40104 | 8.55599 |  13.312 | 15.6209 |
-| 1981-01-01 00:00:00 | 16.2156 | 11.3925 | 8.29304 | 5.22144 | 8.40569 | 12.5795 | 14.4042 |
-| 1982-01-01 00:00:00 |  15.678 | 10.8492 | 7.80831 | 5.07294 |  8.1252 |  12.004 | 13.3214 |
-| 1983-01-01 00:00:00 | 15.1968 | 10.4345 | 7.42044 | 4.96149 |  7.8905 | 11.5744 | 12.3762 |
-| 1984-01-01 00:00:00 | 14.7683 | 10.1345 | 7.13732 |  4.8902 | 8.78129 | 11.2813 |  11.604 |
-| 1985-01-01 00:00:00 | 14.3943 | 9.58564 | 6.99548 | 4.78036 | 8.33391 | 11.1605 | 11.0613 |
-| 1986-01-01 00:00:00 | 14.0689 | 9.56755 | 6.89744 | 4.77232 | 8.04398 | 8.63489 | 10.7258 |
-| 1987-01-01 00:00:00 | 13.7879 | 9.68934 | 6.92356 | 4.74902 | 7.72023 | 8.72705 |  10.524 |
-| 1988-01-01 00:00:00 | 13.5516 |  9.5621 |  6.9054 | 4.75884 | 7.60389 | 8.51424 | 10.6101 |
-| 1989-01-01 00:00:00 | 13.3587 | 9.60348 | 6.91188 |  4.7194 | 7.36522 | 8.68413 | 10.1297 |
-| 1990-01-01 00:00:00 | 13.2071 | 9.62332 | 6.93485 | 4.70765 | 7.35403 |  8.7099 | 10.1819 |
-| 1991-01-01 00:00:00 | 13.1007 |  9.6303 | 6.90306 | 4.72124 | 7.38978 | 8.77521 | 10.2826 |
-| 1992-01-01 00:00:00 | 13.0527 | 9.48416 | 6.91571 |  4.7083 | 7.35469 | 9.47908 | 10.3569 |
-| 1993-01-01 00:00:00 | 13.0511 | 9.55254 | 6.90183 | 4.76459 | 7.40108 | 9.45946 | 11.2288 |
-| 1994-01-01 00:00:00 | 13.0495 | 9.50893 | 6.95309 | 4.71072 | 7.34382 |   9.731 | 11.1071 |
-| 1995-01-01 00:00:00 | 13.0457 | 9.40767 | 6.98074 | 4.74867 |  7.3454 | 9.27562 | 11.0625 |
-| 1996-01-01 00:00:00 | 13.0141 | 9.54509 | 6.95368 | 4.71565 | 7.31372 | 9.41989 | 10.2882 |
-| 1997-01-01 00:00:00 | 13.0007 | 9.39363 | 6.99196 | 4.73726 | 7.31711 |  10.116 | 10.3906 |
-| 1998-01-01 00:00:00 | 12.9878 |  9.5128 | 6.89174 | 4.78085 | 7.31256 | 10.0478 | 10.3456 |
-| 1999-01-01 00:00:00 | 12.9724 | 9.47563 | 6.87613 | 4.78609 | 7.30876 | 10.3766 | 10.3122 |
-| 2000-01-01 00:00:00 | 12.9838 | 10.1874 | 7.32432 | 4.73143 | 7.32442 | 8.87416 | 11.2072 |
-| 2001-01-01 00:00:00 | 13.0591 |  10.331 | 7.01271 | 4.73753 | 7.30043 | 8.87058 | 10.3777 |
-| 2002-01-01 00:00:00 | 13.2409 | 9.35493 | 7.02324 | 4.76278 | 7.35683 | 8.83662 | 11.1033 |
-| 2003-01-01 00:00:00 | 13.2373 | 10.6898 | 6.93678 | 4.82514 | 7.37281 | 8.89806 | 11.0901 |
-| 2004-01-01 00:00:00 |  13.123 | 10.8175 | 6.98992 | 4.82929 | 7.32677 | 8.97693 | 10.6791 |
-| 2005-01-01 00:00:00 | 13.0711 | 10.7511 | 6.98034 | 4.77688 | 7.33615 | 10.8559 |  10.724 |
-| 2006-01-01 00:00:00 | 13.3419 | 10.7229 | 6.97962 | 4.81977 |  7.3208 | 11.3572 | 10.4124 |
-| 2007-01-01 00:00:00 | 13.6927 | 10.6844 | 6.96186 | 4.82056 | 7.33177 | 10.7827 | 10.3511 |
-| 2008-01-01 00:00:00 | 13.4394 |  10.841 | 6.98863 | 4.79909 | 7.33713 | 10.6471 | 10.4979 |
-| 2009-01-01 00:00:00 | 13.3551 | 10.6562 | 7.01105 | 4.73237 | 7.32603 | 10.2209 | 10.6537 |
-| 2010-01-01 00:00:00 | 13.2497 | 11.1003 | 6.99406 | 4.76352 | 7.37032 | 10.0898 | 10.7184 |
-| 2011-01-01 00:00:00 | 13.3908 | 10.7285 | 7.06251 | 4.82687 | 7.37279 | 10.2105 | 10.9462 |
-| 2012-01-01 00:00:00 | 13.4056 | 11.0662 | 7.07223 | 4.82103 | 7.41863 | 10.4209 | 10.8736 |
-| 2013-01-01 00:00:00 | 13.3455 | 11.1711 | 7.04389 | 4.88826 | 7.36562 | 10.1806 | 10.6097 |
-| 2014-01-01 00:00:00 | 13.1909 | 11.2452 | 7.12058 | 4.94795 | 7.41319 | 10.0416 |  10.592 |
-| 2015-01-01 00:00:00 | 13.2549 | 11.1447 | 7.13684 |  4.8762 | 7.44949 | 9.88694 |  10.647 |
-| 2016-01-01 00:00:00 | 13.2423 | 11.0883 | 7.12681 | 4.82375 | 7.46161 |  9.7747 | 10.5025 |
-| 2017-01-01 00:00:00 | 13.1144 |  10.452 | 7.28769 | 4.81795 | 7.46435 | 9.82613 | 10.4776 |
-| 2018-01-01 00:00:00 | 13.1735 | 10.2604 | 7.38047 | 4.86793 | 7.54204 | 10.1958 |  10.548 |
 
 ** SEC
 :PROPERTIES:
@@ -1504,8 +1463,9 @@ LIST=sectors_e@Zwally_2012,regions_e@Mouginot_2019,basins_e@Mouginot_2019,${SEC}
 
 
 
-*** INPROGRESS Display
+*** Display
 
+#+NAME: load_sec
 #+BEGIN_SRC jupyter-python
 import pandas as pd
 import xarray as xr
@@ -1544,7 +1504,7 @@ sec['basin'] = (('cell'), df['basins_e@Mouginot_2019'])
 # print(sec)
 #+END_SRC
 
-#+RESULTS:
+#+RESULTS: load_sec
 
 ** GRACE
 :PROPERTIES:
@@ -1674,42 +1634,10 @@ imbie['index'] = pd.to_datetime('1980-01-01') + pd.to_timedelta((imbie.index-198
 imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
 imbie.index = imbie['index']
 imbie = imbie.drop('index', axis='columns')
-imbie.tail(30)
+# imbie.tail(30)
 #+END_SRC
 
 #+RESULTS: load_imbie
-| index               |       mb |  mb_err |   mb_cum | mb_cum_err |      smb | smb_err |        D |   D_err |
-|---------------------+----------+---------+----------+------------+----------+---------+----------+---------|
-| 2016-07-01 00:00:00 | -231.338 | 62.4089 | -3704.86 |     330.44 | -174.559 | 86.9118 | -56.7792 | 106.998 |
-| 2016-08-01 00:00:00 | -269.403 | 65.6814 | -3727.31 |    330.984 | -174.559 | 86.9118 | -94.8442 | 108.939 |
-| 2016-09-01 00:00:00 | -269.403 | 65.6814 | -3749.76 |    331.526 | -174.559 | 86.9118 | -94.8442 | 108.939 |
-| 2016-10-01 00:00:00 | -269.403 | 65.6814 | -3772.21 |    332.068 | -174.559 | 86.9118 | -94.8442 | 108.939 |
-| 2016-11-01 00:00:00 | -269.403 | 65.6814 | -3794.66 |    332.609 | -174.559 | 86.9118 | -94.8442 | 108.939 |
-| 2016-12-01 00:00:00 | -269.403 | 65.6814 | -3817.11 |    333.149 | -174.559 | 86.9118 | -94.8442 | 108.939 |
-| 2017-01-01 00:00:00 |  -84.583 | 75.4958 | -3824.16 |    333.861 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-02-01 00:00:00 |  -84.583 | 75.4958 | -3831.21 |    334.572 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-03-01 00:00:00 |  -84.583 | 75.4958 | -3838.26 |    335.281 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-04-01 00:00:00 |  -84.583 | 75.4958 | -3845.31 |    335.988 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-05-01 00:00:00 |  -84.583 | 75.4958 | -3852.36 |    336.694 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-06-01 00:00:00 |  -84.583 | 75.4958 |  -3859.4 |    337.399 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-07-01 00:00:00 |  -84.583 | 75.4958 | -3866.45 |    338.102 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-08-01 00:00:00 |  -84.583 | 75.4958 |  -3873.5 |    338.804 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-09-01 00:00:00 |  -84.583 | 75.4958 | -3880.55 |    339.504 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-10-01 00:00:00 |  -84.583 | 75.4958 |  -3887.6 |    340.203 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-11-01 00:00:00 |  -84.583 | 75.4958 | -3894.65 |      340.9 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2017-12-01 00:00:00 |  -84.583 | 75.4958 |  -3901.7 |    341.596 |  32.2868 | 110.905 |  -116.87 | 134.163 |
-| 2018-01-01 00:00:00 | -75.4444 | 66.0924 | -3907.98 |    342.129 |  45.6531 | 77.0317 | -121.097 | 101.499 |
-| 2018-02-01 00:00:00 |   -143.8 |    56.8 | -3919.97 |    342.521 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-03-01 00:00:00 |   -143.8 |    56.8 | -3931.95 |    342.914 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-04-01 00:00:00 |   -143.8 |    56.8 | -3943.93 |    343.305 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-05-01 00:00:00 |   -143.8 |    56.8 | -3955.92 |    343.697 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-06-01 00:00:00 |   -143.8 |    56.8 |  -3967.9 |    344.088 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-07-01 00:00:00 |   -143.8 |    56.8 | -3979.88 |    344.478 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-08-01 00:00:00 |   -143.8 |    56.8 | -3991.87 |    344.868 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-09-01 00:00:00 |   -143.8 |    56.8 | -4003.85 |    345.258 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-10-01 00:00:00 |   -143.8 |    56.8 | -4015.83 |    345.647 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-11-01 00:00:00 |   -143.8 |    56.8 | -4027.82 |    346.035 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
-| 2018-12-01 00:00:00 |   -143.8 |    56.8 |  -4039.8 |    346.424 |  45.6531 | 77.0317 | -189.453 | 95.7085 |
 
 ** PROMICE MB
 
@@ -1752,6 +1680,67 @@ promice['MB_err'] = (("time","sector"), p.values)
 #+RESULTS: load_PROMICE_MB
 
 * Figures
+** Notes
+
+
+%% ONE-COLUMN FIGURES
+
+%%f
+%\begin{figure}[t]
+%\includegraphics[width=8.3cm]{FILE NAME}
+%\caption{TEXT}
+%\end{figure}
+%
+%%% TWO-COLUMN FIGURES
+%
+%%f
+%\begin{figure*}[t]
+%\includegraphics[width=12cm]{FILE NAME}
+%\caption{TEXT}
+%\end{figure*}
+
+
+** SMB timeseries
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+n = 3
+color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
+hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+               tuple(color[:,0:-1]))
+mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
+
+fig = plt.figure(1, figsize=(5,4)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+ax = fig.add_subplot(111)
+
+# MB (this)
+smb = xr.open_dataset("./tmp/smb.nc")
+smb['HIRHAM_Mr'].sum(dim='region').to_dataframe(name='HIRHAM').cumsum()[::-1].plot(ax=ax)
+smb['MAR_Mr'].sum(dim='region').to_dataframe(name='MAR').cumsum()[::-1].plot(ax=ax)
+smb['RACMO_Mr'].sum(dim='region').to_dataframe(name='RACMO').cumsum()[::-1].plot(ax=ax)
+
+kw_err = {'linestyle' : '--',
+          'legend' : False}
+
+ax.set_ylabel("Mass [Gt]")
+ax.set_xlabel("Time [Year]")
+
+plt.legend()
+plt.savefig('tmp/smb_3.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+
 ** TMB vs. others timeseries
 
 #+BEGIN_SRC jupyter-python
@@ -1764,6 +1753,14 @@ from matplotlib import rc
 rc('font', size=12)
 rc('text', usetex=False)
 # matplotlib.pyplot.xkcd()
+
+n = 8
+color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
+hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+               tuple(color[:,0:-1]))
+mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
+
+
 
 # plt.close(1)
 fig = plt.figure(1, figsize=(5,4)) # w,h
@@ -1782,37 +1779,47 @@ mb['HIRHAM_sector'].sum(dim='sector').to_dataframe(name='HIRHAM - Mankoff(2020) 
 mb['MAR_sector'].sum(dim='sector').to_dataframe(name='MAR - Mankoff(2020) [this]').cumsum().plot(ax=ax)
 mb['RACMO_sector'].sum(dim='sector').to_dataframe(name='RACMO - Mankoff(2020) [this]').cumsum().plot(ax=ax)
 
-
+kw_err = {'linestyle' : '--',
+          'legend' : False}
 
 # Mouginot
 <<load_mouginot>>
-M = M.sum(axis='columns').cumsum()
-M_err = M_err.sum(axis='columns').cumsum()
-M.plot(ax=ax, color='g', label='Mouginot(2019)')
-ax.fill_between(M.index, M - M_err, M + M_err, color='g', alpha=0.25)
+M = mouginot['MB'].sum(dim='sector').to_dataframe('Mouginot (2019)').cumsum()
+M_err = mouginot['MB_err'].sum(dim='sector').to_dataframe('Mouginot (2019)').cumsum()
+p = M.plot(ax=ax, label='Mouginot(2019)')
+ax.fill_between(M.index, (M - M_err).values.T[0], (M + M_err).values.T[0], color=p.lines[-1].get_color(), alpha=0.25)
+# (M-M_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+# (M+M_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
 
 
 # IMBIE
 <<load_imbie>>
 imbie['mb_cum'] = imbie['mb_cum'] - 400 # offset
-imbie['mb_cum'].plot(ax=ax, color='r', label='IMBIE')
+p = imbie['mb_cum'].plot(ax=ax, label='IMBIE')
 ax.fill_between(imbie.index,
                 imbie['mb_cum'] - imbie['mb_cum_err'],
                 imbie['mb_cum'] + imbie['mb_cum_err'],
-                color='r', alpha=0.25)
+                color=p.lines[-1].get_color(),
+                alpha=0.25)
+# (imbie['mb_cum'] - imbie['mb_cum_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+# (imbie['mb_cum'] + imbie['mb_cum_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
 
 
 # SEC
 <<load_sec>>
 sec_sum = sec['SEC_Z'].sum(dim='cell').to_dataframe(name="SEC").cumsum()
 sec_sum = sec_sum - 300
-sec_sum.plot(ax=ax, color='cyan', label='SEC')
+p = sec_sum.plot(ax=ax, label='SEC')
 
 sec_err = sec['err_Z'].sum(dim="cell").to_dataframe(name="SEC").cumsum()
 ax.fill_between(sec_err.index,
                 (sec_sum - sec_err).values.flatten(),
                 (sec_sum + sec_err).values.flatten(),
-                color="cyan", alpha=0.25)
+                color=p.lines[-1].get_color(),
+                alpha=0.25)
+# (sec_sum - sec_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+# (sec_sum + sec_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+
 
 
 
@@ -1820,13 +1827,16 @@ ax.fill_between(sec_err.index,
 <<load_grace>>
 gmb_sum = gmb['GMB_Z'].sum(dim='cell').to_dataframe(name="GRACE")
 gmb_sum = gmb_sum - 1700
-gmb_sum.plot(ax=ax, color='k', label='GRACE')
+p = gmb_sum.plot(ax=ax, label='GRACE')
 
 gmb_err = gmb['err_Z'].sum(dim='cell').to_dataframe(name="GRACE")
 ax.fill_between(gmb_err.index,
                 (gmb_sum - gmb_err).values.flatten(),
                 (gmb_sum + gmb_err).values.flatten(),
-                color="k", alpha=0.25)
+                color=p.lines[-1].get_color(),
+                alpha=0.25)
+# (gmb_sum - gmb_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+# (gmb_sum + gmb_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
 
 
 
@@ -1834,11 +1844,14 @@ ax.fill_between(gmb_err.index,
 <<load_PROMICE_MB>>
 promice_sum = promice.sum(dim="sector").to_dataframe().cumsum()
 promice_sum["MB"] = promice_sum["MB"] - 500
-promice_sum["MB"].plot(ax=ax, color='purple', label='Colgan (2019)')
+p = promice_sum["MB"].plot(ax=ax, label='Colgan (2019)')
 ax.fill_between(promice_sum.index,
                 promice_sum["MB"] - promice_sum["MB_err"],
                 promice_sum["MB"] + promice_sum["MB_err"],
-                color='purple', alpha=0.25)
+                color=p.lines[-1].get_color(),
+                alpha=0.25)
+# (promice_sum['MB'] - promice_sum['MB_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+# (promice_sum['MB'] + promice_sum['MB_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
 
 
 
@@ -1852,13 +1865,14 @@ plt.savefig('tmp/mb.png', transparent=False, bbox_inches='tight', dpi=300)
 
 #+RESULTS:
 
-** This vs. Colgan (2019): GIS
+** This vs. Colgan (2019): GIS xy
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
 import numpy as np
 import pandas as pd
-
+import scipy as sp
+import scipy.stats as sps
 import matplotlib.pyplot as plt
 from matplotlib import rc
 rc('font', size=12)
@@ -1931,7 +1945,14 @@ def my_plot(ax, x, y):
     ax.set_xticks(ax.get_xlim())
     ax.set_ylim(ax.get_xlim())
     ax.set_yticks(ax.get_xlim())
-        
+
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(0.66, 0,
+            "s: %.2f\ni: %.2f" % (round(slope,1), round(intercept,1)),
+            transform=ax.transAxes,
+            fontsize=10)
+
     ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
     adj(ax, ['left','bottom'])
     return scatter
@@ -1962,191 +1983,19 @@ cb = plt.colorbar(s, cax=axCB, orientation='vertical', ticks=[0,1])
 cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
 cb.draw_all()
 # cb.set_label("Time [year]", labelpad=-20)
-axCB.set_yticklabels([1995,2015])
+axCB.set_yticklabels(promice['time'].dt.year[[0,-1]].values)
 
 plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-958-66f0de76b6e0>:180: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-349-5f82df0a8aeb>:187: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
-** INPROGRESS This vs. Mouginot (2019): GIS
-
-#+BEGIN_SRC jupyter-python
-import xarray as xr
-import numpy as np
-import pandas as pd
-
-import matplotlib.pyplot as plt
-from matplotlib import rc
-rc('font', size=12)
-rc('text', usetex=False)
-
-# plt.close(1)
-fig = plt.figure(1, figsize=(8,2.5)) # w,h
-# get_current_fig_manager().window.move(0,0)
-fig.clf()
-fig.set_tight_layout(True)
-# import matplotlib.gridspec as gridspec
-# gs = gridspec.GridSpec(1, 1) #w,h
-# ax = plt.subplot(gs[:,:])
-axSMB = fig.add_subplot(131)
-axD = fig.add_subplot(132)
-axMB = fig.add_subplot(133)
-
-# PROMICE MB (Colgan 2019)
-<<load_mouginot>>
-M = M.sum(axis="columns")
-M_err = M_err.sum(axis="columns")
-#+END_SRC
-
-#+RESULTS:
-| Date                |      SW |      CW |      NW |      NO |      NE |      CE |      SE |
-|---------------------+---------+---------+---------+---------+---------+---------+---------|
-| 1972-01-01 00:00:00 | 18.1084 | 17.7086 | 15.4343 | 6.48401 | 8.21288 | 24.0786 | 25.7445 |
-| 1973-01-01 00:00:00 | 18.1084 | 16.1314 | 14.2655 | 6.08707 | 7.94735 | 22.2909 | 24.0785 |
-| 1974-01-01 00:00:00 | 18.1063 | 14.7527 |  13.147 | 5.76098 | 7.81424 | 20.6225 | 22.5849 |
-| 1975-01-01 00:00:00 | 18.0951 | 13.6102 | 12.1232 | 5.54693 | 7.71855 | 19.0735 |  21.255 |
-| 1976-01-01 00:00:00 | 18.0852 | 12.8103 | 11.2326 | 5.42609 | 7.74586 | 17.6567 | 20.0771 |
-| 1977-01-01 00:00:00 | 18.0767 | 12.2711 | 10.4528 | 5.35282 | 7.92991 | 16.3691 | 19.0572 |
-| 1978-01-01 00:00:00 | 17.9698 | 11.9116 | 9.78121 | 5.32584 | 8.09695 | 15.2108 | 18.1123 |
-| 1979-01-01 00:00:00 | 17.4074 | 11.7076 | 9.21818 | 5.34529 | 8.29683 | 14.1904 | 16.9734 |
-| 1980-01-01 00:00:00 | 16.7838 |  11.659 | 8.77116 | 5.40104 | 8.55599 |  13.312 | 15.6209 |
-| 1981-01-01 00:00:00 | 16.2156 | 11.3925 | 8.29304 | 5.22144 | 8.40569 | 12.5795 | 14.4042 |
-| 1982-01-01 00:00:00 |  15.678 | 10.8492 | 7.80831 | 5.07294 |  8.1252 |  12.004 | 13.3214 |
-| 1983-01-01 00:00:00 | 15.1968 | 10.4345 | 7.42044 | 4.96149 |  7.8905 | 11.5744 | 12.3762 |
-| 1984-01-01 00:00:00 | 14.7683 | 10.1345 | 7.13732 |  4.8902 | 8.78129 | 11.2813 |  11.604 |
-| 1985-01-01 00:00:00 | 14.3943 | 9.58564 | 6.99548 | 4.78036 | 8.33391 | 11.1605 | 11.0613 |
-| 1986-01-01 00:00:00 | 14.0689 | 9.56755 | 6.89744 | 4.77232 | 8.04398 | 8.63489 | 10.7258 |
-| 1987-01-01 00:00:00 | 13.7879 | 9.68934 | 6.92356 | 4.74902 | 7.72023 | 8.72705 |  10.524 |
-| 1988-01-01 00:00:00 | 13.5516 |  9.5621 |  6.9054 | 4.75884 | 7.60389 | 8.51424 | 10.6101 |
-| 1989-01-01 00:00:00 | 13.3587 | 9.60348 | 6.91188 |  4.7194 | 7.36522 | 8.68413 | 10.1297 |
-| 1990-01-01 00:00:00 | 13.2071 | 9.62332 | 6.93485 | 4.70765 | 7.35403 |  8.7099 | 10.1819 |
-| 1991-01-01 00:00:00 | 13.1007 |  9.6303 | 6.90306 | 4.72124 | 7.38978 | 8.77521 | 10.2826 |
-| 1992-01-01 00:00:00 | 13.0527 | 9.48416 | 6.91571 |  4.7083 | 7.35469 | 9.47908 | 10.3569 |
-| 1993-01-01 00:00:00 | 13.0511 | 9.55254 | 6.90183 | 4.76459 | 7.40108 | 9.45946 | 11.2288 |
-| 1994-01-01 00:00:00 | 13.0495 | 9.50893 | 6.95309 | 4.71072 | 7.34382 |   9.731 | 11.1071 |
-| 1995-01-01 00:00:00 | 13.0457 | 9.40767 | 6.98074 | 4.74867 |  7.3454 | 9.27562 | 11.0625 |
-| 1996-01-01 00:00:00 | 13.0141 | 9.54509 | 6.95368 | 4.71565 | 7.31372 | 9.41989 | 10.2882 |
-| 1997-01-01 00:00:00 | 13.0007 | 9.39363 | 6.99196 | 4.73726 | 7.31711 |  10.116 | 10.3906 |
-| 1998-01-01 00:00:00 | 12.9878 |  9.5128 | 6.89174 | 4.78085 | 7.31256 | 10.0478 | 10.3456 |
-| 1999-01-01 00:00:00 | 12.9724 | 9.47563 | 6.87613 | 4.78609 | 7.30876 | 10.3766 | 10.3122 |
-| 2000-01-01 00:00:00 | 12.9838 | 10.1874 | 7.32432 | 4.73143 | 7.32442 | 8.87416 | 11.2072 |
-| 2001-01-01 00:00:00 | 13.0591 |  10.331 | 7.01271 | 4.73753 | 7.30043 | 8.87058 | 10.3777 |
-| 2002-01-01 00:00:00 | 13.2409 | 9.35493 | 7.02324 | 4.76278 | 7.35683 | 8.83662 | 11.1033 |
-| 2003-01-01 00:00:00 | 13.2373 | 10.6898 | 6.93678 | 4.82514 | 7.37281 | 8.89806 | 11.0901 |
-| 2004-01-01 00:00:00 |  13.123 | 10.8175 | 6.98992 | 4.82929 | 7.32677 | 8.97693 | 10.6791 |
-| 2005-01-01 00:00:00 | 13.0711 | 10.7511 | 6.98034 | 4.77688 | 7.33615 | 10.8559 |  10.724 |
-| 2006-01-01 00:00:00 | 13.3419 | 10.7229 | 6.97962 | 4.81977 |  7.3208 | 11.3572 | 10.4124 |
-| 2007-01-01 00:00:00 | 13.6927 | 10.6844 | 6.96186 | 4.82056 | 7.33177 | 10.7827 | 10.3511 |
-| 2008-01-01 00:00:00 | 13.4394 |  10.841 | 6.98863 | 4.79909 | 7.33713 | 10.6471 | 10.4979 |
-| 2009-01-01 00:00:00 | 13.3551 | 10.6562 | 7.01105 | 4.73237 | 7.32603 | 10.2209 | 10.6537 |
-| 2010-01-01 00:00:00 | 13.2497 | 11.1003 | 6.99406 | 4.76352 | 7.37032 | 10.0898 | 10.7184 |
-| 2011-01-01 00:00:00 | 13.3908 | 10.7285 | 7.06251 | 4.82687 | 7.37279 | 10.2105 | 10.9462 |
-| 2012-01-01 00:00:00 | 13.4056 | 11.0662 | 7.07223 | 4.82103 | 7.41863 | 10.4209 | 10.8736 |
-| 2013-01-01 00:00:00 | 13.3455 | 11.1711 | 7.04389 | 4.88826 | 7.36562 | 10.1806 | 10.6097 |
-| 2014-01-01 00:00:00 | 13.1909 | 11.2452 | 7.12058 | 4.94795 | 7.41319 | 10.0416 |  10.592 |
-| 2015-01-01 00:00:00 | 13.2549 | 11.1447 | 7.13684 |  4.8762 | 7.44949 | 9.88694 |  10.647 |
-| 2016-01-01 00:00:00 | 13.2423 | 11.0883 | 7.12681 | 4.82375 | 7.46161 |  9.7747 | 10.5025 |
-| 2017-01-01 00:00:00 | 13.1144 |  10.452 | 7.28769 | 4.81795 | 7.46435 | 9.82613 | 10.4776 |
-| 2018-01-01 00:00:00 | 13.1735 | 10.2604 | 7.38047 | 4.86793 | 7.54204 | 10.1958 |  10.548 |
-
-#+BEGIN_SRC jupyter-python
-
-# this
-this_smb = xr.open_dataset('./tmp/smb.nc')\
-             .resample({'time':'YS'})\
-             .sum()\
-             .reindex(time=promice['time'])
-
-<<load_mmb>>
-this_D = mmb.resample({'time':'YS'})\
-            .sum()\
-            .reindex(time=promice['time'])
-
-this_mb = xr.open_dataset('./TMB/mb.nc')\
-            .resample({'time':'YS'})\
-            .sum()\
-           .reindex(time=promice['time'])
-
-# graphics
-def my_plot(ax, x, y):
-
-    years = x.time.dt.year.values
-    color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(np.str)]
-
-    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
-    cmap = cm.viridis(color)
-    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
-
-    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
-    for i,s in enumerate(y2str):
-        ax.text(x.values[i], y.values[i], s,
-                c = cmap(color)[i],
-                fontsize=10,
-                fontweight='bold',
-                horizontalalignment='center',
-                verticalalignment='center')
-
-    if ax == axSMB:
-        ax.set_title('SMB')
-        ax.set_xlabel('SMB [Gt yr$^{-1}$]')
-        ax.set_xlim([50,600])
-        ax.set_xlabel('C$_{2019}$ [Gt yr$^{-1}$]')
-        ax.set_ylabel('M$_{2021}$ [Gt yr$^{-1}$]')
-    if ax == axD:
-        ax.set_title('MMB [+ BMB]')
-        ax.set_xlim([350,500])
-    if ax == axMB:
-        ax.set_title('MB')
-        ax.set_xlim([-450,250])
-
-    ax.set_xticks(ax.get_xlim())
-    ax.set_ylim(ax.get_xlim())
-    ax.set_yticks(ax.get_xlim())
-        
-    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
-    adj(ax, ['left','bottom'])
-    return scatter
-
-my_plot(axSMB, promice['SMB'].sum(dim='sector'), this_smb['MAR_Z'].sum(dim='sector'))
-my_plot(axD,   promice['D'].sum(dim='sector'), this_D['D_Z'].sum(dim='sector'))
-s = my_plot(axMB,  promice['MB'].sum(dim='sector'), this_mb['MAR_sector'].sum(dim='sector'))
+[[./tmp/colgan_2019.png]]
 
 
-# https://stackoverflow.com/questions/17478165/
-def axis_to_fig(axis):
-    fig = axis.figure
-    def transform(coord):
-        return fig.transFigure.inverted().transform(
-            axis.transAxes.transform(coord))
-    return transform
-
-def add_sub_axes(axis, rect):
-    fig = axis.figure
-    left, bottom, width, height = rect
-    trans = axis_to_fig(axis)
-    figleft, figbottom = trans((left, bottom))
-    figwidth, figheight = trans([width,height]) - trans([0,0])
-    return fig.add_axes([figleft, figbottom, figwidth, figheight])
-
-axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
-cb = plt.colorbar(s, cax=axCB, orientation='vertical', ticks=[0,1])
-cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
-cb.draw_all()
-# cb.set_label("Time [year]", labelpad=-20)
-axCB.set_yticklabels([1995,2015])
-
-plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
-#+END_SRC
-
-#+RESULTS:
-: <ipython-input-958-66f0de76b6e0>:180: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-:   plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
-
-** This vs. Colgan (2019): Sectors
+** This vs. Colgan (2019): Sectors xy
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -2156,12 +2005,14 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from adjust_spines import adjust_spines as adj
+import scipy as sp
+import scipy.stats as sps
 
-rc('font', size=11)
+rc('font', size=9)
 rc('text', usetex=False)
 
 # plt.close(1)
-fig = plt.figure(1, figsize=(6,10.5)) # w,h
+fig = plt.figure(1, figsize=((12/2.54),(22/2.54))) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
@@ -2187,7 +2038,7 @@ this_mb = xr.open_dataset('./TMB/mb.nc')\
             .sum()\
             .reindex(time=promice['time'])
 
-#for ds in [promice, this_smb, this_D, this_mb]:
+
 # collapse all Wally sectors to just super-sectors
 promice['Z'] = (('sector'), (promice.sector.values/10).astype(np.int))
 promice = promice.groupby('Z').sum().rename({'Z':'sector'})
@@ -2200,27 +2051,45 @@ this_mb = this_mb.groupby('Z').sum().rename({'Z':'sector'})
 
 sector = this_mb['sector']
 
+<<round_axes>>
+
 def my_plot(ax, x, y):
-    ax.scatter(x.values, y.values, alpha=0.1)
-    yr = [_[2:4] for _ in x.time.dt.year.values.astype(np.str)]
-    for i,s in enumerate(yr):
-        ax.text(x.values[i], y.values[i], s,
-                fontsize=8,
-                horizontalalignment='center', verticalalignment='center')
+    years = x.time.dt.year.values
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(np.str)]
 
-    mmin = np.min([ax.get_xlim()[0], ax.get_ylim()[0]])
-    mmax = np.max([ax.get_xlim()[1], ax.get_ylim()[1]])
-    ax.set_xlim(mmin, mmax); ax.set_ylim(mmin, mmax)
-    ax.plot([mmin, mmax], [mmin, mmax], color='k', alpha=0.25, linestyle='--')
-    adj(ax, ['left','bottom'])
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
 
-    if ax == axSMB:
-        ax.set_ylabel(x.sector.values)
+    scatter = ax.scatter(x.values, y.values, alpha=0.75, c=color, cmap=cmap, clip_on=False)
         
-    if x.sector.values == 8:
-        if ax == axSMB: ax.set_xlabel('SMB')
-        if ax == axD: ax.set_xlabel('D')
-        if ax == axMB: ax.set_xlabel('MB')
+    if x.sector.values == 1:
+        if ax == axSMB: ax.set_title('SMB')
+        if ax == axD: ax.set_title('MMB + BMB')
+        if ax == axMB: ax.set_title('MB')
+
+    if (ax == axSMB):
+        ax.set_ylabel(x.sector.values)
+        if (x.sector.values == 8):
+            ax.set_xlabel('C$_{2019}$ [Gt yr$^{-1}$]')
+            ax.set_ylabel(ax.get_ylabel() + '\nM$_{2021}$ [Gt yr$^{-1}$]')
+
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(0.66, 0,
+            "s: %.1f\ni: %.1f" % (round(slope,1), round(intercept,1)),
+            transform=ax.transAxes,
+            fontsize=8)
+
+    ax.set_xticks(round_axes(ax.get_xlim(), ax.get_ylim()))
+    ax.set_ylim(ax.get_xlim())
+    ax.set_yticks(ax.get_xlim())
+        
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
 
 # graphics
 for row in np.arange(8):
@@ -2238,17 +2107,604 @@ for row in np.arange(8):
                 promice['D'].sel({'sector':sector[row]}),
                 this_D['D_Z'].sel({'sector':sector[row]}))
 
-    my_plot(axMB,
-            promice['MB'].sel({'sector':sector[row]}),
-            this_mb['MAR_sector'].sel({'sector':sector[row]}))
+    s = my_plot(axMB,
+                promice['MB'].sel({'sector':sector[row]}),
+                this_mb['MAR_sector'].sel({'sector':sector[row]}))
 
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
+
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+axCB = add_sub_axes(axD, [0, -1, 1, 0.1])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+axCB.set_xticklabels(promice['time'].dt.year[[0,-1]].values)
+    
 # plt.legend()
 plt.savefig('tmp/colgan_2019_sectors.png', transparent=False, bbox_inches='tight', dpi=150)
 #+END_SRC
 
 #+RESULTS:
+: <ipython-input-352-bb2cbdc4a7d2>:217: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('tmp/colgan_2019_sectors.png', transparent=False, bbox_inches='tight', dpi=150)
 
-** This vs. Colgan (2019): 3D
+[[./tmp/colgan_2019_sectors.png]]
+
+** INPROGRESS This vs. Colgan (2019): GIS ts
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+# plt.close(1)
+fig = plt.figure(1, figsize=(8,2.5)) # w,h
+# get_current_fig_manager().window.move(0,0)
+fig.clf()
+fig.set_tight_layout(True)
+# import matplotlib.gridspec as gridspec
+# gs = gridspec.GridSpec(1, 1) #w,h
+# ax = plt.subplot(gs[:,:])
+axSMB = fig.add_subplot(131)
+axD = fig.add_subplot(132)
+axMB = fig.add_subplot(133)
+
+# PROMICE MB (Colgan 2019)
+<<load_PROMICE_MB>>
+
+# this
+this_smb = xr.open_dataset('./tmp/smb.nc')\
+             .resample({'time':'YS'})\
+             .sum()\
+             .reindex(time=promice['time'])
+
+<<load_mmb>>
+this_D = mmb.resample({'time':'YS'})\
+            .sum()\
+            .reindex(time=promice['time'])
+
+this_mb = xr.open_dataset('./TMB/mb.nc')\
+            .resample({'time':'YS'})\
+            .sum()\
+           .reindex(time=promice['time'])
+
+# graphics
+def my_plot(ax, x, err, **kw):
+
+    p = ax.plot(x['time'], x.values, **kw)
+    ax.fill_between(x['time'], x.values-err.values, x.values+err.values, **kw, alpha=0.5)
+
+    if ax == axSMB:
+        ax.set_title('SMB')
+        ax.set_xlabel('[Gt yr$^{-1}$]')
+        # ax.set_xlim([50,600])
+        # ax.set_xlabel('C$_{2019}$ [Gt yr$^{-1}$]')
+        # ax.set_ylabel('M$_{2021}$ [Gt yr$^{-1}$]')
+    if ax == axD:
+        ax.set_title('MMB [+ BMB]')
+        # ax.set_xlim([350,500])
+    if ax == axMB:
+        ax.set_title('MB')
+        # ax.set_xlim([-450,250])
+
+    # ax.set_xticks(ax.get_xlim())
+    # ax.set_ylim(ax.get_xlim())
+    # ax.set_yticks(ax.get_xlim())
+        
+    # ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+    return p
+
+kw_this = {'color': 'orange'}
+kw_other = {'color': 'black'}
+my_plot(axSMB, this_smb['MAR_Z'].sum(dim='sector'), this_smb['MAR_Z'].sum(dim='sector')*0.15, **kw_this)
+my_plot(axSMB, promice['SMB'].sum(dim='sector'), promice['SMB_err'].sum(dim='sector'), **kw_other)
+
+my_plot(axD, this_D['D_Z'].sum(dim='sector'), this_D['D_Z'].sum(dim='sector')*0.1, **kw_this)
+my_plot(axD, promice['D'].sum(dim='sector'), promice['D_err'].sum(dim='sector'), **kw_other)
+
+my_plot(axMB, this_mb['MAR_sector'].sum(dim='sector'), this_mb['MAR_sector'].sum(dim='sector')*0.15, **kw_this)
+y = my_plot(axMB, promice['MB'].sum(dim='sector'), promice['MB_err'].sum(dim='sector'), **kw_other)
+
+# # https://stackoverflow.com/questions/17478165/
+# def axis_to_fig(axis):
+#     fig = axis.figure
+#     def transform(coord):
+#         return fig.transFigure.inverted().transform(
+#             axis.transAxes.transform(coord))
+#     return transform
+
+# def add_sub_axes(axis, rect):
+#     fig = axis.figure
+#     left, bottom, width, height = rect
+#     trans = axis_to_fig(axis)
+#     figleft, figbottom = trans((left, bottom))
+#     figwidth, figheight = trans([width,height]) - trans([0,0])
+#     return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+# axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+# cb = plt.colorbar(s, cax=axCB, orientation='vertical', ticks=[0,1])
+# cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+# cb.draw_all()
+# # cb.set_label("Time [year]", labelpad=-20)
+# axCB.set_yticklabels(promice['time'].dt.year[[0,-1]].values)
+
+# plt.savefig('tmp/colgan_2019_ts.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+
+[[./tmp/colgan_2019.png]]
+
+
+** This vs. Mouginot (2019): GIS
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+from adjust_spines import adjust_spines as adj
+import scipy.stats as sps
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+# plt.close(1)
+fig = plt.figure(1, figsize=(8,2.5)) # w,h
+# get_current_fig_manager().window.move(0,0)
+fig.clf()
+fig.set_tight_layout(True)
+# import matplotlib.gridspec as gridspec
+# gs = gridspec.GridSpec(1, 1) #w,h
+# ax = plt.subplot(gs[:,:])
+axSMB = fig.add_subplot(131)
+axD = fig.add_subplot(132)
+axMB = fig.add_subplot(133)
+
+# Mouginot SMB, D, and MB (Mouginot, 2019)
+<<load_mouginot>>
+
+# this
+this_smb = xr.open_dataset('./tmp/smb.nc')\
+             .resample({'time':'YS'})\
+             .sum()
+
+<<load_mmb>>
+this_D = mmb.resample({'time':'YS'})\
+            .sum()
+
+this_mb = xr.open_dataset('./TMB/mb.nc')\
+            .resample({'time':'YS'})\
+            .sum()
+
+mouginot = mouginot.where(mouginot['time'].dt.year >= 1987).dropna(dim='time')
+this_smb = this_smb.where((this_smb['time'].dt.year <= 2018) & (this_smb['time'].dt.year >= 1987)).dropna(dim='time')
+this_D = this_D.where((this_D['time'].dt.year <= 2018) & (this_D['time'].dt.year >= 1987)).dropna(dim='time')
+this_mb = this_mb.where((this_mb['time'].dt.year <= 2018) & (this_mb['time'].dt.year >= 1987)).dropna(dim='time')
+
+# graphics
+def my_plot(ax, x, y):
+
+    years = x.time.dt.year.values
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(np.str)]
+
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
+
+    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
+    for i,s in enumerate(y2str):
+        ax.text(x.values[i], y.values[i], s,
+                c = cmap(color)[i],
+                fontsize=10,
+                fontweight='bold',
+                horizontalalignment='center',
+                verticalalignment='center')
+
+    if ax == axSMB:
+        ax.set_title('SMB')
+        ax.set_xlabel('SMB [Gt yr$^{-1}$]')
+        ax.set_xlim([50,600])
+        ax.set_xlabel('M$_{2019}$ [Gt yr$^{-1}$]')
+        ax.set_ylabel('M$_{2021}$ [Gt yr$^{-1}$]')
+    if ax == axD:
+        ax.set_title('MMB [+ BMB]')
+        ax.set_xlim([420,550])
+    if ax == axMB:
+        ax.set_title('MB')
+        ax.set_xlim([-450,250])
+
+    ax.set_xticks(ax.get_xlim())
+    ax.set_ylim(ax.get_xlim())
+    ax.set_yticks(ax.get_xlim())
+        
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(0.66, 0,
+            "s: %.1f\ni: %.1f" % (round(slope,1), round(intercept,1)),
+            transform=ax.transAxes,
+            fontsize=10)
+
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
+
+my_plot(axSMB, mouginot['SMB'].sum(dim='region'), this_smb['MAR_Mr'].sum(dim='region'))
+my_plot(axD,   mouginot['D'].sum(dim='region'), this_D['D_Mr'].sum(dim='region'))
+s = my_plot(axMB,  mouginot['MB'].sum(dim='region'), this_mb['MAR_region'].sum(dim='region'))
+
+
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
+
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+cb = plt.colorbar(s, cax=axCB, orientation='vertical', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+# cb.set_label("Time [year]", labelpad=-20)
+axCB.set_yticklabels(mouginot['time'].dt.year[[0,-1]].values)
+
+plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+: <ipython-input-356-cb710baba851>:187: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+
+
+[[./tmp/mouginot_2019.png]]
+
+** This vs. Mouginot (2019): regions xy
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+from matplotlib import rc
+from adjust_spines import adjust_spines as adj
+import scipy.stats as sps
+
+rc('font', size=9)
+rc('text', usetex=False)
+
+# plt.close(1)
+fig = plt.figure(1, figsize=((12/2.54),(22/2.54)*(7/8))) # w,h
+# get_current_fig_manager().window.move(0,0)
+fig.clf()
+fig.set_tight_layout(True)
+# gs = gridspec.GridSpec(ncols=3, nrows=19, figure=fig) #w,h
+gs = gridspec.GridSpec(ncols=3, nrows=7, figure=fig) #w,h
+
+<<load_mouginot>>
+
+# this
+this_smb = xr.open_dataset('./tmp/smb.nc')\
+             .resample({'time':'YS'})\
+             .sum()
+
+<<load_mmb>>
+this_D = mmb.resample({'time':'YS'})\
+            .sum()
+
+this_mb = xr.open_dataset('./TMB/mb.nc')\
+            .resample({'time':'YS'})\
+            .sum()
+
+
+mouginot = mouginot.where(mouginot['time'].dt.year >= 1987).dropna(dim='time')
+this_smb = this_smb.where((this_smb['time'].dt.year <= 2018) & (this_smb['time'].dt.year >= 1987)).dropna(dim='time')
+this_D = this_D.where((this_D['time'].dt.year <= 2018) & (this_D['time'].dt.year >= 1987)).dropna(dim='time')
+this_mb = this_mb.where((this_mb['time'].dt.year <= 2018) & (this_mb['time'].dt.year >= 1987)).dropna(dim='time')
+
+region = this_mb['region'].values
+
+<<round_axes>>
+
+def my_plot(ax, x, y):
+    years = x.time.dt.year.values
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(np.str)]
+
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
+
+    scatter = ax.scatter(x.values, y.values, alpha=0.75, c=color, cmap=cmap, clip_on=False)
+        
+    if x.region.values == 'NW':
+        if ax == axSMB: ax.set_title('SMB')
+        if ax == axD: ax.set_title('MMB + BMB')
+        if ax == axMB: ax.set_title('MB')
+
+    if (ax == axSMB):
+        ax.set_ylabel(x.region.values)
+        if (x.region.values == 'SE'):
+            ax.set_xlabel('M$_{2019}$ [Gt yr$^{-1}$]')
+            ax.set_ylabel(ax.get_ylabel() + '\nM$_{2021}$ [Gt yr$^{-1}$]')
+
+
+    ax.set_xticks(round_axes(ax.get_xlim(), ax.get_ylim()))
+    ax.set_ylim(ax.get_xlim())
+    ax.set_yticks(ax.get_xlim())
+        
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(0.66, 0,
+            "s: %.1f\ni: %.1f" % (round(slope,1), round(intercept,1)),
+            transform=ax.transAxes,
+            fontsize=8)
+
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
+
+# graphics
+for i,region in enumerate(['NW','NO','NE','CW','CE','SW','SE']):
+    axSMB = fig.add_subplot(gs[i,0])
+    axD = fig.add_subplot(gs[i,1])
+    axMB = fig.add_subplot(gs[i,2])
+
+    my_plot(axSMB, mouginot['SMB'].sel({'region':region}), this_smb['MAR_Mr'].sel({'region':region}))
+    my_plot(axD,   mouginot['D'].sel({'region':region}), this_D['D_Mr'].sel({'region':region}))
+    s = my_plot(axMB,  mouginot['MB'].sel({'region':region}), this_mb['MAR_region'].sel({'region':region}))
+
+
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
+
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+axCB = add_sub_axes(axD, [0, -1.1, 1, 0.1])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+axCB.set_xticklabels(this_mb['time'].dt.year[[0,-1]].values)
+    
+# plt.legend()
+plt.savefig('tmp/mouginot_2019_regions.png', transparent=False, bbox_inches='tight', dpi=150)
+#+END_SRC
+
+#+RESULTS:
+: <ipython-input-409-13697634a805>:194: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('tmp/mouginot_2019_regions.png', transparent=False, bbox_inches='tight', dpi=150)
+
+[[./tmp/colgan_2019_sectors.png]]
+
+** This vs. Mouginot (2019): sector ts
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+import matplotlib.gridspec as gridspec
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=10)
+rc('text', usetex=False)
+
+fig = plt.figure(1, figsize=((12/2.54),23/2.54))
+fig.clf()
+fig.set_tight_layout(True)
+gs = gridspec.GridSpec(ncols=3, nrows=8, figure=fig) #w,h
+
+
+<<mouginot>>
+
+# this
+this_smb = xr.open_dataset('./tmp/smb.nc')\
+             .resample({'time':'YS'})\
+             .sum()
+
+<<load_mmb>>
+this_D = mmb.resample({'time':'YS'})\
+            .sum()
+
+this_mb = xr.open_dataset('./TMB/mb.nc')\
+            .resample({'time':'YS'})\
+            .sum()
+
+<<round_axes>>
+
+# graphics
+def my_plot(ax, x, err, my_data=False, **kw):
+
+    p = ax.plot(x['time'], x.values, **kw)
+    ax.fill_between(x['time'], x.values-err.values, x.values+err.values, **kw, alpha=0.5)
+
+    if my_data:
+        ylim = round_axes(ax.get_ylim())
+        ax.set_ylim(ylim)
+        ax.set_xticks(ax.get_xlim())
+        ax.get_xaxis().set_ticklabels(x.time.dt.year[[0,-1]].values)
+        ax.get_xaxis().set_ticklabels(['',''])
+
+        if x.region.values == 'NW':
+            if ax == axSMB: ax.set_title('SMB')
+            if ax == axD: ax.set_title('MMB + BMB')
+            if ax == axMB: ax.set_title('MB')
+            
+        if (x.region.values == 'SW') & (ax == axD):
+            ax.set_ylim([10,40])
+        
+        if (ax == axSMB):
+            ax.set_ylabel(x.region.values)
+            
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+        
+        # ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+        adj(ax, ['left','bottom'])
+    return p
+
+# graphics
+for i,region in enumerate(['NW','NO','NE','CW','CE','SW','SE']):
+    axSMB = fig.add_subplot(gs[i,0])
+    axD = fig.add_subplot(gs[i,1])
+    axMB = fig.add_subplot(gs[i,2])
+
+    my_plot(axSMB, this_smb['MAR_Mr'].sel({'region':region}), this_smb['MAR_Mr'].sel({'region':region})*0.15, my_data=True, **kw_this)
+    my_plot(axSMB, mouginot['SMB'].sel({'region':region}), mouginot['SMB_err'].sel({'region':region}), **kw_other)
+
+    my_plot(axD, this_D['D_Mr'].sel({'region':region}), this_D['err_Mr'].sel({'region':region}), my_data=True, **kw_this)
+    my_plot(axD, mouginot['D'].sel({'region':region}), mouginot['D_err'].sel({'region':region}), **kw_other)
+
+    my_plot(axMB, this_mb['MAR_region'].sel({'region':region}), this_mb['MAR_region'].sel({'region':region})*0.33, my_data=True, **kw_this)
+    my_plot(axMB, mouginot['MB'].sel({'region':region}), mouginot['MB_err'].sel({'region':region}), **kw_other)
+
+axSMB = fig.add_subplot(gs[i+1,0])
+axD = fig.add_subplot(gs[i+1,1])
+axMB = fig.add_subplot(gs[i+1,2])
+
+axSMB.plot(this_smb['time'], this_smb['MAR_Mr'].sum('region'), **kw_this)
+axSMB.plot(mouginot['time'], mouginot['SMB'].sum('region'), **kw_other)
+
+axD.plot(this_D['time'], this_D['D_Mr'].sum('region'), **kw_this)
+axD.plot(mouginot['time'], mouginot['D'].sum('region'), **kw_other)
+
+axMB.plot(this_mb['time'], this_mb['MAR_region'].sum('region'), **kw_this)
+axMB.plot(mouginot['time'], mouginot['MB'].sum('region'), **kw_other)
+
+axSMB.set_ylabel('GIS')
+
+for ax in [axSMB, axD, axMB]:
+    adj(ax, ['left','bottom'])
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+    ax.set_xticks(ax.get_xlim())
+    ax.get_xaxis().set_ticklabels(this_mb.time.dt.year[[0,-1]].values)
+    
+plt.savefig('tmp/mouginot_2019_ts.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+
+[[./tmp/colgan_2019.png]]
+
+
+** This sector ts
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+import matplotlib.gridspec as gridspec
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=10)
+rc('text', usetex=False)
+
+fig = plt.figure(1, figsize=((8/2.54),23/2.54))
+fig.clf()
+fig.set_tight_layout(True)
+gs = gridspec.GridSpec(ncols=1, nrows=8, figure=fig) #w,h
+
+# this
+this_smb = xr.open_dataset('./tmp/smb.nc')\
+             .resample({'time':'YS'})\
+             .sum()
+
+<<load_mmb>>
+this_D = mmb.resample({'time':'YS'})\
+            .sum()
+
+this_mb = xr.open_dataset('./TMB/mb.nc')\
+            .resample({'time':'YS'})\
+            .sum()
+
+<<round_axes>>
+
+# graphics
+def my_plot(ax, x, err, **kw):
+
+    ax.plot(x['time'], x.values, **kw)
+    ax.fill_between(x['time'], x.values-err.values, x.values+err.values, **kw, alpha=0.5)
+
+    # ylim = round_axes(ax.get_ylim())
+    # ax.set_ylim([-100, ylim[1]])
+    ax.set_xticks(ax.get_xlim())
+    ax.get_xaxis().set_ticklabels(x.time.dt.year[[0,-1]].values)
+    ax.get_xaxis().set_ticklabels(['',''])
+    ax.set_ylabel(x.region.values)
+            
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+    adj(ax, ['left','bottom'])
+
+for i,region in enumerate(['NW','NO','NE','CW','CE','SW','SE']):
+    ax = fig.add_subplot(gs[i,0])
+
+    my_plot(ax, this_smb['MAR_Mr'].sel({'region':region}), this_smb['MAR_Mr'].sel({'region':region})*0.15, color='gray')
+    my_plot(ax, -this_D['D_Mr'].sel({'region':region}), this_D['err_Mr'].sel({'region':region}), color='blue')
+    my_plot(ax, this_mb['MAR_region'].sel({'region':region}), this_mb['MAR_region'].sel({'region':region})*0.33, color='black')
+
+ax = fig.add_subplot(gs[i+1,0])
+ax.plot(this_smb['time'], this_smb['MAR_Mr'].sum('region'), color='gray', label='SMB')
+ax.plot(this_D['time'], -this_D['D_Mr'].sum('region'), color='blue', label='MMB')
+ax.plot(this_mb['time'], this_mb['MAR_region'].sum('region'), color='black', label='MB')
+ax.set_ylabel('GIS')
+ax.legend(fontsize=8, ncol=1, loc=(0.33, -0.70), fancybox=True, frameon=True)
+
+adj(ax, ['left','bottom'])
+plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
+ax.set_xticks(ax.get_xlim())
+ax.get_xaxis().set_ticklabels(this_mb.time.dt.year[[0,-1]].values)
+    
+plt.savefig('tmp/sector_ts.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+
+
+** NOTDONE This vs. Colgan (2019): 3D
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -2311,6 +2767,150 @@ plt.savefig('tmp/colgan_2019_3d.png', transparent=False, bbox_inches='tight', dp
 #+RESULTS:
 : (-435.61391955729334, 250.0439373209448)
 
+[[./tmp/colgan_2019_3d.png]]
+** NOTDONE This: SMB MMB MB bar chart
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+from matplotlib import rc
+from adjust_spines import adjust_spines as adj
+import scipy as sp
+import scipy.stats as sps
+
+rc('font', size=9)
+rc('text', usetex=False)
+
+# plt.close(1)
+fig = plt.figure(1, figsize=((12/2.54),(22/2.54))) # w,h
+# get_current_fig_manager().window.move(0,0)
+fig.clf()
+fig.set_tight_layout(True)
+# gs = gridspec.GridSpec(ncols=3, nrows=19, figure=fig) #w,h
+gs = gridspec.GridSpec(ncols=3, nrows=8, figure=fig) #w,h
+
+# this
+this_smb = xr.open_dataset('./tmp/smb.nc')\
+             .resample({'time':'YS'})\
+             .sum()\
+             .reindex(time=promice['time'])
+
+<<load_mmb>>
+this_D = mmb.resample({'time':'YS'})\
+            .sum()\
+            .reindex(time=promice['time'])
+
+this_mb = xr.open_dataset('./TMB/mb.nc')\
+            .resample({'time':'YS'})\
+            .sum()\
+            .reindex(time=promice['time'])
+
+
+# collapse all Wally sectors to just super-sectors
+this_smb['Z'] = (('sector'), (this_smb.sector.values/10).astype(np.int))
+this_smb = this_smb.groupby('Z').sum().rename({'Z':'sector'})
+this_D['Z'] = (('sector'), (this_D.sector.values/10).astype(np.int))
+this_D = this_D.groupby('Z').sum().rename({'Z':'sector'})
+this_mb['Z'] = (('sector'), (this_mb.sector.values/10).astype(np.int))
+this_mb = this_mb.groupby('Z').sum().rename({'Z':'sector'})
+
+sector = this_mb['sector']
+
+<<round_axes>>
+
+xpos = [i for i,_ in enumerate(this_smb.sector)]
+plt.bar(this_smb['time'], xpos, this_smb.sector, this_smb
+
+# def my_plot(ax, x, y):
+#     years = x.time.dt.year.values
+#     color = years - min(years); color = color / max(color)
+#     y2str = [_[2:4] for _ in years.astype(np.str)]
+
+#     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+#     cmap = cm.viridis(color)
+#     cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
+
+#     scatter = ax.scatter(x.values, y.values, alpha=0.75, c=color, cmap=cmap, clip_on=False)
+        
+#     if x.sector.values == 1:
+#         if ax == axSMB: ax.set_title('SMB')
+#         if ax == axD: ax.set_title('MMB + BMB')
+#         if ax == axMB: ax.set_title('MB')
+
+#     if (ax == axSMB):
+#         ax.set_ylabel(x.sector.values)
+#         if (x.sector.values == 8):
+#             ax.set_xlabel('C$_{2019}$ [Gt yr$^{-1}$]')
+#             ax.set_ylabel(ax.get_ylabel() + '\nM$_{2021}$ [Gt yr$^{-1}$]')
+
+#     slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+#     # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+#     ax.text(0.66, 0,
+#             "s: %.1f\ni: %.1f" % (round(slope,1), round(intercept,1)),
+#             transform=ax.transAxes,
+#             fontsize=8)
+
+#     ax.set_xticks(round_axes(ax.get_xlim(), ax.get_ylim()))
+#     ax.set_ylim(ax.get_xlim())
+#     ax.set_yticks(ax.get_xlim())
+        
+#     ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+#     adj(ax, ['left','bottom'])
+#     return scatter
+
+
+# # graphics
+# for row in np.arange(8):
+#     axSMB = fig.add_subplot(gs[row,0])
+#     axD = fig.add_subplot(gs[row,1])
+#     axMB = fig.add_subplot(gs[row,2])
+
+#     my_plot(axSMB,
+#             promice['SMB'].sel({'sector':sector[row]}),
+#             this_smb['MAR_Z'].sel({'sector':sector[row]}))
+    
+
+#     if (sector[row] != 14) & (sector[row] != 22):
+#         my_plot(axD,
+#                 promice['D'].sel({'sector':sector[row]}),
+#                 this_D['D_Z'].sel({'sector':sector[row]}))
+
+#     s = my_plot(axMB,
+#                 promice['MB'].sel({'sector':sector[row]}),
+#                 this_mb['MAR_sector'].sel({'sector':sector[row]}))
+
+# # https://stackoverflow.com/questions/17478165/
+# def axis_to_fig(axis):
+#     fig = axis.figure
+#     def transform(coord):
+#         return fig.transFigure.inverted().transform(
+#             axis.transAxes.transform(coord))
+#     return transform
+
+# def add_sub_axes(axis, rect):
+#     fig = axis.figure
+#     left, bottom, width, height = rect
+#     trans = axis_to_fig(axis)
+#     figleft, figbottom = trans((left, bottom))
+#     figwidth, figheight = trans([width,height]) - trans([0,0])
+#     return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+# axCB = add_sub_axes(axD, [0, -1, 1, 0.1])
+# cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+# cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+# cb.draw_all()
+# axCB.set_xticklabels(promice['time'].dt.year[[0,-1]].values)
+    
+# # plt.legend()
+# plt.savefig('tmp/sector_bars.png', transparent=False, bbox_inches='tight', dpi=150)
+#+END_SRC
+
+#+RESULTS:
+
+
 * Helper functions
 ** Adjust Spines
 
@@ -2367,6 +2967,22 @@ if __name__ == "__main__":
     ax.plot(x)
     adjust_spines(ax,["left","bottom"])
 
+#+END_SRC
+
+** round axes
+#+NAME: round_axes
+#+BEGIN_SRC jupyter-python
+def round_axes(x, y=None):
+    x = np.append(x,y) if y is not None else np.array(x)
+    # print(x)
+    mmin = np.min(x)
+    mmax = np.max(x)
+    sign = np.sign([mmin,mmax])
+    # mmin = 10**np.floor(np.log10(sign[0]*mmin*10)) * sign[0]
+    # mmax = 10**np.ceil(np.log10(sign[1]*mmax/10)) * sign[1]
+    mmin = np.floor(mmin/10)*10
+    mmax = np.ceil(mmax/10)*10
+    return(mmin,mmax)
 #+END_SRC
 
 * Environment
