@@ -4,22 +4,22 @@
 #+PROPERTY: header-args:bash+ :tangle-mode (identity #o544) :shebang #!/usr/bin/env bash
 #+PROPERTY: header-args:jupyter-python :kernel TMB :session TMB
 
-* Sectors
+* ROIs
 
-Here "sectors" refers both to the citet:zwally_2012 outlines and the citet:mouginot_2019_glacier basins and regions.
+ROI refers both to the citet:zwally_2012 sectors and the citet:mouginot_2019_glacier basins and regions.
 
-Procedure to map the sectors to the SMB grids:
-+ Sectors are in EPSG:4326 projection, and need to be re-projected to the SMB projection
+Procedure to map the ROIs to the SMB grids:
++ ROIs are in EPSG:4326 projection, and need to be re-projected to the SMB projection
   + HIRHAM :: rotated pole
   + MAR :: Oblique stereographic 
   + RACMO :: EPSG:3413
 
-SMB grids do not match sectors perfectly. When the sectors are larger, that is fine - whatever the SMB is in the sector interior is the modeled SMB. It is problematic where the sectors are smaller than the model domain. Because the largest SMB losses are at the edge, if some RCM pixels are outside of a sector and not counted, this would introduce large errors.
+SMB grids do not match ROIs perfectly. When the ROIs are larger, that is fine - whatever the SMB is in the sector interior is the modeled SMB. It is problematic where the ROIs are smaller than the model domain. Because the largest SMB losses are at the edge, if some RCM pixels are outside of a ROI and not counted, this would introduce large errors.
 + For each SMB, determine the mask
   + HIRHAM ::
   + MAR ::
   + RACMO :: No mask provided. Look at summer season and assume any cell with any values != 0 is in the model domain, and all cells summed = 0 is outside
-+ For all model domain cells outside of a sector, enlarge the sector to include them, and join the new sector cells to the nearest sector cell that is inside the model domain
++ For all model domain cells outside of a ROI, enlarge the ROI to include them, and join the new ROI cells to the nearest ROI cell that is inside the model domain
 
 ** Mouginot 2019
 
@@ -48,6 +48,7 @@ db.execute sql="UPDATE basins SET SUBREGION1_num=9 WHERE SUBREGION1='CW'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=5 WHERE SUBREGION1='SE'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=7 WHERE SUBREGION1='SW'"
 #+END_SRC
+
 ** Zwally 2012
 
 #+NAME: import_zwally
@@ -257,6 +258,7 @@ v.to.rast input=sectors output=sectors use=attr attribute_column=cat_
 # Probably need to jump to v.distance or r.distance if we want to assign these to sectors.
 r.grow.distance input=sectors value=value
 r.mapcalc "sectors_e = if(mask_ice, int(value), null())" # sectors_enlarged
+r.to.vect input=sectors_e output=sectors_e type=area
 #+END_SRC
 
 
@@ -276,6 +278,7 @@ r.grow.distance input=basins value=value_b
 r.mapcalc "basins_e = if(mask_ice, int(value_b), null())"
 r.category map=basins separator=":" > ./tmp/basins_cats
 r.category map=basins_e separator=":" rules=./tmp/basins_cats
+r.to.vect input=basins_e output=basins_e type=area
 
 v.to.rast input=basins output=regions use=attr attribute_column=SUBREGION1_num labelcolumn=SUBREGION1
 # r.mapcalc "outside = if(isnull(regions) & mask_ice, 1, null())"
@@ -283,6 +286,7 @@ r.grow.distance input=regions value=value_r
 r.mapcalc "regions_e = if(mask_ice, int(value_r), null())"
 r.category map=regions separator=":" > ./tmp/region_cats
 r.category map=regions_e separator=":" rules=./tmp/region_cats
+r.to.vect input=regions_e output=regions_e type=area
 #+END_SRC
 
 ** Test location alignment
@@ -326,33 +330,22 @@ From XF:
 These outputs are on the MAR native grid using a Stereographic Oblique Projection with 70.5°N, 40°W as center.
 #+END_QUOTE
 
-#+BEGIN_SRC bash :tangle no
-grass -e -c G_tmp --exec g.proj -c location=G_MAR proj4="+proj=sterea +lat_0=90 +lat_ts=70.5 +lon_0=-40 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
-rm -fR G_tmp
-grass ./G_MAR/PERMANENT
-#+END_SRC
-
-** Find domain boundary
+Find domain boundary
 
 #+BEGIN_QUOTE
-Y21_155 and X12_84 are the X/Y axis from MAR after a selection by NOAA
-FERRET of a smaller domain covering Greenland only within the MAR 
-initial integration domain.
-The centre of the projection in the reduced grid corresponds to the
-pixel (39,60).
+Y21_155 and X12_84 are the X/Y axis from MAR after a selection by NOAA FERRET of a smaller domain covering Greenland only within the MAR initial integration domain. The centre of the projection in the reduced grid corresponds to the pixel (39,60).
 
-The dimension of the original grid is 95 x 165 and the centre of the
-projection is the pixel (50,80).
-I'm not a specialist of the projections and I can't help to resolve
-your problem. But as it comes from a old Fortran code into, it is
-likely that there are some errors explaining the differences you have.
+The dimension of the original grid is 95 x 165 and the centre of the projection is the pixel (50,80). I'm not a specialist of the projections and I can't help to resolve your problem. But as it comes from a old Fortran code into, it is likely that there are some errors explaining the differences you have.
 #+END_QUOTE
 
 ** Set up GRASS location
 
 #+BEGIN_SRC bash
+# update region from XY to the following proj4 string
+g.proj -c proj4="+proj=sterea +lat_0=90 +lat_ts=70.5 +lon_0=-40 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+1
 C=$(m.proj -i coordinates=-40,70.5) # center of center grid cell
-echo $C ## 0.00|-2198452.92|0.00
+echo "${C}" ## 0.00|-2198452.92|0.00
 # The following numbers come from $c(y) and the X12_84 and Y21_155 arrays in the MAR NetCDF files
 g.region e=680000 w=-760000 s=$(( -1180000 - 2198452 )) n=$(( 1500000 - 2198452 )) rows=134 cols=72 -pl
 g.region e=e+10000 w=w-10000 s=s-10000 n=n+10000 -pl # adjust from cell center to edges
@@ -369,8 +362,8 @@ r.region map=mask region=RCM
 r.colors map=mask color=haxby
 
 # r.mapcalc "mask_ice_all = if(mask == 0, null(), 1)"
-r.mapcalc "mask_ice_1 = if(mask == 1, 1, null())"
-r.grow input=mask_ice_1 output=mask_ice_all radius=5 new=1
+r.mapcalc "mask_ice_1 = if(mask >= 99, 1, null())"
+r.grow input=mask_ice_1 output=mask_ice_all radius=3 new=1
 
 r.clump input=mask_ice_all output=mask_clump
 main_clump=$(r.stats -c -n mask_clump sort=desc | head -n1 | cut -d" " -f1)
@@ -508,9 +501,8 @@ t = [(str(_)[0:10]).replace('-','_') for _ in ds[tvar].values]
 for _ in t: print(_)
 #+END_SRC
 
-
 ** HIRHAM
-#+BEGIN_SRC bash :results verbatim :tangle HIRHAM_to_sectors.sh
+#+BEGIN_SRC bash :results verbatim :tangle SMB_HIRHAM_ROI.sh
 
 <<init_bash>>
 
@@ -560,7 +552,7 @@ done
 #+END_SRC
 
 ** MAR
-#+BEGIN_SRC bash :results verbatim :tangle MAR_to_sectors.sh
+#+BEGIN_SRC bash :results verbatim :tangle SMB_MAR_ROI.sh
 
 <<init_bash>>
 
@@ -572,7 +564,7 @@ f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
 
 
 for f in ${dir}/MARv3.11*.nc; do
-  dates=$(python ./nc_dates.py ${f})
+  dates=$(python ./nc_dates.py ${f} | sed 's/_/-/g')
   band=0
   d=1986-01-01 # debug
   for d in ${dates}; do
@@ -610,7 +602,7 @@ done
 
 
 ** RACMO
-#+BEGIN_SRC bash :results verbatim :tangle RACMO_to_sectors.sh
+#+BEGIN_SRC bash :results verbatim :tangle SMB_RACMO_ROI.sh
 
 <<init_bash>>
 
@@ -660,10 +652,12 @@ done
 #+END_SRC
 
 
-** Merge
+** Create data file
+*** Merge from daily to single file for each RCM and ROI
 
-Raw (daily) BSV merged to one
-#+BEGIN_SRC bash :tangle merge.sh
+#+BEGIN_SRC bash :tangle smb_merge.sh
+<<init_bash>>
+
 for RCM in HIRHAM MAR RACMO; do
   for ROI in Z Mb Mr; do
     log_info ${RCM} ${ROI}
@@ -675,355 +669,10 @@ done
 
 #+RESULTS:
 
-* BMB
-** GHF
-** Velocity
-** Surface runoff
-:PROPERTIES:
-:header-args:bash+: :tangle VHD.sh
-:END:
-
-*** Source contribution map
-
-+ Determine VHD routing map as per citet:mankoff_2017_VHD
-+ For each source cell, estimate the contribution to that sector VHD per unit mass of water
-  + That is, from the water source, the integrated VHD between source and outlet.
-  + Rather than doing full routing for each and every interior cell, the integrated VHD per cell can be estimated as the difference between the source pressure+elevation and the basal pressure+elevation terms.
-+ Then, use this source map applied to each day of runoff from one of the RCMs.
-
-Do this work in the RACMO location because it is EPSG:3413 and so is BedMachine (used for the basal routing)
-
-
-*** Import BedMachine v3
-+ from [[textcite:Morlighem:2017BedMachine][Morlighem /et al./ (2017)]]
-#+BEGIN_SRC bash :results verbatim
-g.mapset -c BedMachine
-
-for var in $(echo mask surface thickness bed errbed); do
-  echo $var
-  # r.external source=netCDF:${DATADIR}/Morlighem_2017/BedMachineGreenland-2020-07-16.nc:${var} output=${var}
-  r.external source=netCDF:${DATADIR}/Morlighem_2017/BedMachineGreenland-2017-09-20.nc:${var} output=${var}
-done
-
-g.region raster=surface
-g.region save=BedMachine
-
-r.colors map=mask color=haxby
-r.mapcalc "mask_ice_0 = if(mask == 2, 1, null())"
-#+END_SRC
-
-*** Expand Mask
-
-The ice mask needs to be expanded so that land terminating glaciers need 1 grid cell outside the ice domain are included in the model, so that the discharge location has 0 thickness (0 pressure term) and all pressure energy is released. Only gravitational potential energy remains. Submarine discharge remains pressurized.
-
-#+BEGIN_SRC bash
-r.grow input=mask_ice_0 output=mask_ice_1 radius=1.5 new=1
-r.mapcalc "mask_ice = if((mask == 0) | (mask == 3), null(), mask_ice_1)"
-#+END_SRC
-
-*** Expand ROIs to BedMachine ice domain
-
-Copied from <<expand_zwally>> and <<expand_mouginot>>, but run here so that it is in the BedMachine mapset
-
-#+BEGIN_SRC bash
-r.grow.distance input=sectors@Zwally_2012 value=value_Z
-r.mapcalc "sectors_e = if(mask_ice, int(value_Z), null())"
-
-r.grow.distance input=regions@Mouginot_2019 value=value_Mr
-r.mapcalc "regions_e = if(mask_ice, int(value_Mr), null())"
-
-r.grow.distance input=basins@Mouginot_2019 value=value_Mb
-r.mapcalc "basins_e = if(mask_ice, int(value_Mb), null())"
-#+END_SRC
-
-*** COMMENT Fill in small holes
-
-Also fills in nunatuks.
-
-This is done because hydrologic routing will terminate at domain boundaries, even if they're inland. We want to route to the ice edge.
-
-#+BEGIN_SRC bash :results verbatim
-r.colors map=mask color=haxby
-r.mapcalc "not_ice = if(isnull(mask) ||| (mask != 2), 1, 0)"
-
-# No mask, NULLS are not clumped
-r.clump input=not_ice output=clumps
-# d.rast clumps
-main_clump=$(r.stats -c -n clumps sort=desc | head -n1 | cut -d" " -f1)
-r.mask -i raster=clumps maskcats=${main_clump} --o
-
-r.mapcalc "all_ice = 1"
-r.clump input=all_ice output=clumps2
-# d.rast clumps2
-main_clump=$(r.stats -c -n clumps2 sort=desc | head -n1 | cut -d" " -f1)
-r.mask raster=clumps2 maskcats=${main_clump} --o
-
-r.mapcalc "mask_ice = MASK"
-# ice mask with no islands
-
-# original mask ice
-r.mask -r
-r.mapcalc "mask_ice_islands = if(mask == 2, 1, null())"
-#+END_SRC
-#+RESULTS:
-
-
-*** Hydropotential head
-
-#+BEGIN_SRC bash :results verbatim
-log_info "Calculating subglacial head with k = 1.0"
-r.mapcalc "head = mask_ice * bed + 1 * 0.917 * thickness"
-#+END_SRC
-
-**** Streams
-
-After calculating the head, we use 3rd party tools to get the flow direction and streams
-
-#+NAME: streams
-#+BEGIN_SRC bash :results verbatim
-THRESH=300
-log_warn "Using threshold: ${THRESH}"
-log_info "r.stream.extract..."
-
-r.stream.extract elevation=head threshold=${THRESH} memory=16384 direction=dir stream_raster=streams stream_vector=streams
-#+END_SRC
-
-**** Outlets
-
-+ The flow direction =dir= is negative where flow leaves the domain. These are the outlets.
-+ Encode each outlet with a unique id
-
-#+NAME: outlets
-#+BEGIN_SRC bash :results verbatim
-log_info "Calculating outlets"
-r.mapcalc "outlets_1 = if(dir < 0, 1, null())"
-r.out.xyz input=outlets_1 | \
-    cat -n | \
-    tr '\t' '|' | \
-    cut -d"|" -f1-3 | \
-    v.in.ascii input=- output=outlets_uniq separator=pipe \
-        columns="x int, y int, cat int" x=2 y=3 cat=1
-#+END_SRC
-
-**** Basins
-
-Using =r.stream.basins=, we can get basins for every outlet.
-
-#+NAME: basins
-#+BEGIN_SRC bash :results verbatim
-log_info "r.stream.basins..."
-
-r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=16384 --verbose
-#+END_SRC
-
-
-*** Find outlet (x,y) for each inland cell
-**** Extract the x and y coordinates of each outlet
-#+BEGIN_SRC bash :results verbatim
-log_info "Exporting outlet coordinates"
-
-r.out.xyz input=outlets | awk -F'|' '{print \$3, \$1}' > ./tmp/outlets_x
-r.out.xyz input=outlets | awk -F'|' '{print \$3, \$2}' > ./tmp/outlets_y
-#+END_SRC
-
-**** Basins map where pixel encodes the x and y coordinate of its outlet
-
-+ First encode the outlet location as the category information of each basin, rather than as the value for each (x,y) cell.
-  + This means we encode n basin bits of info (20,000?) rather than n grid cells bits of info (4.5M?)
-+ Then create new rasters where the grid cells contain the outlet info directly. Easier for math further down in the code.
-
-#+BEGIN_SRC bash :results verbatim
-
-log_info "Encoding outlet coordinates"
-
-g.copy basins,cat_x
-g.copy basins,cat_y
-
-r.category map=cat_x rules=./tmp/outlets_x separator=space
-r.category map=cat_y rules=./tmp/outlets_y separator=space
-
-r.mapcalc "outlet_x = @cat_x"
-r.mapcalc "outlet_y = @cat_y"
-#+END_SRC
-
-
-
-*** More complex stats in Python                        :noexport:
-**** Export to CSV
-
-#+BEGIN_SRC bash :results verbatim
-
-log_info "Exporting cells..."
-log_warn "Reducing resolution."
-
-LIST=$(g.list type=raster pattern='^outlet_[x|y]$' separator=,)
-echo "x,y,${LIST}" | tr "," "|" > ./tmp/cells_xy.bsv
-g.region res=1000 -a
-r.out.xyz input=${LIST} output=- >> ./tmp/cells_xy.bsv
-g.region BedMachine
-#+END_SRC
-
-
-**** Import & process in Python
-
-#+BEGIN_SRC jupyter-python :tangle VHD.py
-import pandas as pd
-import numpy as np
-
-df_xy = pd.read_csv("./tmp/cells_xy.bsv", delimiter="|", usecols=['x','y']).astype(np.int)
-
-header = pd.read_csv("./tmp/cells_xy.bsv", delimiter="|", nrows=1)
-cols_in = header.columns[['ice' in _ for _ in header.columns]]
-df = pd.read_csv("./tmp/cells_xy.bsv", delimiter="|", usecols=cols_in)
-
-multi_hdr = [np.array([_.split("_")[1] for _ in cols_in]).astype(np.int), 
-             [_.split("_")[2] for _ in cols_in]]
-df.columns = pd.MultiIndex.from_arrays(multi_hdr, names=['k','coord'])
-
-k = np.unique(multi_hdr[0])
-
-for kk in k:
-
-    # mean distance for this k =
-    # all other columns minus this column squared for x
-    # also for y
-    # square root of all that
-    # take the mean of all columns
-
-    df[(kk,'avg_dist')] = (((df.xs('x', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('x', level='coord', axis='columns')[kk]))**2 + (df.xs('y', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('y', level='coord', axis='columns')[kk]))**2)**0.5).mean(axis='columns')
-
-    # same for max, except last step
-
-    df[(kk,'max_dist')] = (((df.xs('x', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('x', level='coord', axis='columns')[kk]))**2 + (df.xs('y', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('y', level='coord', axis='columns')[kk]))**2)**0.5).max(axis='columns')
-
-    # df[(kk,'std_dist')] = (((df.xs('x', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('x', level='coord', axis='columns')[kk]))**2 + (df.xs('y', level='coord', axis='columns').drop(kk, axis='columns').apply(lambda c: c-df.xs('y', level='coord', axis='columns')[kk]))**2)**0.5).std(axis='columns')
-
-df_out = pd.DataFrame()
-df_out['avg_avg'] = df.xs('avg_dist', level='coord', axis='columns').mean(axis='columns')
-# df_out['avg_max'] = df.xs('max_dist', level='coord', axis='columns').mean(axis='columns')
-# df_out['avg_std'] = df.xs('std_dist', level='coord', axis='columns').mean(axis='columns')
-
-# df_out['max_avg'] = df.xs('avg_dist', level='coord', axis='columns').max(axis='columns')
-df_out['max_max'] = df.xs('max_dist', level='coord', axis='columns').max(axis='columns')
-# df_out['max_std'] = df.xs('std_dist', level='coord', axis='columns').max(axis='columns')
-
-# df_out['std_avg'] = df.xs('avg_dist', level='coord', axis='columns').std(axis='columns')
-# df_out['std_max'] = df.xs('max_dist', level='coord', axis='columns').std(axis='columns')
-# df_out['std_std'] = df.xs('std_dist', level='coord', axis='columns').std(axis='columns')
-
-df_out = df_out.merge(df_xy, left_index=True, right_index=True)
-df_out.to_csv("./tmp/cells_xy_ice_stats.bsv", sep="|", float_format='%d')
-#+END_SRC
-
-
-**** Import Python results back to GRASS
-
-#+BEGIN_SRC bash :results verbatim
-
-# run python code above to calculate basin outlet statistics
-
-log_info "Calculating cell outlet statistics..."
-
-python ./VHD.py 
-
-log_info "Re-importing rasters."
-log_warn "Reduced resolution."
-
-g.region res=1000 -a
-r.in.xyz input=./tmp/cells_xy_ice_stats.bsv output=ice_max method=mean x=4 y=5 z=3 skip=1
-r.in.xyz input=./tmp/cells_xy_ice_stats.bsv output=ice_avg method=mean x=4 y=5 z=2 skip=1
-
-# r.in.xyz input=./tmp/cells_xy_land_stats.bsv output=land_max method=mean x=4 y=5 z=3 skip=1
-# r.in.xyz input=./tmp/cells_xy_land_stats.bsv output=land_avg method=mean x=4 y=5 z=2 skip=1
-#+END_SRC
-
-
-*** Find outlet pressure head and elevation head for each inland cell
-
-*** Determine integrated VHD contribution from each inland cell per unit water
-
-*** NOTDONE Volumetric flow through each cell              :grass:
-
-#+BEGIN_SRC bash :results verbatim
-r.mask raster=mask_ice_1 --o # CHECKME
-
-r.mapcalc 'phi_z = 1000 * 9.8 * bed@BedMachine' --o --q
-r.mapcalc 'phi_p = 0.9 * (917 * 9.8 * (surface@BedMachine - bed@BedMachine))' --o --q
-r.mapcalc 'phi = phi_z + phi_p' --o --q
-
-# r.watershed doesn't work with extreme values larger than "normal"
-# terrain (presumably due to buffer overflow), so scale things from Pa to kPa.
-r.mapcalc 'phi_1E4 = phi / 10000' --o  --q # [Pa] to [kpa]
-# See: https://trac.osgeo.org/grass/ticket/2935
-
-r.watershed -s -m -a elevation=phi_1E4 accumulation=V_1000 drainage=fdir
-#+END_SRC
-#+RESULTS:
-
-*** NOTDONE Convert from mmWE to mWE                       :grass:
-
-We left runoff in its original [mmWE] form and therefore accumulation is also in [mmWE], because if we converted to [m] earlier, the small numbers appeared to cause underflow somewhere (probably in =r.watershed=?).
-
-#+BEGIN_SRC bash :results verbatim
-r.mapcalc 'V = V_1000 / 1000'
-#+END_SRC
-#+RESULTS:
-*** NOTDONE \nabla h, h_z, h_p
-#+BEGIN_SRC bash :results verbatim
-
-r.mask mask_ice_1 --o # CHECKME
-r.mapcalc "phi = if(isnull(phi), 0, phi)" --o
-r.mapcalc "delta_phi = 0" --o
-r.mapcalc "delta_phi_z = 0" --o
-r.mapcalc "delta_phi_p = 0" --o
-r.mapcalc "fdir_abs = abs(fdir)" --o
-for dir in $(seq 8); do 
-  if [[ ${dir} == '1' ]]; then r=-1; c=1;  fi # 45 CCW from E; /°
-  if [[ ${dir} == '2' ]]; then r=-1; c=0;  fi # 90 °|
-  if [[ ${dir} == '3' ]]; then r=-1; c=-1; fi # 135 °\
-  if [[ ${dir} == '4' ]]; then r=0;  c=-1; fi # 180 .-
-  if [[ ${dir} == '5' ]]; then r=1;  c=-1; fi # 225 ./
-  if [[ ${dir} == '6' ]]; then r=1;  c=0;  fi # 270 .|
-  if [[ ${dir} == '7' ]]; then r=1;  c=1;  fi # 315 \.
-  if [[ ${dir} == '8' ]]; then r=0;  c=1;  fi # 360 ->
-
-  r.mapcalc "delta_phi = if(fdir_abs == ${dir}, phi - phi[${r},${c}], delta_phi)" --o
-  r.mapcalc "delta_phi_z = if(fdir_abs == ${dir}, phi_z - phi_z[${r},${c}], delta_phi_z)" --o
-  r.mapcalc "delta_phi_p = if(fdir_abs == ${dir}, phi_p - phi_p[${r},${c}], delta_phi_p)" --o
-  echo ${dir}
-done
-
-# r.mapcalc "delta_phi = if(delta_phi < 0, 0, delta_phi)" --o
-#+END_SRC
-#+RESULTS:
-*** NOTDONE Energy dissipated at each point
-
-0.36 is the scaling due to the changing phase change temperature (see Python code embedded in Methods section)
-
-V is in [m^3]
-h should be in [m] since we used unique phi_1E4 for flow routing
-     See https://trac.osgeo.org/grass/ticket/2935
-result is [J] per grid cell per year
-
-#+BEGIN_SRC bash :results verbatim
-r.mask mask_ice_1 --o # CHECKME
-r.mapcalc "VHD = V * ( delta_phi - 0.36 * delta_phi_p )" --o
-#+END_SRC
-
-
-* TMB
-Generate a TMB netcdf file from SMB, MMB, and BMB
-
-** Load SMB
-
-#+NAME: load_smb
-#+BEGIN_SRC jupyter-python
-smb = xr.open_dataset("./tmp/smb.nc")
-#+END_SRC
-
+*** BSV to NetCDF
 
 #+NAME: smb_bsv2nc
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC jupyter-python :tangle smb_bsv2nc.py
 import pandas as pd
 import xarray as xr
 import numpy as np
@@ -1044,33 +693,28 @@ smb["region"] = [rstr[n] for n in rnum]
 
 smb["basin"] = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
 
-df = pd.read_csv("./tmp/HIRHAM_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["HIRHAM_Z"] = (("time", "sector"), df.values)
+def bsv2nc(bsv, dim):
+    df = pd.read_csv("./tmp/" + bsv + ".bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+    df.columns = df.columns.astype(np.int64)
+    if dim == "region":
+        df.columns = [rstr[n] for n in df.columns]
+    missing = smb[dim].values[~pd.Series(smb[dim].values).isin(df.columns)]
+    if len(missing) > 0:
+        df[missing] = np.nan
+        df = df.reindex(sorted(df.columns), axis=1)
+    smb[bsv] = (("time", dim), df)
+    
+bsv2nc("HIRHAM_Z", "sector")
+bsv2nc("HIRHAM_Mr", "region")
+bsv2nc("HIRHAM_Mb", "basin")
 
-df = pd.read_csv("./tmp/HIRHAM_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["HIRHAM_Mr"] = (("time", "region"), df.values)
+bsv2nc("MAR_Z", "sector")
+bsv2nc("MAR_Mr", "region")
+bsv2nc("MAR_Mb", "basin")
 
-df = pd.read_csv("./tmp/HIRHAM_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["HIRHAM_Mb"] = (("time", "basin"), df.values)
-
-df = pd.read_csv("./tmp/MAR_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["MAR_Z"] = (("time", "sector"), df.values)
-
-df = pd.read_csv("./tmp/MAR_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["MAR_Mr"] = (("time", "region"), df.values)
-
-df = pd.read_csv("./tmp/MAR_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["MAR_Mb"] = (("time", "basin"), df.values)
-
-df = pd.read_csv("./tmp/RACMO_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["RACMO_Z"] = (("time", "sector"), df.values)
-
-df = pd.read_csv("./tmp/RACMO_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["RACMO_Mr"] = (("time", "region"), df.values)
-
-df = pd.read_csv("./tmp/RACMO_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-smb["RACMO_Mb"] = (("time", "basin"), df.values)
-
+bsv2nc("RACMO_Z", "sector")
+bsv2nc("RACMO_Mr", "region")
+bsv2nc("RACMO_Mb", "basin")
 
 #           mm->m   grid cells    m^3->kg  kg->Gt
 smb = smb * 1E-3  * 1000 * 1000 * 1E3    / 1E12
@@ -1078,6 +722,486 @@ smb.to_netcdf("./tmp/smb.nc")
 #+END_SRC
 
 #+RESULTS: smb_bsv2nc
+
+
+
+* BMB to ROI
+:PROPERTIES:
+:header-args:bash+: :tangle BMB.sh
+:END:
+
+#+BEGIN_SRC bash
+<<init_bash>>
+<<init_grass>>
+#+END_SRC
+
+** ROIs
+
+Import ROIs to this location
+
+#+BEGIN_SRC bash
+g.mapset -c Mouginot_2019
+r.proj -pgl location=G_RACMO mapset=Mouginot_2019
+r.proj -pg location=G_RACMO mapset=Mouginot_2019 input=basins_e
+eval $(r.proj -pg location=G_RACMO mapset=Mouginot_2019 input=basins_e)
+g.region e=$e w=$w n=$n s=$s rows=$rows cols=$cols -p
+r.proj location=G_RACMO mapset=Mouginot_2019 input=basins_e
+r.proj location=G_RACMO mapset=Mouginot_2019 input=regions_e
+
+g.mapset -c Zwally_2012
+r.proj -pgl location=G_RACMO mapset=Zwally_2012
+r.proj -pg location=G_RACMO mapset=Zwally_2012 input=sectors_e
+eval $(r.proj -pg location=G_RACMO mapset=Zwally_2012 input=sectors_e)
+g.region e=$e w=$w n=$n s=$s rows=$rows cols=$cols -p
+r.proj location=G_RACMO mapset=Zwally_2012 input=sectors_e
+#+END_SRC
+
+
+** GF
+*** Import 
+#+BEGIN_SRC bash
+g.mapset -c GF
+
+r.external source=${DATADIR}/Karlsson_2021/GF.tif output=GF_ann
+g.region raster=GF_ann
+g.region res=1000 -pa
+r.mapcalc "GF = GF_ann / 365"
+#+END_SRC
+*** Apply
+
+#+BEGIN_SRC bash
+r.univar -t --q map=GF zones=sectors_e@Zwally_2012 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_GF_Z.bsv
+
+r.univar -t --q map=GF zones=basins_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_GF_Mb.bsv
+
+r.univar -t --q map=GF zones=regions_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_GF_Mr.bsv
+#+END_SRC
+
+** Velocity
+*** Import
+#+BEGIN_SRC bash
+g.mapset -c vel
+
+r.external source=${DATADIR}/Karlsson_2021/vel.tif output=vel_ann
+g.region raster=vel_ann
+g.region res=1000 -pa
+r.mapcalc "vel = vel_ann / 365"
+#+END_SRC
+
+*** Apply
+
+TODO: Convert vel from NBK units to...  m melt per grid cell?
+
+#+BEGIN_SRC bash
+r.univar -t --q map=vel zones=sectors_e@Zwally_2012 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_vel_Z.bsv
+
+r.univar -t --q map=vel zones=basins_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_vel_Mb.bsv
+
+r.univar -t --q map=vel zones=regions_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_vel_Mr.bsv
+#+END_SRC
+
+** VHD
+*** Setup
+**** Source contribution map
+
++ Determine VHD routing map as per citet:mankoff_2017_VHD
++ For each source cell, estimate the contribution to that sector VHD per unit mass of water
+  + That is, from the water source, the integrated VHD between source and outlet.
+  + Rather than doing full routing for each and every interior cell, the integrated VHD per cell can be estimated as the difference between the source pressure+elevation and the basal pressure+elevation terms.
++ Then, use this source map applied to each day of runoff from one of the RCMs.
+
+Do the initial work in BedMachine (3413), then re-project into MAR because that is the RCM with future data.
+
+**** Import BedMachine v3
++ from [[textcite:Morlighem:2017BedMachine][Morlighem /et al./ (2017)]]
+
+#+BEGIN_SRC bash :results verbatim
+log_info "Importing BedMachine"
+
+g.mapset -c VHD
+
+for var in $(echo mask surface bed thickness); do
+  echo $var
+  r.external source=netCDF:${DATADIR}/Morlighem_2017/BedMachineGreenland-2017-09-20.nc:${var} output=${var}
+done
+
+g.region raster=surface
+g.region save=BedMachine
+
+r.colors map=mask color=haxby
+r.mapcalc "mask_ice_0 = if(mask == 2, 1, null())"
+#+END_SRC
+
+**** Expand Mask
+
+The ice mask needs to be expanded so that land terminating glaciers contain 1 grid cell outside the ice domain. This is so that the discharge location has 0 thickness (0 pressure term) and all pressure energy is released. Only gravitational potential energy remains. Submarine discharge remains pressurized by the ice thickness.
+
+#+BEGIN_SRC bash
+r.grow input=mask_ice_0 output=mask_ice_1 radius=1.5 new=1
+r.mapcalc "mask_01 = if((mask == 0) | (mask == 3), null(), mask_ice_1)"
+#+END_SRC
+
+**** Fill in small holes
+
+Also fills in nunatuks.
+
+This is done because hydrologic routing will terminate at domain boundaries, even if they're inland. We want to route to the ice edge, because eventually that is where all the water goes.
+
+#+BEGIN_SRC bash :results verbatim
+r.colors map=mask color=haxby
+r.mapcalc "not_ice = if(isnull(mask_01) ||| (mask != 2), 1, 0)"
+
+# No mask, NULLS are not clumped
+r.clump input=not_ice output=clumps
+# d.rast clumps
+main_clump=$(r.stats -c -n clumps sort=desc | head -n1 | cut -d" " -f1)
+r.mask -i raster=clumps maskcats=${main_clump} --o
+
+r.mapcalc "all_ice = 1"
+r.clump input=all_ice output=clumps2
+# d.rast clumps2
+main_clump=$(r.stats -c -n clumps2 sort=desc | head -n1 | cut -d" " -f1)
+r.mask raster=clumps2 maskcats=${main_clump} --o
+
+r.mapcalc "mask_ice = MASK"
+# ice mask with no islands
+
+# # original mask ice
+# r.mask -r
+# r.mapcalc "mask_ice_islands = if(mask == 2, 1, null())"
+#+END_SRC
+#+RESULTS:
+
+
+**** Hydropotential head
+
+#+BEGIN_SRC bash :results verbatim
+log_info "Calculating subglacial head with k = 1.0"
+r.mapcalc "pressure = 1 * 0.917 * thickness"
+r.mapcalc "head = mask_ice * bed + pressure"
+#+END_SRC
+
+***** Streams
+
+After calculating the head, we use 3rd party tools to get the flow direction and streams
+
+#+NAME: streams
+#+BEGIN_SRC bash :results verbatim
+THRESH=300
+log_warn "Using threshold: ${THRESH}"
+log_info "r.stream.extract..."
+
+r.stream.extract elevation=head threshold=${THRESH} memory=16384 direction=dir stream_raster=streams stream_vector=streams
+#+END_SRC
+
+***** Outlets
+
++ The flow direction =dir= is negative where flow leaves the domain. These are the outlets.
++ Encode each outlet with a unique id
+
+#+NAME: outlets
+#+BEGIN_SRC bash :results verbatim
+log_info "Calculating outlets"
+r.mapcalc "outlets_1 = if(dir < 0, 1, null())"
+r.out.xyz input=outlets_1 | \
+    cat -n | \
+    tr '\t' '|' | \
+    cut -d"|" -f1-3 | \
+    v.in.ascii input=- output=outlets_uniq separator=pipe \
+        columns="x int, y int, cat int" x=2 y=3 cat=1
+#+END_SRC
+
+***** Basins
+
+Using =r.stream.basins=, we can get basins for every outlet.
+
+#+NAME: basins
+#+BEGIN_SRC bash :results verbatim
+log_info "r.stream.basins..."
+
+r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=16384 --verbose
+#+END_SRC
+
+**** Change in head between each cell and its outlet
+
+#+BEGIN_SRC bash
+r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=head method=downstream difference=delta_head
+r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=bed method=downstream difference=delta_z_head
+r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=pressure method=downstream difference=delta_p_head
+#+END_SRC
+
+The effective head change is the change in the elevation head and the change in the pressure head, minus the change in pressure head that is occupied with the effect of changing pressure on the changing phase transition temperature (PTT; citet:mankoff_2017_VHD).
+
+The relationship between changing pressure and changing PTT is,
+
+#+NAME: eq:PTT
+\begin{equation}
+PTT = C_T C_p \rho_w,
+\end{equation}
+
+with \(C_T\) the Clausius-Clapeyron slope (8.6E-8 K Pa-1), \(c_p\) the specific heat of water (4184 J K-1 kg-1), and \(\rho_w\) the density of water (1000 kg m-3).
+
+#+BEGIN_SRC bash :tangle no :results verbatim
+frink "(8.6E-8 K Pa^(-1)) * (4184 J K^(-1) kg^(-1)) * (1000 kg m^(-3))"
+#+END_SRC
+
+#+RESULTS:
+: 0.359824
+
+Meaning 0.36 of the pressure reduction energy release is "lost", warming the water to match the increased PTT, and 1-0.36 = 0.64 of the pressure reduction energy release can be used to melt basal ice.
+
+#+BEGIN_SRC bash
+# The effective change in 
+r.mapcalc "dh = delta_z_head + 0.64 * delta_p_head"
+#+END_SRC
+
+***** Debug
+
++ Mask ice should be 1 pixel wider on land and 0 pixels wider for marine terminating glaciers. This is so that for land-terminating glaciers, the pressure head drops to 0 (thickness is 0) at the outlet, but for marine terminating glaciers, the pressure head should remain at ice thickness.
+
++ Click around... record values at an marine terminating outlet, and then click upstream on or off the stream and check that delta_z_head and delta_p_head make sense. Repeat for land-terminating outlet.  
+
+#+BEGIN_SRC bash :tangle no
+g.mapset -c tmp
+
+r.to.vect input=mask output=mask type=area
+r.to.vect input=mask_ice output=mask_ice type=area
+r.to.vect input=basins_uniq output=basins type=area
+
+d.mon wx0
+d.erase
+
+d.rast surface
+d.rast bed
+d.rast thickness
+d.rast pressure
+d.rast dir
+d.rast delta_head
+d.rast delta_p_head
+d.rast delta_z_head
+
+d.vect basins fill_color=none color=grey width=3
+d.vect mask fill_color=none color=black width=3
+d.vect mask_ice fill_color=none color=red
+d.vect streams
+d.vect outlets_uniq color=cyan
+#+END_SRC
+
+*** Apply
+:PROPERTIES:
+:header-args:bash+: :tangle BMB_MAR.sh
+:END:
+
+#+BEGIN_SRC bash
+<<init_bash>>
+<<init_grass>>
+#+END_SRC
+
+**** Reproject BedMachine derived change in pressure to MAR projection
+
+#+BEGIN_SRC bash
+g.mapset -c VHD
+r.proj -pg location=G_BMB mapset=VHD input=dh
+eval $(r.proj -pg location=G_BMB mapset=VHD input=dh)
+g.region e=$e w=$w n=$n s=$s rows=$rows cols=$cols -p
+g.region save=BedMachine
+r.proj location=G_BMB mapset=VHD input=dh
+g.region res=1000
+#+END_SRC
+
+**** MAR daily partitioned to ROI
+
+#+BEGIN_SRC bash :results verbatim
+
+RCM=MAR
+mkdir -p tmp/BMB
+
+dir=${DATADIR}/${RCM}/daily
+f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
+
+for f in ${dir}/MARv3.11*.nc; do
+  dates=$(python ./nc_dates.py ${f} | sed 's/_/-/g')
+  band=0
+  d=1986-01-01 # debug
+  for d in ${dates}; do
+    band=$(( ${band} + 1 ))
+
+    log_info "MAR BMB: ${d}"
+
+    if [[ -e ./tmp/BMB/Z_${d}.bsv ]]; then continue; fi
+
+    r.in.gdal -o input="NetCDF:${f}:SMB" band=${band} output=smb_raw --o --q
+    r.region map=smb_raw region=RCM
+    r.mapcalc "smb = if(mask > 50, smb_raw * (mask/100), null())" --o
+    r.null map=smb null=0
+
+    r.univar -t --q map=smb zones=sectors_e@Zwally_2012 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/BMB/Z_${d}.bsv
+
+    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/BMB/Mb_${d}.bsv
+
+    r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/BMB/Mr_${d}.bsv
+    
+  done
+done
+#+END_SRC
+
+
+
+
+** Create data file
+
+*** Merge BSVs
+
+#+BEGIN_SRC bash :tangle bmb_merge.sh
+<<init_bash>>
+
+for ROI in Z Mb Mr; do
+  log_info MAR ${ROI}
+  head -n1 ./tmp/BMB/${ROI}_2000-01-01.bsv > ./tmp/BMB_VHD_${ROI}.bsv
+  tail -q -n1 ./tmp/BMB/${ROI}_*.bsv >> ./tmp/BMB_VHD_${ROI}.bsv
+done
+#+END_SRC
+
+#+RESULTS:
+*** BSV to NetCDF
+
+#+NAME: smb_bsv2nc
+#+BEGIN_SRC jupyter-python :tangle bmb_bsv2nc.py
+import pandas as pd
+import xarray as xr
+import numpy as np
+import datetime
+
+time = pd.date_range(start = "1986-01-01",
+                     end = datetime.date.today() + datetime.timedelta(days = 10),
+                     freq = "D")
+
+bmb = xr.Dataset()
+bmb["time"] = (("time"), time)
+
+bmb["sector"] = pd.read_csv("./tmp/BMB_GF_Z.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+
+rstr = {11:'NW', 12:'NO', 1:'NE', 3:'CE', 9:'CW', 5:'SE', 7:'SW'}
+rnum = pd.read_csv("./tmp/BMB_GF_Mr.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+bmb["region"] = [rstr[n] for n in rnum]
+
+bmb["basin"] = pd.read_csv("./tmp/BMB_GF_Mb.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+
+
+
+GF_Z = pd.read_csv("./tmp/BMB_GF_Z.bsv", delimiter="|", index_col=0)
+vel_Z = pd.read_csv("./tmp/BMB_vel_Z.bsv", delimiter="|", index_col=0)
+VHD_Z = pd.read_csv("./tmp/BMB_VHD_Z.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+bmb["BMB_Z"] = (("time", "sector"), VHD_Z + GF_Z.values + vel_Z.values)
+
+
+GF_Mr = pd.read_csv("./tmp/BMB_GF_Mr.bsv", delimiter="|", index_col=0)
+vel_Mr = pd.read_csv("./tmp/BMB_vel_Mr.bsv", delimiter="|", index_col=0)
+VHD_Mr = pd.read_csv("./tmp/BMB_VHD_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+bmb["BMB_Mr"] = (("time", "region"), VHD_Mr + GF_Mr.values + vel_Mr.values)
+
+GF_Mb = pd.read_csv("./tmp/BMB_GF_Mb.bsv", delimiter="|", index_col=0)
+vel_Mb = pd.read_csv("./tmp/BMB_vel_Mb.bsv", delimiter="|", index_col=0)
+VHD_Mb = pd.read_csv("./tmp/BMB_VHD_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+bmb["BMB_Mb"] = (("time", "basin"), VHD_Mb + GF_Mb.values + vel_Mb.values)
+
+GF_Mr = pd.read_csv("./tmp/BMB_GF_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+GF_Mr.columns = [rstr[int(n)] for n in GF_Mr.columns]
+
+GF_Mb = pd.read_csv("./tmp/BMB_GF_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+
+
+vel_Mr = pd.read_csv("./tmp/BMB_vel_Mr.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+vel_Mr.columns = [rstr[int(n)] for n in GF_Mr.columns]
+
+vel_Mb = pd.read_csv("./tmp/BMB_vel_Mb.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+
+
+    
+# def bsv2nc(bsv, dim):
+#     df = pd.read_csv("./tmp/" + bsv + ".bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
+#     df.columns = df.columns.astype(np.int64)
+#     if dim == "region":
+#         df.columns = [rstr[n] for n in df.columns]
+#     missing = smb[dim].values[~pd.Series(smb[dim].values).isin(df.columns)]
+#     if len(missing) > 0:
+#         df[missing] = np.nan
+#         df = df.reindex(sorted(df.columns), axis=1)
+#     smb[bsv] = (("time", dim), df)
+    
+# bsv2nc("VHD_Z", "sector")
+# bsv2nc("GF_Mr", "region")
+# bsv2nc("GF_Mb", "basin")
+
+# bsv2nc("MAR_Z", "sector")
+# bsv2nc("MAR_Mr", "region")
+# bsv2nc("MAR_Mb", "basin")
+
+# bsv2nc("RACMO_Z", "sector")
+# bsv2nc("RACMO_Mr", "region")
+# bsv2nc("RACMO_Mb", "basin")
+
+#           mm->m   grid cells    m^3->kg  kg->Gt
+# smb = smb * 1E-3  * 1000 * 1000 * 1E3    / 1E12
+# smb.to_netcdf("./tmp/smb.nc")
+#+END_SRC
+
+#+RESULTS: smb_bsv2nc
+
+
+
+
+* MMB to ROI
+
+Already done in each of the MMB products
++ citet:mankoff_2020_solid includes ROI for each gate
++ citet:mouginot_2019_forty is provided on Zwally sector
+
+* TMB
+Generate a TMB netcdf file from SMB, MMB, and BMB
+
+** Load SMB
+
+#+NAME: load_smb
+#+BEGIN_SRC jupyter-python
+smb = xr.open_dataset("./tmp/smb.nc")
+#+END_SRC
 
 
 ** Load MMB (Mankoff 2020)
@@ -2643,7 +2767,7 @@ from matplotlib import rc
 rc('font', size=10)
 rc('text', usetex=False)
 
-fig = plt.figure(1, figsize=((8/2.54),23/2.54))
+fig = plt.figure(1, figsize=((12/2.54),23/2.54))
 fig.clf()
 fig.set_tight_layout(True)
 gs = gridspec.GridSpec(ncols=1, nrows=8, figure=fig) #w,h
@@ -2690,8 +2814,8 @@ ax = fig.add_subplot(gs[i+1,0])
 ax.plot(this_smb['time'], this_smb['MAR_Mr'].sum('region'), color='gray', label='SMB')
 ax.plot(this_D['time'], -this_D['D_Mr'].sum('region'), color='blue', label='MMB')
 ax.plot(this_mb['time'], this_mb['MAR_region'].sum('region'), color='black', label='MB')
-ax.set_ylabel('GIS')
-ax.legend(fontsize=8, ncol=1, loc=(0.33, -0.70), fancybox=True, frameon=True)
+ax.set_ylabel('GIS\n[Gt yr$^{-1}$]')
+ax.legend(fontsize=8, ncol=1, loc=(0.30, -1.1), fancybox=True, frameon=True)
 
 adj(ax, ['left','bottom'])
 plt.setp(ax.xaxis.get_majorticklabels(), rotation=45)
@@ -3280,8 +3404,6 @@ This code, and all code files in this project, are derived products tangled from
 PROMICE_MB: all
 # dist
 
-mar_proj = "+proj=sterea +lat_0=90 +lat_ts=70.5 +lon_0=-40 +k=1 +x_0=0 +y_0=0 	+datum=WGS84 +units=m +no_defs"
-
 all: FORCE
 	mkdir -p tmp dat
 
@@ -3289,23 +3411,30 @@ all: FORCE
 	grass -e -c EPSG:4326 G_HIRHAM
 	grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
 	
-	grass -e -c G_tmp --exec g.proj -c location=G_MAR proj4=$(mar_proj)
-	rm -fR G_tmp
-	grass ./G_MAR/PERMANENT --exec ./MAR.sh
+	grass -c ./G_MAR --exec ./MAR.sh
 
 	grass -e -c EPSG:3413 G_RACMO
 	grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
-
+	
 	make SMB
+	make BMB
 	make dist
 
 SMB: FORCE
 	# partition RCM by Zwally sectors, Mouginot basins, and Mouginot regions
-	grass ./G_HIRHAM/PERMANENT --exec ./HIRHAM_to_sectors.sh
-	grass ./G_MAR/PERMANENT --exec ./MAR_to_sectors.sh
-	grass ./G_RACMO/PERMANENT --exec ./RACMO_to_sectors.sh
-	./merge.sh
+	grass ./G_HIRHAM/PERMANENT --exec ./SMB_HIRHAM_ROI.sh
+	grass ./G_MAR/PERMANENT --exec ./SMB_MAR_ROI.sh
+	grass ./G_RACMO/PERMANENT --exec ./SMB_RACMO_ROI.sh
+	./smb_merge.sh
+	python ./smb_bsv2nc.py
 
+BMB: FORCE
+	grass -e -c EPSG:3413 ./G_BMB
+	grass ./G_BMB/PERMANENT --exec ./BMB.sh
+	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
+	./bmb_merge.sh
+	python ./bmb_bsv2nc.py
+	
 validate: FORCE
 	grass -e -c EPSG:3413 G
 #	# python ./SEC_prep.py
@@ -3315,16 +3444,16 @@ validate: FORCE
 dist: FORCE
 	# create end-user data product
 	# parallel --bar "python bsv2netcdf.py {}" ::: $(ls dat/*_runoff_*.bsv)
-
 # dist: freshwater.zip
 # 	zip -r freshwater.zip freshwater
 
 FORCE: # dummy target
 
 clean_all:
-	rm -fR G G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB
+	rm -fR G G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB G_BMB
 
 clean_SMB:
 	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
 	
 #+END_SRC
+
