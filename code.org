@@ -832,6 +832,7 @@ for roi in ['sector','region','basin']:
     ds[s].attrs["coordinates"] = "time region"
 
 ds['smb'] = ds['smb_sector'].sum(dim='sector')
+
 print(ds)
 ds.to_netcdf('./tmp/smb.nc')
 #+END_SRC
@@ -839,9 +840,9 @@ ds.to_netcdf('./tmp/smb.nc')
 #+RESULTS:
 #+begin_example
 <xarray.Dataset>
-Dimensions:        (basin: 252, region: 7, sector: 19, time: 12823)
+Dimensions:        (basin: 252, region: 7, sector: 19, time: 12827)
 Coordinates:
-  ,* time           (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-08
+  ,* time           (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-12
   ,* sector         (sector) int64 11 12 13 14 21 22 31 ... 50 61 62 71 72 81 82
   ,* region         (region) object 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
   ,* basin          (basin) int64 1 2 3 4 5 6 7 8 ... 252 253 254 255 257 258 259
@@ -1377,6 +1378,7 @@ Generate a TMB netcdf file from SMB, MMB, and BMB
 <<py_import>>
 
 smb = xr.open_dataset("./tmp/smb.nc")
+smb['region'] = smb['region'].astype(str)
 #+END_SRC
 
 #+RESULTS: load_smb
@@ -1430,6 +1432,7 @@ mmb = (mmb / 365).resample({"time":"1D"})\
 
 # I want monotonic cubic interpolation for discharge
 mmb['mmb'] = (('time'), (msave['mmb']/365).resample({'time':'1D'}).mean().to_dataframe().interpolate(method='pchip').values.flatten())
+mmb['region'] = mmb['region'].astype(str)
 #+END_SRC
 
 #+RESULTS: load_mmb
@@ -1441,12 +1444,11 @@ mmb['mmb'] = (('time'), (msave['mmb']/365).resample({'time':'1D'}).mean().to_dat
 
 
 #+BEGIN_SRC jupyter-python
+# Populate smb dataset
 <<load_smb>>
-# Populates smb dataset
 
+# Populate mmb dataset
 <<load_mmb>>
-# Populates mmb dataset
-
 
 # match times
 t0 = np.min([smb['time'].min().values,
@@ -1462,6 +1464,8 @@ mmb = mmb.reindex({'time':time})
 # add the sectors from SMB to MMB (14 and 21(?) don't have any MMB)
 mmb = mmb.reindex({'sector': smb['sector']})# .fillna(0)
 mmb = mmb.reindex({'basin': smb['basin']})# .fillna(0)
+mmb = mmb.reindex({'region': smb['region']})# .fillna(0)
+mmb['region'] = mmb['region'].astype(str)
 mmb = mmb.ffill(dim='time')
 mmb = mmb.bfill(dim='time')
 #+END_SRC
@@ -1472,7 +1476,7 @@ mmb = mmb.bfill(dim='time')
 #+BEGIN_SRC jupyter-python
 import subprocess
 
-for roi in ['sector', 'region', 'basin']:
+for roi in ['sector', 'region']: # TODO: 'basin'
     mb = xr.Dataset()
     
     mb["time"] = (("time"), time)
@@ -1480,7 +1484,7 @@ for roi in ['sector', 'region', 'basin']:
     mb["time"].attrs["standard_name"] = "time"
     mb["time"].attrs["axis"] = "T"
 
-    mb[roi] = mmb[roi]
+    mb[roi] = ((roi), mmb[roi])
     if roi == 'sector':
         mb[roi].attrs["long_name"] = "Zwally 2012 sectors"
     elif roi == 'region':
@@ -1489,62 +1493,69 @@ for roi in ['sector', 'region', 'basin']:
         mb[roi].attrs["long_name"] = "Mouginot 2019 basins"
        
 
-    for RCM in ['HIRHAM', 'MAR', 'RACMO', 'mb']:
-        mb['mb'] = (('time'), smb['smb'] - mmb['mmb'])
-        v = 'mb'
-        mb[v].attrs["long_name"] = "Mass balance"
+    mb['mb'] = (('time'), smb['smb'] - mmb['mmb'])
+
+    v = 'mb'
+    mb[v].attrs["long_name"] = "Mass balance"
+    mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
+    mb[v].attrs["units"] = "Gt d-1"
+    mb[v].attrs["coordinates"] = 'time'
+    
+    mb['mb_ROI'] = (('time',roi), smb['smb_'+roi] - mmb['mmb_'+roi])
+    # mb['mb_ROI'].attrs = mb['mb'].attrs
+    # mb['mb_ROI'].attrs["coordinates"] = 'time ROI'
+
+    # if roi == 'region':
+    #     from IPython import embed; embed()
+    
+    mb['smb'] = (('time'), smb['smb'])
+    mb['smb_ROI'] = (('time',roi), smb['smb_'+roi])
+    # mb['smb_HIRHAM'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi] )
+    # mb['smb_MAR'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
+    # mb['smb_RACMO'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
+    for v in ['smb', 'smb_ROI']:
+        mb[v].attrs['long_name'] = 'Surface mass balance'
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
-        mb[v].attrs["coordinates"] = 'time'
+        mb[v].attrs["coordinates"] = 'time ROI'
+
+       
+    mb['mmb'] = (('time'), mmb['mmb'])
+    mb['mmb_ROI'] = (('time',roi), mmb['mmb_'+roi])
+    for v in ['mmb','mmb_ROI']:
+        mb[v].attrs['long_name'] = 'Marine mass balance'
+        mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
+        mb[v].attrs["units"] = "Gt d-1"
+    mb['mmb'].attrs["coordinates"] = 'time'
+    mb['mmb_ROI'].attrs["coordinates"] = 'time ROI'
+    
         
-        mb['mb_ROI'] = (('time',roi), smb['smb_'+roi] - mmb['mmb_'+roi])
-        mb['mb_ROI'].attrs = mb['mb'].attrs
-        mb['mb_ROI'].attrs["coordinates"] = 'time ROI'
+    # mb['bmb'] = (('time'), bmb['bmb'])
+    # mb['bmb_ROI'] = (('time',roi), bmb['bmb_'+roi])
+    # mb['bmb_GF_ROI'] = (('time',roi), bmb['bmb_GF_'+roi])
+    # mb['bmb_vel_ROI'] = (('time',roi), bmb['bmb_vel_'+roi])
+    # mb['bmb_VHD_ROI'] = (('time',roi), bmb['bmb_VHD_'+roi])
+    # for v in ['bmb','bmb_ROI']:
+    #     mb[v].attrs['long_name'] = 'Basal mass balance'
+    #     mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
+    #     mb[v].attrs["units"] = "Gt d-1"
+    # mb['bmb'].attrs["coordinates"] = 'time'
+    # mb['bmb_ROI'].attrs["coordinates"] = 'time ROI'
 
-        mb['mb_HIRHAM'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi] )
-        mb['mb_MAR'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
-        mb['mb_RACMO'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
-        for v in ['mb_HIRHAM','mb_MAR','mb_RACMO']:
-            mb[v].attrs['long_name'] = 'Mass balance from ' + v.split('_')[1]
-            mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
-            mb[v].attrs["units"] = "Gt d-1"
-            mb[v].attrs["coordinates"] = 'time ROI'
-
-            
-        mb['smb'] = (('time'), smb['smb'])
-        mb['smb_ROI'] = (('time',roi), smb['smb_'+roi])
-        # mb['smb_HIRHAM'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi] )
-        # mb['smb_MAR'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
-        # mb['smb_RACMO'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
-        for v in ['smb']:
-            mb[v].attrs['long_name'] = 'Surface mass balance'
-            mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
-            mb[v].attrs["units"] = "Gt d-1"
-            mb[v].attrs["coordinates"] = 'time ROI'
-
-        mb['mmb'] = (('time'), mmb['mmb'])
-        mb['mmb_ROI'] = (('time',roi), mmb['mmb_'+roi])
-        for v in ['mmb','mmb_ROI']:
-            mb[v].attrs['long_name'] = 'Marine mass balance'
-            mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
-            mb[v].attrs["units"] = "Gt d-1"
-        mb['mmb'].attrs["coordinates"] = 'time'
-        mb['mmb_ROI'].attrs["coordinates"] = 'time ROI'
-
+    for RCM in ['HIRHAM','MAR','RACMO']:
+        mb['mb_'+RCM] = (('time',roi), smb[RCM+'_'+roi]-mmb['mmb_'+roi] )
+        v = 'mb_'+RCM
+        mb[v].attrs['long_name'] = 'Mass balance from ' + v.split('_')[1]
+        mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
+        mb[v].attrs["units"] = "Gt d-1"
+        mb[v].attrs["coordinates"] = 'time ROI'
         
-        # mb['bmb'] = (('time'), bmb['bmb'])
-        # mb['bmb_ROI'] = (('time',roi), bmb['bmb_'+roi])
-        # mb['bmb_GF_ROI'] = (('time',roi), bmb['bmb_GF_'+roi])
-        # mb['bmb_vel_ROI'] = (('time',roi), bmb['bmb_vel_'+roi])
-        # mb['bmb_VHD_ROI'] = (('time',roi), bmb['bmb_VHD_'+roi])
-        # for v in ['bmb','bmb_ROI']:
-        #     mb[v].attrs['long_name'] = 'Basal mass balance'
-        #     mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
-        #     mb[v].attrs["units"] = "Gt d-1"
-        # mb['bmb'].attrs["coordinates"] = 'time'
-        # mb['bmb_ROI'].attrs["coordinates"] = 'time ROI'
+    # if roi == 'region':
+    #     from IPython import embed; embed()
+        # smb['smb_'+roi].sel({'region':'CE'}), '\n\n', mmb['mmb_'+roi].sel({'region':'CE'}), '\n\n', (smb['smb_'+roi] - mmb['mmb_'+roi]).sel({'region':'CE'}), '\n\n', mb.sel({'region':'CE'})
+        # smb['smb_'+roi].isel({'time':0}), '\n\n', mmb['mmb_'+roi].isel({'time':0}), '\n\n', (smb['smb_'+roi] - mmb['mmb_'+roi]).isel({'time':0}), '\n\n', mb.isel({'time':0})
 
-        
+    
     mb.attrs["featureType"] = "timeSeries"
     mb.attrs["title"] = "Greenland mass balance"
     mb.attrs["summary"] = "Greenland mass balance"
@@ -2025,6 +2036,36 @@ promice['MB_err'] = (("time","sector"), p.values)
 %\includegraphics[width=12cm]{FILE NAME}
 %\caption{TEXT}
 %\end{figure*}
+
+
+** ROIs w/o coast
+
++ Coast is noisy and poorly defined due to different RCM boundaries
++ Generate ROIs without the coast, just interior divisions
+
+#+BEGIN_SRC bash
+grass -c ./G_RACMO/ROI
+g.region region=sectors -pa
+
+r.mask -r
+
+r.to.vect input=sectors_e@Zwally_2012 output=sectors_e type=area
+v.type input=sectors_e output=sectors_e_lines from_type=boundary to_type=line
+v.type input=sectors_e output=sectors_e_lines from_type=boundary to_type=line
+
+r.to.vect input=regions_e@Mouginot_2019 output=regions_e type=area
+
+# r.grow input=mask_ice radius=-5 output=mask_ice_shrink
+# r.mask mask_ice_shrink
+
+# v.to.rast input=sectors_e output=sectors_e_nocoast type=area use=val val=1
+# r.to.vect input=sectors_e_nocoast output=sectors_e_nocoast type=line
+
+r.to.vect input=mask_ice_shrink output=mask_ice_shrink type=area
+v.clip input=sectors_e clip=mask_ice_shrink output=sectors_e_nocoast
+
+r.to.vect input=sectors_e@Zwally_2012 output=sectors_e type=line
+#+END_SRC
 
 
 ** MB timeseries
