@@ -2027,8 +2027,8 @@ promice['MB_err'] = (("time","sector"), p.values)
 %\end{figure*}
 
 
-** INPROGRESS TMB timeseries
-
+** MB timeseries
+*** GIS
 #+BEGIN_SRC jupyter-python
 import xarray as xr
 import numpy as np
@@ -2134,8 +2134,72 @@ plt.savefig('tmp/mb_ts.png', transparent=False, bbox_inches='tight', dpi=300)
 #+RESULTS:
 : <ipython-input-189-1b9b56ec5892>:92: UserWarning: FixedFormatter should only be used together with FixedLocator
 :   axr.set_yticklabels(np.round(np.abs(axr.get_yticks()),2))
-** TODO TMB vs. others timeseries: cumsum FORWARD
+*** Sector
 
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+from adjust_spines import adjust_spines as adj
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=10)
+rc('text', usetex=False)
+
+plt.close()
+fig = plt.figure(1, figsize=(2.5,1.5)) # w,h
+
+mb = xr.open_dataset("./TMB/mb_region.nc")
+
+
+for r in mb['region'].values:
+
+    fig.clf()
+    fig.set_tight_layout(True)
+    ax = fig.add_subplot(111)
+    kw = {'ax':ax, 'legend':False, 'drawstyle':'steps-post'}
+
+    mb_r = mb.sel({'region':r})
+    
+    mb_r['smb_ROI'].to_dataframe(name='M2021')\
+                   .resample('AS')\
+                   .sum()\
+                   .rename(columns={'M2021':'SMB'})\
+                   .plot(color='b', linestyle=':', **kw)
+    
+    (-1*mb_r['mmb_ROI']).to_dataframe(name='M2021')\
+                        .resample('AS')\
+                        .sum()\
+                        .rename(columns={'M2021':'MMB'})\
+                        .plot(color='gray', linestyle='--', **kw)
+
+    mb_r['mb_ROI'].to_dataframe(name='M2021')\
+                  .resample('AS')\
+                  .sum()\
+                  .rename(columns={'M2021':'MB'})\
+                  .plot(color='k', linestyle='-', **kw)
+
+
+    # plt.legend(loc='lower left')
+
+    # ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
+    ax.set_ylabel("")
+    ax.set_xlabel("")
+    ax.set_xticks(ax.get_xlim())
+    # ax.set_xticklabels(ax.get_xlim())
+
+    adj(ax, ['left','bottom'])
+    # plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
+    # plt.ion()
+    # plt.show()
+    plt.savefig('fig/mb_ts_'+r+'.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+
+
+** MMB vs. all others
 
 #+BEGIN_SRC jupyter-python :tangle fig_compare.py
 import xarray as xr
@@ -2149,16 +2213,27 @@ rc('font', size=12)
 rc('text', usetex=False)
 # matplotlib.pyplot.xkcd()
 
-n = 9
-color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
-               tuple(color[:,0:-1]))
-mpl.rcParams['axes.prop_cycle'] = plt.cycler('color' , hexcolor)
+# | Color       |   R |   G |   B | hex     |
+# |-------------+-----+-----+-----+---------|
+# | light blue  | 166 | 206 | 227 | #a6cee3 |
+# | dark blue   |  31 | 120 | 180 | #1f78b4 |
+# | light green | 178 | 223 | 138 | #b2df8a |
+# | dark green  |  51 | 160 |  44 | #33a02c |
+# | pink        | 251 | 154 | 153 | #fb9a99 |
+# | red         | 227 |  26 |  28 | #e31a1c |
+# | pale orange | 253 | 191 | 111 | #fdbf6f |
+# | orange      | 255 | 127 |   0 | #ff7f00 |
 
-
+C_M2021 = 'k'
+C_M2019 = 'gray'
+C_GMB = '#e31a1c'
+C_SEC = '#045a8d' # '1f78b4'
+# C_IMBIE = '#2b8cbe' # '#ff7f00'
+C_IMBIE = '#74a9cf'
+C_PROMICE = '#fdbf6f'
 
 # plt.close(1)
-fig = plt.figure(1, figsize=(5,4)) # w,h
+fig = plt.figure(1, figsize=(8,6)) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
@@ -2167,90 +2242,95 @@ fig.set_tight_layout(True)
 # ax = plt.subplot(gs[:,:])
 ax = fig.add_subplot(111)
 
+kw = {'clip_on':True, 'linewidth':1, 'legend':False}
+kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 
 # MB (this)
-mb = xr.open_dataset("./TMB/mb.nc")
-mb['HIRHAM_sector'].sum(dim='sector').to_dataframe(name='M2021 (HIRHAM)').cumsum().plot(ax=ax)
-mb['MAR_sector'].sum(dim='sector').to_dataframe(name='M2021 (MAR)').cumsum().plot(ax=ax, linestyle='--')
-mb['RACMO_sector'].sum(dim='sector').to_dataframe(name='M2021 (RACMO)').cumsum().plot(ax=ax)
-
-kw_err = {'linestyle' : '--',
-          'legend' : False}
-
-# Mouginot
-<<load_mouginot>>
-M = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
-M_err = mouginot['MB_err'].sum(dim='region').to_dataframe('M2019').cumsum()
-p = M.plot(ax=ax, label='Mouginot(2019)')
-ax.fill_between(M.index, (M - M_err).values.T[0], (M + M_err).values.T[0], color=p.lines[-1].get_color(), alpha=0.25)
-# (M-M_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
-# (M+M_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+mb = xr.open_dataset("./TMB/mb_sector.nc")
+M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
+M2021 = M2021 - np.min(M2021)
+M2021_err = (mb['mb']*0.25).to_dataframe('M2021')[::-1].cumsum()[::-1]
+p_M2021 = M2021.plot(ax=ax, color=C_M2021, **kw)
+ax.fill_between(M2021.index,
+                (M2021 - M2021_err).values.flatten(),
+                (M2021 + M2021_err).values.flatten(),
+                color=C_M2021, **kw_err)
 
 
-# IMBIE
-<<load_imbie>>
-imbie['mb_cum'] = imbie['mb_cum'] - 400 # offset
-p = imbie['mb_cum'].plot(ax=ax, label='IMBIE')
-ax.fill_between(imbie.index,
-                imbie['mb_cum'] - imbie['mb_cum_err'],
-                imbie['mb_cum'] + imbie['mb_cum_err'],
-                color=p.lines[-1].get_color(),
-                alpha=0.25)
-# (imbie['mb_cum'] - imbie['mb_cum_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
-# (imbie['mb_cum'] + imbie['mb_cum_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+# # Mouginot
+if 'mouginot' not in locals():
+    <<load_mouginot>>
+M2019 = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
+M2019 = M2019 - np.min(M2019) + 600
+M2019_err = mouginot['MB_err'].sum(dim='region').to_dataframe('M2019')[::-1].cumsum()[::-1]
+M2019 = M2019[M2019.index.year >= 1986]
+M2019_err = M2019_err[M2019_err.index.year >= 1986]
+p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
+(M2019-M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
+(M2019+M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
 
-
-# SEC
-<<load_sec>>
-sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
-sec_sum = sec_sum - 300
-p = sec_sum.plot(ax=ax, label='SEC')
-
-sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
-ax.fill_between(sec_err.index,
-                (sec_sum - sec_err).values.flatten(),
-                (sec_sum + sec_err).values.flatten(),
-                color=p.lines[-1].get_color(),
-                alpha=0.25)
-# (sec_sum - sec_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
-# (sec_sum + sec_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
 
 
 # GRACE
 <<load_grace>>
 gmb_sum = gmb['GMB_sector'].sum(dim='cell').to_dataframe(name="GRACE")
-gmb_sum = gmb_sum - 1700
-p = gmb_sum.plot(ax=ax, label='GRACE')
-
+gmb_sum = gmb_sum - np.min(gmb_sum)
 gmb_err = gmb['err_sector'].sum(dim='cell').to_dataframe(name="GRACE")
+p_gmb = gmb_sum.plot(ax=ax, label='GRACE', color=C_GMB, **kw)
 ax.fill_between(gmb_err.index,
                 (gmb_sum - gmb_err).values.flatten(),
                 (gmb_sum + gmb_err).values.flatten(),
-                color=p.lines[-1].get_color(),
-                alpha=0.25)
-# (gmb_sum - gmb_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
-# (gmb_sum + gmb_err).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+                color=C_GMB, **kw_err)
+
+
+
+# SEC
+<<load_sec>>
+sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
+sec_sum = sec_sum - np.min(sec_sum) + 450
+sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC')[::-1].cumsum()[::-1]
+p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
+(sec_sum - sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
+(sec_sum + sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
+
+
+
+
+# IMBIE
+<<load_imbie>>
+imbie = imbie[['mb_cum','mb_cum_err']].dropna()
+imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum']) + 500
+p_IMBIE = imbie['mb_cum'].plot(ax=ax, label='IMBIE', color=C_IMBIE, **kw)
+ax.fill_between(imbie.index,
+               imbie['mb_cum'] - imbie['mb_cum_err'][::-1].values,
+               imbie['mb_cum'] + imbie['mb_cum_err'][::-1].values,
+               color=C_IMBIE, **kw_err)
 
 
 
 # PROMICE MB (Colgan 2019)
 <<load_PROMICE_MB>>
-promice_sum = promice.sum(dim="sector").to_dataframe().cumsum()
-promice_sum["MB"] = promice_sum["MB"] - 500
-p = promice_sum["MB"].plot(ax=ax, label='C2019')
-ax.fill_between(promice_sum.index,
-                promice_sum["MB"] - promice_sum["MB_err"],
-                promice_sum["MB"] + promice_sum["MB_err"],
-                color=p.lines[-1].get_color(),
-                alpha=0.25)
-# (promice_sum['MB'] - promice_sum['MB_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
-# (promice_sum['MB'] + promice_sum['MB_err']).plot(ax=ax, color=p.lines[-1].get_color(), **kw_err)
+P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
+P = P - np.min(P) + 1000
+P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019')[::-1].cumsum()[::-1]
+p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
+ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.flatten(), color = C_PROMICE, **kw_err)
 
-ax.set_ylabel("Mass [Gt]")
+from adjust_spines import adjust_spines as adj
+adj(ax, ['right','bottom'])
+
+ax.set_ylabel("Mass change [Gt]")
 ax.set_xlabel("Time [Year]")
+ax.set_ylim([0,7000])
 
-plt.legend()
-plt.savefig('tmp/mb.png', transparent=False, bbox_inches='tight', dpi=300)
+color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE]
+label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019']
+lines = [Line2D([0], [0], color=c) for c in color]
+plt.legend(lines, label)
+
+# plt.legend()
+plt.savefig('tmp/mb_cumsum_compare.png', transparent=False, bbox_inches='tight', dpi=300)
+plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
