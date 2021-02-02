@@ -2049,26 +2049,31 @@ g.region region=sectors -pa
 
 r.mask -r
 
-r.to.vect input=sectors_e@Zwally_2012 output=sectors_e type=area
-v.type input=sectors_e output=sectors_e_lines from_type=boundary to_type=line
-v.type input=sectors_e output=sectors_e_lines from_type=boundary to_type=line
+g.copy vector=sectors_e@Zwally_2012,sector
+g.copy vector=regions_e@Mouginot_2019,region
 
-r.to.vect input=regions_e@Mouginot_2019 output=regions_e type=area
+for roi in sector region; do
+  v.to.lines input=${roi} output=${roi}_lines
+  v.to.rast input=${roi}_lines output=${roi}_lines type=line use=val val=1
 
-# r.grow input=mask_ice radius=-5 output=mask_ice_shrink
-# r.mask mask_ice_shrink
+  r.grow input=mask_ice radius=-3 output=mask_ice_shrink
+  r.mask mask_ice_shrink
 
-# v.to.rast input=sectors_e output=sectors_e_nocoast type=area use=val val=1
-# r.to.vect input=sectors_e_nocoast output=sectors_e_nocoast type=line
+  r.thin input=${roi}_lines output=${roi}_thin
 
-r.to.vect input=mask_ice_shrink output=mask_ice_shrink type=area
-v.clip input=sectors_e clip=mask_ice_shrink output=sectors_e_nocoast
+  r.to.vect input=${roi}_thin output=${roi}_interior type=line
 
-r.to.vect input=sectors_e@Zwally_2012 output=sectors_e type=line
+  v.clean input=${roi}_interior output=${roi}_clean tool=rmdangle threshold=10000
+
+  v.generalize input=${roi}_clean output=${roi}_interior_general method=douglas threshold=5000
+  v.generalize input=${roi}_interior_general output=${roi}_interior_smooth method=chaiken threshold=1
+
+  v.out.ogr input=${roi}_interior_smooth output=./tmp/${roi}_interior.gpkg
+done
 #+END_SRC
 
 
-** MB timeseries
+** DONE SMB/MMB/MB timeseries
 *** GIS
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -2240,7 +2245,7 @@ for r in mb['region'].values:
 #+RESULTS:
 
 
-** MMB vs. all others
+** DONE SMB/MMB/MB vs. all others time series
 
 #+BEGIN_SRC jupyter-python :tangle fig_compare.py
 import xarray as xr
@@ -2378,7 +2383,7 @@ plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 
 
 
-** SUCCESS This vs. Colgan (2019): GIS xy
+** DONE This vs. Colgan (2019): GIS xy
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -2511,7 +2516,7 @@ plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=3
 [[./tmp/colgan_2019.png]]
 
 
-** SUCCESS This vs. Mouginot (2019): GIS xy
+** DONE This vs. Mouginot (2019): GIS xy
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -2675,7 +2680,7 @@ axSEC = fig.add_subplot(132)
 axIMBIE = fig.add_subplot(133)
 
 # this
-this_mb = xr.open_dataset('./TMB/mb.nc')\
+this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .resample({'time':'YS'})\
             .sum()['mb']
 
@@ -2697,6 +2702,7 @@ if 'sec' not in locals():
     
 if 'imbie' not in locals():
     <<load_imbie>>
+    # imbie = imbie.resample('1D').mean().interpolate(method='time')
     imbie = imbie.resample('YS').mean()
     imbie = imbie['mb'].diff()
     imbie = imbie[imbie.index.year > 1986]
@@ -2713,7 +2719,7 @@ def my_plot(ax, x, y):
         
     print(years)
     color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(np.str)]
+    y2str = [_[2:4] for _ in years.astype(str)]
 
     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
     cmap = cm.viridis(color)
