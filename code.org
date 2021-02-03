@@ -1985,9 +1985,9 @@ def load_Colgan_2019(sheet=0):
     df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
     
     df_all = df_all.loc[df_all.index.dropna()].drop(index="Total")
-    df_all.index = (df_all.index.astype(np.float) * 10).astype(np.int)
+    df_all.index = (df_all.index.astype(float) * 10).astype(int)
     df_all = df_all.T
-    df_all = df_all.astype(np.float32)
+    df_all = df_all.astype(float32)
 
     df = df_all.iloc[::2]
     df.index = pd.to_datetime(df.index, format="%Y")
@@ -2015,7 +2015,6 @@ promice['MB_err'] = (("time","sector"), p.values)
 # print(promice)
 #+END_SRC
 
-#+RESULTS: load_PROMICE_MB
 
 * Figures
 ** Notes
@@ -2038,7 +2037,7 @@ promice['MB_err'] = (("time","sector"), p.values)
 %\end{figure*}
 
 
-** ROIs w/o coast
+** DONE ROIs w/o coast
 
 + Coast is noisy and poorly defined due to different RCM boundaries
 + Generate ROIs without the coast, just interior divisions
@@ -2131,13 +2130,16 @@ mb['smb'].to_dataframe(name='M2021')\
 #          .sum()\
 #          .plot(ax=axr, legend=False, drawstyle='steps-post', color='gray', linestyle='--')
 # axr.set_ylim([420,520])
+mb_ann = mb['mb'].to_dataframe(name='M2021')\
+                 .rename(columns={'M2021':'MB'})\
+                 .resample('AS')\
+                 .sum()
+mb_ann.plot(color='k', linestyle='-', **kw)
 
-mb['mb'].to_dataframe(name='M2021')\
-        .rename(columns={'M2021':'MB'})\
-        .resample('AS')\
-        .sum()\
-        .plot(color='k', linestyle='-', **kw)
-
+mb_ann_pos = mb_ann.where(mb_ann['MB'] > 0, 0)
+mb_ann_neg = mb_ann.where(mb_ann['MB'] < 0, 0)
+ax.fill_between(mb_ann_pos.index, mb_ann_pos.values.flatten(), color='r', alpha=0.1, step='post')
+ax.fill_between(mb_ann_neg.index, mb_ann_neg.values.flatten(), color='b', alpha=0.1, step='post')
 
 plt.legend(loc='lower left')
 
@@ -2157,10 +2159,15 @@ axr = ax2.twinx()
               .rename(columns={'M2021':'MMB'})\
               .plot(ax=axr, legend=False, color='gray', linestyle='--')
 
-mb['mb'].to_dataframe(name='M2021')\
-        .rename(columns={'M2021':'MB'})\
-        .plot(ax=ax2, color='k', linestyle='-', legend=False, drawstyle='steps-post')
+mb = mb['mb'].to_dataframe(name='M2021')\
+             .rename(columns={'M2021':'MB'})
 
+mb.plot(ax=ax2, color='k', linestyle='-', legend=False, drawstyle='steps-post')
+
+mb_pos = mb.where(mb['MB'] > 0, 0)
+mb_neg = mb.where(mb['MB'] < 0, 0)
+ax2.fill_between(mb_pos.index, mb_pos.values.flatten(), color='r', alpha=0.1, step='post')
+ax2.fill_between(mb_neg.index, mb_neg.values.flatten(), color='b', alpha=0.1, step='post')
 
 ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
 ax.set_xlabel("")
@@ -2178,8 +2185,9 @@ plt.savefig('tmp/mb_ts.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-189-1b9b56ec5892>:92: UserWarning: FixedFormatter should only be used together with FixedLocator
+: <ipython-input-92-87a12fc3241b>:100: UserWarning: FixedFormatter should only be used together with FixedLocator
 :   axr.set_yticklabels(np.round(np.abs(axr.get_yticks()),2))
+
 *** Sector
 
 #+BEGIN_SRC jupyter-python
@@ -2207,12 +2215,15 @@ for r in mb['region'].values:
     kw = {'ax':ax, 'legend':False, 'drawstyle':'steps-post'}
 
     mb_r = mb.sel({'region':r})
-    
-    mb_r['smb_ROI'].to_dataframe(name='M2021')\
-                   .resample('AS')\
-                   .sum()\
-                   .rename(columns={'M2021':'SMB'})\
-                   .plot(color='b', linestyle=':', **kw)
+
+    mb_r_smb = mb_r['smb_ROI'].to_dataframe(name='M2021')\
+                              .resample('AS')\
+                              .sum()\
+                              .rename(columns={'M2021':'SMB'})
+    mb_r_smb.plot(color='b', linestyle=':', **kw)
+    # ax.fill_between(mb_r_smb.index,
+    #                 mb_r_smb.values.flatten(),
+    #                 color='b', alpha=0.25, step='post')
     
     (-1*mb_r['mmb_ROI']).to_dataframe(name='M2021')\
                         .resample('AS')\
@@ -2220,11 +2231,21 @@ for r in mb['region'].values:
                         .rename(columns={'M2021':'MMB'})\
                         .plot(color='gray', linestyle='--', **kw)
 
-    mb_r['mb_ROI'].to_dataframe(name='M2021')\
-                  .resample('AS')\
-                  .sum()\
-                  .rename(columns={'M2021':'MB'})\
-                  .plot(color='k', linestyle='-', **kw)
+    mb_r_mb = mb_r['mb_ROI'].to_dataframe(name='M2021')\
+                            .resample('AS')\
+                            .sum()\
+                            .rename(columns={'M2021':'MB'})
+    mb_r_mb.plot(color='k', linestyle='-', **kw)
+
+    mb_r_pos = mb_r_mb.where(mb_r_mb['MB'] > 0, 0)
+    mb_r_neg = mb_r_mb.where(mb_r_mb['MB'] < 0, 0)
+    ax.fill_between(mb_r_pos.index, mb_r_pos.values.flatten(), color='r', alpha=0.1, step='post')
+    ax.fill_between(mb_r_neg.index, mb_r_neg.values.flatten(), color='b', alpha=0.1, step='post')
+    # ax.fill_between(mb_r_mb.index,
+    #                 mb_r_mb.values.flatten(),
+    #                 color='k',
+    #                 alpha=0.25,
+    #                 step='post')
 
 
     # plt.legend(loc='lower left')
@@ -2232,6 +2253,8 @@ for r in mb['region'].values:
     # ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
     ax.set_ylabel("")
     ax.set_xlabel("")
+    # yl = np.max(np.abs(ax.get_yticks()))
+    # ax.set_yticks([yl,-yl])
     ax.set_xticks(ax.get_xlim())
     # ax.set_xticklabels(ax.get_xlim())
 
@@ -2383,7 +2406,7 @@ plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 
 
 
-** DONE This vs. Colgan (2019): GIS xy
+** DONE This vs. IMBIE/GRACE/SEC GIS XY
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -2398,42 +2421,61 @@ rc('font', size=12)
 rc('text', usetex=False)
 
 # plt.close(1)
-fig = plt.figure(1, figsize=(8,2.5)) # w,h
+
+# ONE COLUMN: %\includegraphics[width=8.3cm]{FILE NAME}
+
+fig = plt.figure(1, figsize=(3.26,7)) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
 # import matplotlib.gridspec as gridspec
 # gs = gridspec.GridSpec(1, 1) #w,h
 # ax = plt.subplot(gs[:,:])
-axSMB = fig.add_subplot(131)
-axD = fig.add_subplot(132)
-axMB = fig.add_subplot(133)
-
-# PROMICE MB (Colgan 2019)
-<<load_PROMICE_MB>>
+axGRACE = fig.add_subplot(311)
+axSEC = fig.add_subplot(312)
+axIMBIE = fig.add_subplot(313)
 
 # this
-this_smb = xr.open_dataset('./tmp/smb.nc')\
-             .resample({'time':'YS'})\
-             .sum()\
-             .reindex(time=promice['time'])
-
-<<load_mmb>>
-this_D = mmb.resample({'time':'YS'})\
-            .sum()\
-            .reindex(time=promice['time'])
-
-this_mb = xr.open_dataset('./TMB/mb.nc')\
+this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .resample({'time':'YS'})\
-            .sum()\
-           .reindex(time=promice['time'])
+            .sum()['mb']
 
+
+if 'gmb' not in locals():
+    <<load_GRACE>>
+    gmb = gmb['GMB_sector'].sum(dim='cell')\
+                           .resample({'time':'YS'})\
+                           .mean()
+    gmb = gmb.diff(dim='time')
+    this_mb_gmb = this_mb.sel({'time':slice(gmb.time[0], gmb.time[-1])})    
+
+if 'sec' not in locals():
+    <<load_SEC>>
+    sec = sec['SEC'].sum(dim='sector')\
+                    .resample({'time':'YS'})\
+                    .sum()
+    this_mb_sec = this_mb.sel({'time':slice(sec.time[0], sec.time[-1])})    
+    
+if 'imbie' not in locals():
+    <<load_imbie>>
+    # imbie = imbie.resample('1D').mean().interpolate(method='time')
+    imbie = imbie.resample('YS').mean()
+    imbie = imbie['mb']
+    imbie = imbie[imbie.index.year > 1986]
+    imbie = imbie.dropna()
+    this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
+    
 # graphics
 def my_plot(ax, x, y):
 
-    years = x.time.dt.year.values
+    if type(x) == xr.core.dataarray.DataArray:
+        years = x.time.dt.year.values
+    else:
+        years = x.index.year.values
+        
+    print(years)
     color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(np.str)]
+    y2str = [_[2:4] for _ in years.astype(str)]
 
     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
     cmap = cm.viridis(color)
@@ -2448,19 +2490,15 @@ def my_plot(ax, x, y):
                 horizontalalignment='center',
                 verticalalignment='center')
 
-    if ax == axSMB:
-        ax.set_title('SMB')
-        ax.set_xlabel('SMB [Gt yr$^{-1}$]')
-        ax.set_xticks([0,600])
-        ax.set_xlabel('C2019 [Gt yr$^{-1}$]')
-        ax.set_ylabel('M2021 [Gt yr$^{-1}$]')
-    if ax == axD:
-        ax.set_title('MMB + BMB')
-        ax.set_xticks([0,600])
-    if ax == axMB:
-        ax.set_title('MB')
-        ax.set_xticks([-400, 0, 200])
-
+    if ax == axGRACE:
+        ax.set_ylabel('GRACE\n[Gt yr$^{-1}$]', labelpad=-25)
+    if ax == axSEC:
+        ax.set_ylabel('SEC', labelpad=-25)
+    if ax == axIMBIE:
+        ax.set_ylabel('IMBIE', labelpad=-25)
+        ax.set_xlabel('M2021\n[Gt yr$^{-1}$]', labelpad=-7)
+    
+    ax.set_xticks([-400,200])
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
     ax.set_ylim(ax.get_xlim())
@@ -2470,7 +2508,9 @@ def my_plot(ax, x, y):
     # np.sqrt(np.mean((predictions-targets)**2))
     rmse = np.sqrt(np.mean((x.values - y.values)**2))
     # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
-    ax.text(1.0, -0.03, "r: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value,2), round(bias,1), round(rmse,2)),
+    ax.text(1.0, -0.03,
+            "r: %.2f\nbias: %.1f\nrmse: %.1f"
+            % (round(r_value,2), round(bias,1), round(rmse,2)),
             transform=ax.transAxes,
             horizontalalignment='right',
             fontsize=9)
@@ -2479,41 +2519,23 @@ def my_plot(ax, x, y):
     adj(ax, ['left','bottom'])
     return scatter
 
-my_plot(axSMB, promice['SMB'].sum(dim='sector'), this_smb['smb'])
-my_plot(axD,   promice['D'].sum(dim='sector'), this_D['mmb'])
-s = my_plot(axMB,  promice['MB'].sum(dim='sector'), this_mb['mb'])
 
-# https://stackoverflow.com/questions/17478165/
-def axis_to_fig(axis):
-    fig = axis.figure
-    def transform(coord):
-        return fig.transFigure.inverted().transform(
-            axis.transAxes.transform(coord))
-    return transform
+s = my_plot(axGRACE, this_mb_gmb, gmb)
+s = my_plot(axSEC, this_mb_sec, sec)
+s = my_plot(axIMBIE,  this_mb_imbie, imbie)
 
-def add_sub_axes(axis, rect):
-    fig = axis.figure
-    left, bottom, width, height = rect
-    trans = axis_to_fig(axis)
-    figleft, figbottom = trans((left, bottom))
-    figwidth, figheight = trans([width,height]) - trans([0,0])
-    return fig.add_axes([figleft, figbottom, figwidth, figheight])
-
-axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
-cb = plt.colorbar(s, cax=axCB, orientation='vertical', ticks=[0,1])
-cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
-cb.draw_all()
-# cb.set_label("Time [year]", labelpad=-20)
-axCB.set_yticklabels(promice['time'].dt.year[[0,-1]].values)
-
-plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-111-524d8b1db768>:191: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-:   plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
+:  2017 2018 2019 2020]
+: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
+: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
 
-[[./tmp/colgan_2019.png]]
+[[./tmp/this_v_grace_sec_imbie.png]]
 
 
 ** DONE This vs. Mouginot (2019): GIS xy
@@ -2531,16 +2553,16 @@ rc('font', size=12)
 rc('text', usetex=False)
 
 # plt.close(1)
-fig = plt.figure(1, figsize=(8,2.5)) # w,h
+fig = plt.figure(1, figsize=(3.26,7)) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
 # import matplotlib.gridspec as gridspec
 # gs = gridspec.GridSpec(1, 1) #w,h
 # ax = plt.subplot(gs[:,:])
-axSMB = fig.add_subplot(131)
-axD = fig.add_subplot(132)
-axMB = fig.add_subplot(133)
+axSMB = fig.add_subplot(311)
+axD = fig.add_subplot(312)
+axMB = fig.add_subplot(313)
 
 # Mouginot SMB, D, and MB (Mouginot, 2019)
 <<load_mouginot>>
@@ -2554,7 +2576,7 @@ this_smb = xr.open_dataset('./tmp/smb.nc')\
 this_D = mmb.resample({'time':'YS'})\
             .sum()
 
-this_mb = xr.open_dataset('./TMB/mb.nc')\
+this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .resample({'time':'YS'})\
             .sum()
 
@@ -2568,7 +2590,7 @@ def my_plot(ax, x, y):
 
     years = x.time.dt.year.values
     color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(np.str)]
+    y2str = [_[2:4] for _ in years.astype(str)]
 
     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
     cmap = cm.viridis(color)
@@ -2584,17 +2606,16 @@ def my_plot(ax, x, y):
                 verticalalignment='center')
 
     if ax == axSMB:
-        ax.set_title('SMB')
-        ax.set_xlabel('SMB [Gt yr$^{-1}$]')
+        ax.text(0, 0.9, 'SMB', transform=ax.transAxes)
         ax.set_xticks([0,600])
-        ax.set_xlabel('M2019 [Gt yr$^{-1}$]')
-        ax.set_ylabel('M2021 [Gt yr$^{-1}$]')
+        ax.set_ylabel('M2019\n[Gt yr$^{-1}$]', labelpad=-25)
     if ax == axD:
-        ax.set_title('MMB + BMB')
+        ax.text(0, 0.9, 'MMB [+ BMB]', transform=ax.transAxes)
         ax.set_xticks([0,600])
     if ax == axMB:
-        ax.set_title('MB')
+        ax.text(0, 0.9, 'MB', transform=ax.transAxes)
         ax.set_xticks([-400, 0, 200])
+        ax.set_xlabel('M2021\n[Gt yr$^{-1}$]')
 
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
@@ -2636,24 +2657,52 @@ def add_sub_axes(axis, rect):
     figwidth, figheight = trans([width,height]) - trans([0,0])
     return fig.add_axes([figleft, figbottom, figwidth, figheight])
 
-axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
-cb = plt.colorbar(s, cax=axCB, orientation='vertical', ticks=[0,1])
+# axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+axCB = add_sub_axes(axMB, [0.0, -0.75, 1, 0.075])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
 cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
 cb.draw_all()
+cb.ax.xaxis.set_ticks_position('top')
+cb.ax.xaxis.set_label_position('top')
 # cb.set_label("Time [year]", labelpad=-20)
-axCB.set_yticklabels(mouginot['time'].dt.year[[0,-1]].values)
+axCB.set_xticklabels(mouginot['time'].dt.year[[0,-1]].values)
 
 plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-112-58c68da1343f>:191: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-:   plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+#+begin_example
+<ipython-input-84-0854dbe8b3f5>:28: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+  df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
+<ipython-input-84-0854dbe8b3f5>:36: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  ds['time'] = (('time'), pd.to_datetime(df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int).values, format="%Y"))
+<ipython-input-84-0854dbe8b3f5>:38: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  ds['D'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
+<ipython-input-84-0854dbe8b3f5>:41: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  ds['D_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+<ipython-input-84-0854dbe8b3f5>:44: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  ds['SMB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
+<ipython-input-84-0854dbe8b3f5>:45: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  ds['SMB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+<ipython-input-84-0854dbe8b3f5>:48: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  ds['MB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
+<ipython-input-84-0854dbe8b3f5>:49: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  ds['MB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+<ipython-input-84-0854dbe8b3f5>:198: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+  plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+#+end_example
 
 
 [[./tmp/mouginot_2019.png]]
 
-** INPROGRESS This vs. IMBIE GIS XY
+** DONE This vs. Colgan (2019): GIS xy
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -2668,58 +2717,42 @@ rc('font', size=12)
 rc('text', usetex=False)
 
 # plt.close(1)
-fig = plt.figure(1, figsize=(8,2.5)) # w,h
+fig = plt.figure(1, figsize=(3.26,7)) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
 # import matplotlib.gridspec as gridspec
 # gs = gridspec.GridSpec(1, 1) #w,h
 # ax = plt.subplot(gs[:,:])
-axGRACE = fig.add_subplot(131)
-axSEC = fig.add_subplot(132)
-axIMBIE = fig.add_subplot(133)
+axSMB = fig.add_subplot(311)
+axD = fig.add_subplot(312)
+axMB = fig.add_subplot(313)
+
+# PROMICE MB (Colgan 2019)
+<<load_PROMICE_MB>>
 
 # this
+this_smb = xr.open_dataset('./tmp/smb.nc')\
+             .resample({'time':'YS'})\
+             .sum()\
+             .reindex(time=promice['time'])
+
+<<load_mmb>>
+this_D = mmb.resample({'time':'YS'})\
+            .sum()\
+            .reindex(time=promice['time'])
+
 this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .resample({'time':'YS'})\
-            .sum()['mb']
+            .sum()\
+           .reindex(time=promice['time'])
 
-
-if 'gmb' not in locals():
-    <<load_GRACE>>
-    gmb = gmb['GMB_sector'].sum(dim='cell')\
-                           .resample({'time':'YS'})\
-                           .mean()
-    gmb = gmb.diff(dim='time')
-    this_mb_gmb = this_mb.sel({'time':slice(gmb.time[0], gmb.time[-1])})    
-
-if 'sec' not in locals():
-    <<load_SEC>>
-    sec = sec['SEC'].sum(dim='sector')\
-                    .resample({'time':'YS'})\
-                    .sum()
-    this_mb_sec = this_mb.sel({'time':slice(sec.time[0], sec.time[-1])})    
-    
-if 'imbie' not in locals():
-    <<load_imbie>>
-    # imbie = imbie.resample('1D').mean().interpolate(method='time')
-    imbie = imbie.resample('YS').mean()
-    imbie = imbie['mb'].diff()
-    imbie = imbie[imbie.index.year > 1986]
-    imbie = imbie.dropna()
-    this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
-    
 # graphics
 def my_plot(ax, x, y):
 
-    if type(x) == xr.core.dataarray.DataArray:
-        years = x.time.dt.year.values
-    else:
-        years = x.index.year.values
-        
-    print(years)
+    years = x.time.dt.year.values
     color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(str)]
+    y2str = [_[2:4] for _ in years.astype(np.str)]
 
     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
     cmap = cm.viridis(color)
@@ -2734,15 +2767,18 @@ def my_plot(ax, x, y):
                 horizontalalignment='center',
                 verticalalignment='center')
 
-    if ax == axGRACE:
-        ax.set_xlabel('GRACE [Gt yr$^{-1}$]')
-        ax.set_ylabel('M2021 [Gt yr$^{-1}$]')
-    if ax == axSEC:
-        ax.set_xlabel('SEC')
-    if ax == axIMBIE:
-        ax.set_xlabel('IMBIE')
+    if ax == axSMB:
+        ax.text(0, 0.9, 'SMB', transform=ax.transAxes)
+        ax.set_xticks([0,600])
+        ax.set_ylabel('C2019\n[Gt yr$^{-1}$]', labelpad=-25)
+    if ax == axD:
+        ax.text(0, 0.9, 'MMB [+ BMB]', transform=ax.transAxes)
+        ax.set_xticks([0,600])
+    if ax == axMB:
+        ax.text(0, 0.9, 'MB', transform=ax.transAxes)
+        ax.set_xticks([-400, 0, 200])
+        ax.set_xlabel('M2021\n[Gt yr$^{-1}$]')
 
-    ax.set_xticks([-400,200])
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
     ax.set_ylim(ax.get_xlim())
@@ -2761,47 +2797,140 @@ def my_plot(ax, x, y):
     adj(ax, ['left','bottom'])
     return scatter
 
+my_plot(axSMB, this_smb['smb'], promice['SMB'].sum(dim='sector'))
+my_plot(axD,   this_D['mmb'],   promice['D'].sum(dim='sector'))
+s = my_plot(axMB,  this_mb['mb'], promice['MB'].sum(dim='sector'))
 
-my_plot(axGRACE, gmb, this_mb_gmb)
-my_plot(axSEC, sec, this_mb_sec)
-s = my_plot(axIMBIE,  imbie, this_mb_imbie)
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
 
-# # https://stackoverflow.com/questions/17478165/
-# def axis_to_fig(axis):
-#     fig = axis.figure
-#     def transform(coord):
-#         return fig.transFigure.inverted().transform(
-#             axis.transAxes.transform(coord))
-#     return transform
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
 
-# def add_sub_axes(axis, rect):
-#     fig = axis.figure
-#     left, bottom, width, height = rect
-#     trans = axis_to_fig(axis)
-#     figleft, figbottom = trans((left, bottom))
-#     figwidth, figheight = trans([width,height]) - trans([0,0])
-#     return fig.add_axes([figleft, figbottom, figwidth, figheight])
+# axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+axCB = add_sub_axes(axMB, [0.0, -0.75, 1, 0.075])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+cb.ax.xaxis.set_ticks_position('top')
+cb.ax.xaxis.set_label_position('top')
+# cb.set_label("Time [year]", labelpad=-20)
+axCB.set_xticklabels(mouginot['time'].dt.year[[0,-1]].values)
 
-# axCB = add_sub_axes(axIMBIE, [1.1, 0.0, 0.075, 1])
-# cb = plt.colorbar(s, cax=axCB, orientation='vertical', ticks=[0,1])
-# cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
-# cb.draw_all()
-# # cb.set_label("Time [year]", labelpad=-20)
-# axCB.set_yticklabels(promice['time'].dt.year[[0,-1]].values)
-
-plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
+plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
-:  2017 2018 2019 2020]
-: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
-:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
-: [1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006
-:  2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
+#+begin_example
+<ipython-input-90-fb0055b48a63>:26: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+  df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
+<ipython-input-90-fb0055b48a63>:123: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  y2str = [_[2:4] for _ in years.astype(np.str)]
+<ipython-input-90-fb0055b48a63>:123: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  y2str = [_[2:4] for _ in years.astype(np.str)]
+<ipython-input-90-fb0055b48a63>:123: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  y2str = [_[2:4] for _ in years.astype(np.str)]
+<ipython-input-90-fb0055b48a63>:198: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+  plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+#+end_example
 
 [[./tmp/colgan_2019.png]]
 
+
+** DONE HIRHAM MAR RACMO timeseries
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+from adjust_spines import adjust_spines as adj
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+# plt.close(1)
+fig = plt.figure(1, figsize=(8,8)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+ax = fig.add_subplot(311)
+
+C = 'k'; L='-'
+C_HIRHAM = 'gray'; L_HIRHAM='--'
+C_MAR = 'blue'; L_MAR = ':'
+C_RACMO = 'red'; L_RACMO = '-'
+
+# MB (this)
+mb = xr.open_dataset("./TMB/mb_sector.nc")
+
+mb = mb.sum(dim='sector')
+
+kw = {'ax':ax, 'legend':False, 'drawstyle':'steps-post'}
+
+mb_ann = mb.to_dataframe()\
+           .resample('AS')\
+           .sum()\
+           .rename(columns={'mb':'M2021',
+                            'mb_HIRHAM':'HIRHAM',
+                            'mb_MAR':'MAR',
+                            'mb_RACMO':'RACMO'})
+mb_ann['M2021'].plot(color=C, linestyle=L, **kw)
+mb_ann['HIRHAM'].plot(color=C_HIRHAM, linestyle=L_HIRHAM, **kw)
+mb_ann['MAR'].plot(color=C_MAR, linestyle=L_MAR, **kw)
+mb_ann['RACMO'].plot(color=C_RACMO, linestyle=L_RACMO, **kw)
+
+# ax.fill_between(mb_ann.index, mb_ann.values.flatten(), color='k', alpha=0.1, step='post')
+
+plt.legend(loc='lower left')
+
+
+
+ax2 = fig.add_subplot(312)
+mb = mb.sel({'time':slice('2019-01-01','2019-12-31')})
+kw = {'ax': ax2, 'drawstyle':'steps-post'}
+
+mb['mb'].plot(color=C, linestyle=L, **kw)
+mb['mb_HIRHAM'].plot(color=C_HIRHAM, linestyle=L_HIRHAM, **kw)
+mb['mb_MAR'].plot(color=C_MAR, linestyle=L_MAR, **kw)
+mb['mb_RACMO'].plot(color=C_RACMO, linestyle=L_RACMO, **kw)
+
+
+ax3 = fig.add_subplot(313)
+kw = {'ax': ax3, 'drawstyle':'steps-post'}
+
+(mb['mb_HIRHAM']-mb['mb']).plot(color=C_HIRHAM, linestyle=L_HIRHAM, **kw)
+(mb['mb_MAR']-mb['mb']).plot(color=C_MAR, linestyle=L_MAR, **kw)
+(mb['mb_RACMO']-mb['mb']).plot(color=C_RACMO, linestyle=L_RACMO, **kw)
+
+ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
+ax.set_xlabel("")
+adj(ax, ['left','bottom'])
+
+ax2.set_xlabel("Time [Year]")
+ax2.set_ylabel("Mass gain [Gt d$^{-1}$]")
+adj(ax2, ['left','bottom'])
+
+ax3.set_xlabel("Time [Year]")
+ax3.set_ylabel("Difference [Gt d$^{-1}$]")
+adj(ax3, ['left','bottom'])
+
+plt.savefig('tmp/mb_3RCM.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
 
 ** NOTDONE SMB timeseries
 
