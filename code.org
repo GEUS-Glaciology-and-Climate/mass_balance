@@ -521,7 +521,7 @@ for f in ${dir}/*.nc; do
 
     log_info "HIRHAM: ${d}"
 
-    if [[ -e ./tmp/${RCM}/Z_${d}.bsv ]]; then continue; fi
+    if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
 
     var=smb
     if [[ ${f} == *"SMBmodel"* ]]; then var=gld; fi
@@ -533,19 +533,19 @@ for f in ${dir}/*.nc; do
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Z_${d}.bsv
-
-    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Mb_${d}.bsv
+    > ./tmp/${RCM}/sector_${d}.bsv
 
     r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Mr_${d}.bsv
+    > ./tmp/${RCM}/region_${d}.bsv
+
+    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/${RCM}/basin_${d}.bsv
     
   done
 done
@@ -584,7 +584,6 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/MAR/daily
 f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
 
-
 for f in ${dir}/MARv3.11*.nc; do
   dates=$(python ./nc_dates.py ${f})
   band=0
@@ -594,7 +593,7 @@ for f in ${dir}/MARv3.11*.nc; do
 
     log_info "MAR: ${d}"
 
-    if [[ -e ./tmp/${RCM}/Z_${d}.bsv ]]; then continue; fi
+    if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
 
     r.in.gdal -o input="NetCDF:${f}:SMB" band=${band} output=smb_raw --o --q
     r.region map=smb_raw region=RCM
@@ -604,19 +603,19 @@ for f in ${dir}/MARv3.11*.nc; do
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Z_${d}.bsv
-
-    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Mb_${d}.bsv
+    > ./tmp/${RCM}/sector_${d}.bsv
 
     r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Mr_${d}.bsv
+    > ./tmp/${RCM}/region_${d}.bsv
+
+    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/${RCM}/basin_${d}.bsv
     
   done
 done
@@ -667,7 +666,7 @@ for f in ${dir}/*.nc; do
 
     log_info "RACMO: ${d}"
 
-    if [[ -e ./tmp/${RCM}/Z_${d}.bsv ]]; then continue; fi
+    if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
 
     var=SMB_rec
     if [[ ${f} == *"ERA5"* ]]; then var=smb_rec; fi
@@ -679,20 +678,20 @@ for f in ${dir}/*.nc; do
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Z_${d}.bsv
-
-    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Mb_${d}.bsv
+    > ./tmp/${RCM}/sector_${d}.bsv
 
     r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/Mr_${d}.bsv
+    > ./tmp/${RCM}/region_${d}.bsv
     
+    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/${RCM}/basin_${d}.bsv
+
   done
 done
 
@@ -775,7 +774,7 @@ def bsv2nc(smb, bsv, dim):
     if len(missing) > 0:
         df[missing] = np.nan
         df = df.reindex(sorted(df.columns), axis=1)
-
+ 
     if 'HIRHAM' in bsv: grid = 912 * 912
     if 'RACMO' in bsv: grid = 1000 * 1000
     if 'MAR' in bsv: grid = 1000 * 1000
@@ -863,7 +862,13 @@ Data variables:
 #+end_example
 
 
-* COMMENT BMB to ROI
+* MMB to ROI
+
+Already done in each of the MMB products
++ citet:mankoff_2020_solid includes ROI for each gate
++ citet:mouginot_2019_forty is provided on Zwally sector
+
+* BMB to ROI
 :PROPERTIES:
 :header-args:bash+: :tangle BMB.sh
 :END:
@@ -1112,9 +1117,20 @@ frink "(8.6E-8 K Pa^(-1)) * (4184 J K^(-1) kg^(-1)) * (1000 kg m^(-3))"
 
 Meaning 0.36 of the pressure reduction energy release is "lost", warming the water to match the increased PTT, and 1-0.36 = 0.64 of the pressure reduction energy release can be used to melt basal ice.
 
+From citet:mankoff_2017_VHD or citet:karlsson_2021:
+
 #+BEGIN_SRC bash
-# The effective change in 
+# The effective change in head is...
 r.mapcalc "dh = delta_z_head + 0.64 * delta_p_head"
+# also "dh = delta_head - 0.36 * delta_p_head"
+
+# Energy (J) is m*g*z
+r.mapcalc 'q_z = (1000 * 9.8 * delta_z_head)'
+r.mapcalc 'q_p = (1000 * 9.8 * 0.64 * delta_p_head)'
+r.mapcalc 'q = (1000 * 9.8 * dh)'
+
+# r.mapcalc "q = (1000 * 9.8 * delta_head) - 0.36 * (917 * 9.8 * delta_p_head)"
+r.mapcalc "unit_melt = q / (335 * 1000)" # 335 kJ/kg ice
 #+END_SRC
 
 ***** Debug
@@ -1163,12 +1179,13 @@ d.vect outlets_uniq color=cyan
 
 #+BEGIN_SRC bash
 g.mapset -c VHD
-r.proj -pg location=G_BMB mapset=VHD input=dh
-eval $(r.proj -pg location=G_BMB mapset=VHD input=dh)
+r.proj -pg location=G_BMB mapset=VHD input=unit_melt
+eval $(r.proj -pg location=G_BMB mapset=VHD input=unit_melt)
 g.region e=$e w=$w n=$n s=$s rows=$rows cols=$cols -p
 g.region save=BedMachine
-r.proj location=G_BMB mapset=VHD input=dh
-g.region res=1000
+r.proj location=G_BMB mapset=VHD input=unit_melt output=unit_melt_res
+g.region res=1000 -pa
+r.mapcalc "unit_melt = unit_melt_res" # resample to regular grid
 #+END_SRC
 
 **** MAR daily partitioned to ROI
@@ -1190,30 +1207,34 @@ for f in ${dir}/MARv3.11*.nc; do
 
     log_info "MAR BMB: ${d}"
 
-    if [[ -e ./tmp/BMB/Z_${d}.bsv ]]; then continue; fi
+    if [[ -e ./tmp/BMB/sector_${d}.bsv ]]; then continue; fi
 
-    r.in.gdal -o input="NetCDF:${f}:SMB" band=${band} output=smb_raw --o --q
-    r.region map=smb_raw region=RCM
-    r.mapcalc "smb = if(mask > 50, smb_raw * (mask/100), null())" --o
-    r.null map=smb null=0
+    r.in.gdal -o input="NetCDF:${f}:RU" band=${band} output=ru_raw --o --q
+    r.region map=ru_raw region=RCM
 
-    r.univar -t --q map=smb zones=sectors_e@Zwally_2012 \
+    # ru_raw in mm w eq runoff
+    # Other BMB is m/day equivalent melt, so we should aim for that.
+    r.mapcalc "vhd = unit_melt * (10^-3.0) * if(mask > 50, ru_raw * (mask/100), null())" --o
+    
+    r.null map=vhd null=0
+
+    r.univar -t --q map=vhd zones=sectors_e@Zwally_2012 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/BMB/Z_${d}.bsv
+    > ./tmp/BMB/sector_${d}.bsv
 
-    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
+    r.univar -t --q map=vhd zones=basins_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/BMB/Mb_${d}.bsv
+    > ./tmp/BMB/basin_${d}.bsv
 
-    r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
+    r.univar -t --q map=vhd zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
-    > ./tmp/BMB/Mr_${d}.bsv
+    > ./tmp/BMB/region_${d}.bsv
     
   done
 done
@@ -1223,29 +1244,24 @@ done
 
 
 ** Create data file
-
 *** Merge BSVs
 
-#+BEGIN_SRC bash :tangle bmb_merge.sh
+#+BEGIN_SRC bash :tangle bmb_merge.sh :results verbatim
 <<init_bash>>
 
-for ROI in sectior region basin; do
+for ROI in sector region basin; do
   log_info MAR ${ROI}
   head -n1 ./tmp/BMB/${ROI}_2000-01-01.bsv > ./tmp/BMB_VHD_${ROI}.bsv
   tail -q -n1 ./tmp/BMB/${ROI}_*.bsv >> ./tmp/BMB_VHD_${ROI}.bsv
 done
 #+END_SRC
 
-#+RESULTS:|                                     |                       |     |         |      |    |           |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| $                                   | $                     | $   | $       | $    | $  | $         | $ | $ | $ | $ | $ | $ | $ | $ | $ | $ | $ | $ | > | > | > | > | [0;32m[2021-01-21T09:09:48-08:00] | [INFO] | MAR | Z[0m |
-| bash:                               | ./tmp/BMB_VHD_sector.bsv:  | No  | such    | file | or | directory |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| bash:                               | ./tmp/BMB_VHD_sector.bsv:  | No  | such    | file | or | directory |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| [0;32m[2021-01-21T09:09:48-08:00] | [INFO]                | MAR | Mb[0m |      |    |           |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| bash:                               | ./tmp/BMB_VHD_basin.bsv: | No  | such    | file | or | directory |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| bash:                               | ./tmp/BMB_VHD_basin.bsv: | No  | such    | file | or | directory |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| [0;32m[2021-01-21T09:09:48-08:00] | [INFO]                | MAR | Mr[0m |      |    |           |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| bash:                               | ./tmp/BMB_VHD_region.bsv: | No  | such    | file | or | directory |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
-| bash:                               | ./tmp/BMB_VHD_region.bsv: | No  | such    | file | or | directory |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |                                     |        |     |        |
+#+RESULTS:
+: 
+: $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ > > > > [0;32m[2021-02-03T13:54:26-08:00] [INFO] MAR sector[0m
+: [0;32m[2021-02-03T13:54:26-08:00] [INFO] MAR region[0m
+: [0;32m[2021-02-03T13:54:26-08:00] [INFO] MAR basin[0m
+
 
 *** BSV to NetCDF
 
@@ -1263,110 +1279,84 @@ time = pd.date_range(start = "1986-01-01",
 bmb = xr.Dataset()
 bmb["time"] = (("time"), time)
 
-bmb["sector"] = pd.read_csv("./tmp/BMB_GF_sector.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+bmb["sector"] = pd.read_csv("./tmp/BMB_GF_sector.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 
 rstr = {11:'NW', 12:'NO', 1:'NE', 3:'CE', 9:'CW', 5:'SE', 7:'SW'}
-rnum = pd.read_csv("./tmp/BMB_GF_region.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+rnum = pd.read_csv("./tmp/BMB_GF_region.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 bmb["region"] = [rstr[n] for n in rnum]
+bmb["basin"] = pd.read_csv("./tmp/BMB_GF_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 
-bmb["basin"] = pd.read_csv("./tmp/BMB_GF_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+bmb['GF_sector'] = (('sector'),
+                    pd.read_csv("./tmp/BMB_GF_sector.bsv",
+                                delimiter="|", index_col=0).values.flatten())
+bmb['vel_sector'] = (('sector'),
+                     pd.read_csv("./tmp/BMB_vel_sector.bsv",
+                                 delimiter="|", index_col=0).values.flatten())
+bmb['VHD_sector'] = (('time','sector'),
+                     pd.read_csv("./tmp/BMB_VHD_sector.bsv",
+                                 delimiter="|", index_col=0, parse_dates=True).reindex(time))
+
+bmb['GF_region'] = (('region'),
+                    pd.read_csv("./tmp/BMB_GF_region.bsv",
+                                delimiter="|", index_col=0).values.flatten())
+bmb['vel_region'] = (('region'),
+                     pd.read_csv("./tmp/BMB_vel_region.bsv",
+                                 delimiter="|", index_col=0).values.flatten())
+bmb['VHD_region'] = (('time','region'),
+                     pd.read_csv("./tmp/BMB_VHD_region.bsv",
+                                 delimiter="|", index_col=0, parse_dates=True).reindex(time))
+
+bmb['GF_basin'] = (('basin'),
+                    pd.read_csv("./tmp/BMB_GF_basin.bsv",
+                                delimiter="|", index_col=0).values.flatten())
+bmb['vel_basin'] = (('basin'),
+                     pd.read_csv("./tmp/BMB_vel_basin.bsv",
+                                 delimiter="|", index_col=0).values.flatten())
+
+df = pd.read_csv("./tmp/BMB_VHD_basin.bsv",
+                 delimiter="|", index_col=0, parse_dates=True).reindex(time)
+df.columns = df.columns.astype(np.int64)
+missing = bmb['basin'].values[~pd.Series(bmb['basin'].values).isin(df.columns)]
+if len(missing) > 0:
+    df[missing] = np.nan
+    df = df.reindex(sorted(df.columns), axis=1)
+bmb['VHD_basin'] = (('time','basin'), df)
 
 
+# VHD is in mm w.eq / day
+# scale from my computed daily VHD to the same units NBK BMB is on, which is [m w.eq]
+for roi in ['sector','region','basin']:
+    v = 'VHD_'+roi
+    bmb[v] = (('time',roi), bmb[v] * 1E-3)
 
-bmb['GF_sector'] = (('sector'), pd.read_csv("./tmp/BMB_GF_sector.bsv", delimiter="|", index_col=0))
-bmb['vel_sector'] = (('sector'), pd.read_csv("./tmp/BMB_vel_sector.bsv", delimiter="|", index_col=0))
-bmb['VHD_sector'] = (('time','sector'), pd.read_csv("./tmp/BMB_VHD_sector.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time))
+#          grid cells    m^3->kg  kg->Gt
+bmb = bmb * 1000 * 1000 * 1E3    / 1E12
+bmb.to_netcdf("./tmp/bmb.nc")
 
-
-GF_region = pd.read_csv("./tmp/BMB_GF_region.bsv", delimiter="|", index_col=0)
-vel_region = pd.read_csv("./tmp/BMB_vel_region.bsv", delimiter="|", index_col=0)
-VHD_region = pd.read_csv("./tmp/BMB_VHD_region.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-bmb["BMB_region"] = (("time", "region"), VHD_region + GF_region.values + vel_region.values)
-
-GF_basin = pd.read_csv("./tmp/BMB_GF_basin.bsv", delimiter="|", index_col=0)
-vel_basin = pd.read_csv("./tmp/BMB_vel_basin.bsv", delimiter="|", index_col=0)
-VHD_basin = pd.read_csv("./tmp/BMB_VHD_basin.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-bmb["BMB_basin"] = (("time", "basin"), VHD_basin + GF_basin.values + vel_basin.values)
-
-GF_region = pd.read_csv("./tmp/BMB_GF_region.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-GF_region.columns = [rstr[int(n)] for n in GF_region.columns]
-
-GF_basin = pd.read_csv("./tmp/BMB_GF_basin.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-
-
-vel_region = pd.read_csv("./tmp/BMB_vel_region.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-vel_region.columns = [rstr[int(n)] for n in GF_region.columns]
-
-vel_basin = pd.read_csv("./tmp/BMB_vel_basin.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-
-
-    
-# def smb = bsv2nc(smb, (bsv, dim):
-#     df = pd.read_csv("./tmp/" + bsv + ".bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-#     df.columns = df.columns.astype(np.int64)
-#     if dim == "region":
-#         df.columns = [rstr[n] for n in df.columns]
-#     missing = smb[dim].values[~pd.Series(smb[dim].values).isin(df.columns)]
-#     if len(missing) > 0:
-#         df[missing] = np.nan
-#         df = df.reindex(sorted(df.columns), axis=1)
-#     smb[bsv] = (("time", dim), df)
-    
-# smb = bsv2nc(smb, ("VHD_sector", "sector")
-# smb = bsv2nc(smb, ("GF_region", "region")
-# smb = bsv2nc(smb, ("GF_basin", "basin")
-
-# smb = bsv2nc(smb, ("MAR_sector", "sector")
-# smb = bsv2nc(smb, ("MAR_region", "region")
-# smb = bsv2nc(smb, ("MAR_basin", "basin")
-
-# smb = bsv2nc(smb, ("RACMO_sector", "sector")
-# smb = bsv2nc(smb, ("RACMO_region", "region")
-# smb = bsv2nc(smb, ("RACMO_basin", "basin")
-
-#           mm->m   grid cells    m^3->kg  kg->Gt
-# smb = smb * 1E-3  * 1000 * 1000 * 1E3    / 1E12
-# smb.to_netcdf("./tmp/smb.nc")
+print(bmb)
 #+END_SRC
 
 #+RESULTS:
-:RESULTS:
-# [goto error]
 #+begin_example
-
-ValueErrorTraceback (most recent call last)
-<ipython-input-24-617fc7827a54> in <module>
-     35 vel_basin = pd.read_csv("./tmp/BMB_vel_basin.bsv", delimiter="|", index_col=0)
-     36 VHD_basin = pd.read_csv("./tmp/BMB_VHD_basin.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
----> 37 bmb["BMB_basin"] = (("time", "basin"), VHD_basin + GF_basin.values + vel_basin.values)
-     38 
-     39 GF_region = pd.read_csv("./tmp/BMB_GF_region.bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/ops/__init__.py in f(self, other, axis, level, fill_value)
-    645         # TODO: why are we passing flex=True instead of flex=not special?
-    646         #  15 tests fail if we pass flex=not special instead
---> 647         self, other = _align_method_FRAME(self, other, axis, flex=True, level=level)
-    648 
-    649         if isinstance(other, ABCDataFrame):
-
-~/local/miniconda3/envs/TMB/lib/python3.8/site-packages/pandas/core/ops/__init__.py in _align_method_FRAME(left, right, axis, flex, level)
-    488 
-    489             else:
---> 490                 raise ValueError(
-    491                     "Unable to coerce to DataFrame, shape "
-    492                     f"must be {left.shape}: given {right.shape}"
-
-ValueError: Unable to coerce to DataFrame, shape must be (12823, 191): given (1, 252)
+<xarray.Dataset>
+Dimensions:     (basin: 252, region: 7, sector: 19, time: 12830)
+Coordinates:
+  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-15
+  ,* sector      (sector) int64 11 12 13 14 21 22 31 32 ... 50 61 62 71 72 81 82
+  ,* region      (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
+  ,* basin       (basin) int64 1 2 3 4 5 6 7 8 ... 252 253 254 255 257 258 259
+Data variables:
+    GF_sector   (sector) float64 0.000863 0.0002914 ... 0.001457 0.0001964
+    vel_sector  (sector) float64 0.00149 0.0002846 ... 0.005806 0.0002424
+    VHD_sector  (time, sector) float64 0.007683 0.001881 0.001076 ... nan nan
+    GF_region   (region) float64 0.003862 0.001717 ... 0.001706 0.001373
+    vel_region  (region) float64 0.003037 0.003699 ... 0.006114 0.001899
+    VHD_region  (time, region) float64 0.008228 0.01525 1.626 ... nan nan nan
+    GF_basin    (basin) float64 2.533e-05 3.625e-05 ... 5.112e-07 2.702e-06
+    vel_basin   (basin) float64 3.52e-05 1.833e-05 ... 7.486e-11 1.901e-10
+    VHD_basin   (time, basin) float64 -0.0001209 -7.146e-05 0.001836 ... nan nan
 #+end_example
-:END:
 
-
-
-* MMB to ROI
-
-Already done in each of the MMB products
-+ citet:mankoff_2020_solid includes ROI for each gate
-+ citet:mouginot_2019_forty is provided on Zwally sector
 
 * TMB
 Generate a TMB netcdf file from SMB, MMB, and BMB
@@ -1382,7 +1372,6 @@ smb['region'] = smb['region'].astype(str)
 #+END_SRC
 
 #+RESULTS: load_smb
-
 
 ** Load MMB (Mankoff 2020)
 
@@ -1437,6 +1426,56 @@ mmb['region'] = mmb['region'].astype(str)
 
 #+RESULTS: load_mmb
 
+
+** Load BMB (Karlsson 202)
+
+#+NAME: load_bmb
+#+BEGIN_SRC jupyter-python
+<<py_import>>
+
+bmb = xr.open_dataset("./tmp/bmb.nc")
+bmb['region'] = bmb['region'].astype(str)
+
+bmb['bmb'] = bmb['VHD_sector'].sum(dim='sector') \
+    + bmb['GF_sector'].sum(dim='sector') \
+    + bmb['vel_sector'].sum(dim='sector')
+
+print(bmb)
+bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_dataframe().head()
+#+END_SRC
+
+#+RESULTS: load_bmb
+:RESULTS:
+#+begin_example
+<xarray.Dataset>
+Dimensions:     (basin: 252, region: 7, sector: 19, time: 12829)
+Coordinates:
+  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-01 ... 1986-01-01
+  ,* sector      (sector) int64 11 12 13 14 21 22 31 32 ... 50 61 62 71 72 81 82
+  ,* region      (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
+  ,* basin       (basin) int64 1 2 3 4 5 6 7 8 ... 252 253 254 255 257 258 259
+Data variables:
+    GF_sector   (sector) float64 0.0008637 0.0002919 ... 0.001458 0.0001964
+    vel_sector  (sector) float64 0.001533 0.0003148 ... 0.005934 0.0002597
+    VHD_sector  (time, sector) float64 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0
+    GF_region   (region) float64 ...
+    vel_region  (region) float64 ...
+    VHD_region  (time, region) float64 ...
+    GF_basin    (basin) float64 ...
+    vel_basin   (basin) float64 ...
+    VHD_basin   (time, basin) float64 ...
+    bmb         (time) float64 0.04964 0.04964 0.04964 ... 0.04964 0.04964
+#+end_example
+| time                |   VHD_sector |   GF_sector |   vel_sector |       bmb |
+|---------------------+--------------+-------------+--------------+-----------|
+| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
+| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
+| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
+| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
+| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
+:END:
+
+
 ** Create TMB output
 :PROPERTIES:
 :header-args:jupyter-python+: :tangle build_TMB_nc.py
@@ -1450,6 +1489,9 @@ mmb['region'] = mmb['region'].astype(str)
 # Populate mmb dataset
 <<load_mmb>>
 
+# Populate bmb dataset
+<<load_bmb>>
+
 # match times
 t0 = np.min([smb['time'].min().values,
              mmb['time'].min().values,
@@ -1460,6 +1502,7 @@ t1 = np.max([smb['time'].max().values,
 time = pd.date_range(start=t0, end=t1, freq="D")
 smb = smb.reindex({'time':time})
 mmb = mmb.reindex({'time':time})
+bmb = bmb.reindex({'time':time})
 
 # add the sectors from SMB to MMB (14 and 21(?) don't have any MMB)
 mmb = mmb.reindex({'sector': smb['sector']})# .fillna(0)
@@ -1528,6 +1571,16 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         mb[v].attrs["units"] = "Gt d-1"
     mb['mmb'].attrs["coordinates"] = 'time'
     mb['mmb_ROI'].attrs["coordinates"] = 'time ROI'
+
+    
+    mb['bmb'] = (('time'), bmb['bmb'])
+    mb['bmb_ROI'] = (('time',roi), bmb['bmb_'+roi])
+    for v in ['bmb','bmb_ROI']:
+        mb[v].attrs['long_name'] = 'Marine mass balance'
+        mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
+        mb[v].attrs["units"] = "Gt d-1"
+    mb['bmb'].attrs["coordinates"] = 'time'
+    mb['bmb_ROI'].attrs["coordinates"] = 'time ROI'
     
         
     # mb['bmb'] = (('time'), bmb['bmb'])
