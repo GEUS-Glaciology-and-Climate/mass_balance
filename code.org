@@ -1331,30 +1331,31 @@ for roi in ['sector','region','basin']:
 
 #          grid cells    m^3->kg  kg->Gt
 bmb = bmb * 1000 * 1000 * 1E3    / 1E12
-bmb.to_netcdf("./tmp/bmb.nc")
+bmb.to_netcdf('./tmp/bmb.nc')
 
 print(bmb)
+# bmb = xr.open_dataset('./tmp/bmb.nc')
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
 <xarray.Dataset>
-Dimensions:     (basin: 252, region: 7, sector: 19, time: 12830)
+Dimensions:     (basin: 252, region: 7, sector: 19, time: 12831)
 Coordinates:
-  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-15
+  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-16
   ,* sector      (sector) int64 11 12 13 14 21 22 31 32 ... 50 61 62 71 72 81 82
   ,* region      (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
   ,* basin       (basin) int64 1 2 3 4 5 6 7 8 ... 252 253 254 255 257 258 259
 Data variables:
     GF_sector   (sector) float64 0.000863 0.0002914 ... 0.001457 0.0001964
     vel_sector  (sector) float64 0.00149 0.0002846 ... 0.005806 0.0002424
-    VHD_sector  (time, sector) float64 0.007683 0.001881 0.001076 ... nan nan
+    VHD_sector  (time, sector) float64 0.0 0.0 0.0 0.0 0.0 ... nan nan nan nan
     GF_region   (region) float64 0.003862 0.001717 ... 0.001706 0.001373
     vel_region  (region) float64 0.003037 0.003699 ... 0.006114 0.001899
-    VHD_region  (time, region) float64 0.008228 0.01525 1.626 ... nan nan nan
+    VHD_region  (time, region) float64 0.0 2.633e-05 3.896e-05 ... nan nan nan
     GF_basin    (basin) float64 2.533e-05 3.625e-05 ... 5.112e-07 2.702e-06
     vel_basin   (basin) float64 3.52e-05 1.833e-05 ... 7.486e-11 1.901e-10
-    VHD_basin   (time, basin) float64 -0.0001209 -7.146e-05 0.001836 ... nan nan
+    VHD_basin   (time, basin) float64 9.762e-11 6.26e-07 0.0 0.0 ... nan nan nan
 #+end_example
 
 
@@ -1433,47 +1434,36 @@ mmb['region'] = mmb['region'].astype(str)
 #+BEGIN_SRC jupyter-python
 <<py_import>>
 
-bmb = xr.open_dataset("./tmp/bmb.nc")
+bmb = xr.open_dataset('./tmp/bmb.nc')
 bmb['region'] = bmb['region'].astype(str)
 
 bmb['bmb'] = bmb['VHD_sector'].sum(dim='sector') \
     + bmb['GF_sector'].sum(dim='sector') \
     + bmb['vel_sector'].sum(dim='sector')
 
-print(bmb)
-bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_dataframe().head()
+bmb['bmb_sector'] = bmb['VHD_sector'] + bmb['GF_sector'] + bmb['vel_sector']
+bmb['bmb_region'] = bmb['VHD_region'] + bmb['GF_region'] + bmb['vel_region']
+bmb['bmb_basin'] = bmb['VHD_basin'] + bmb['GF_basin'] + bmb['vel_basin']
+
+# print(bmb)
+bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_dataframe().resample('MS').sum().head(12)
 #+END_SRC
 
 #+RESULTS: load_bmb
-:RESULTS:
-#+begin_example
-<xarray.Dataset>
-Dimensions:     (basin: 252, region: 7, sector: 19, time: 12829)
-Coordinates:
-  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-01 ... 1986-01-01
-  ,* sector      (sector) int64 11 12 13 14 21 22 31 32 ... 50 61 62 71 72 81 82
-  ,* region      (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
-  ,* basin       (basin) int64 1 2 3 4 5 6 7 8 ... 252 253 254 255 257 258 259
-Data variables:
-    GF_sector   (sector) float64 0.0008637 0.0002919 ... 0.001458 0.0001964
-    vel_sector  (sector) float64 0.001533 0.0003148 ... 0.005934 0.0002597
-    VHD_sector  (time, sector) float64 0.0 0.0 0.0 0.0 0.0 ... 0.0 0.0 0.0 0.0
-    GF_region   (region) float64 ...
-    vel_region  (region) float64 ...
-    VHD_region  (time, region) float64 ...
-    GF_basin    (basin) float64 ...
-    vel_basin   (basin) float64 ...
-    VHD_basin   (time, basin) float64 ...
-    bmb         (time) float64 0.04964 0.04964 0.04964 ... 0.04964 0.04964
-#+end_example
-| time                |   VHD_sector |   GF_sector |   vel_sector |       bmb |
-|---------------------+--------------+-------------+--------------+-----------|
-| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
-| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
-| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
-| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
-| 1986-01-01 00:00:00 |            0 |   0.0163605 |    0.0332779 | 0.0496384 |
-:END:
+| time                | VHD_sector | GF_sector | vel_sector |     bmb |
+|---------------------+------------+-----------+------------+---------|
+| 1986-01-01 00:00:00 | 0.00161707 |  0.506671 |    1.00549 | 1.51377 |
+| 1986-02-01 00:00:00 | 0.00112097 |  0.457638 |   0.908181 | 1.36694 |
+| 1986-03-01 00:00:00 | 0.00121233 |  0.506671 |    1.00549 | 1.51337 |
+| 1986-04-01 00:00:00 | 0.00110149 |  0.490327 |   0.973051 | 1.46448 |
+| 1986-05-01 00:00:00 | 0.00644159 |  0.506671 |    1.00549 |  1.5186 |
+| 1986-06-01 00:00:00 |   0.511597 |  0.490327 |   0.973051 | 1.97497 |
+| 1986-07-01 00:00:00 |    2.28902 |  0.506671 |    1.00549 | 3.80118 |
+| 1986-08-01 00:00:00 |    1.87941 |  0.506671 |    1.00549 | 3.39157 |
+| 1986-09-01 00:00:00 |   0.528512 |  0.490327 |   0.973051 | 1.99189 |
+| 1986-10-01 00:00:00 | 0.00678598 |  0.506671 |    1.00549 | 1.51894 |
+| 1986-11-01 00:00:00 | 0.00239901 |  0.490327 |   0.973051 | 1.46578 |
+| 1986-12-01 00:00:00 | 0.00201692 |  0.506671 |    1.00549 | 1.51417 |
 
 
 ** Create TMB output
@@ -1898,109 +1888,55 @@ sec['err'] = (("time","sector"), ds[['VMBer_basin_1','VMBer_basin_2','VMBer_basi
 
 
 ** GRACE
-:PROPERTIES:
-:header-args:bash+: :tangle GRACE.sh
-:END:
 
-Set up the GRACE ROI
-
-#+BEGIN_SRC bash
-# grass ./G/GRACE
-g.mapset -c GRACE
-
-<<init_bash>>
-<<init_grass>>
-
-g.region region=sectors -p
-g.region -d -p
-g.region region=sectors -p
-v.in.region output=roi
-
-#+END_SRC
-
-Import GRACE into its own location, ~grass -c EPSG:4326 G_GRACE~, and then crop to the current ROI
-
-#+BEGIN_SRC bash :tangle GRACE_import.sh
-g.region e=360 w=0 s=-90 n=90 res=0:30 -pa
-
-parallel --bar "r.in.gdal -o input=NetCDF:${DATADIR}/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc:lwe_thickness output=lwe_{1} band={#}" ::: $(python nc_dates.py ~/data/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc)
-
-parallel --bar "r.in.gdal -o input=NetCDF:${DATADIR}/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc:uncertainty output=err_{1} band={#}" ::: $(python nc_dates.py ~/data/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc)
-
-# use the target ROI to crop in this ROI
-v.proj location=G mapset=GRACE input=roi
-
-g.region vector=roi -p align=lwe_2020_09_16
-parallel --bar "r.mapcalc \"lwe_{1}_GL = lwe_{1}\"" ::: $(python nc_dates.py ~/data/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc)
-parallel --bar "r.mapcalc \"err_{1}_GL = err_{1}\"" ::: $(python nc_dates.py ~/data/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc)
-#+END_SRC
-
-Execute the above
-
-#+BEGIN_SRC bash
-## load GRACE data in EPSG:4326 location
-rm -fR G_GRACE
-grass -c EPSG:4326 ./G_GRACE --exec ./GRACE_import.sh
-#+END_SRC
-
-Reproject GRACE into this location
-
-#+BEGIN_SRC bash
-parallel --bar "r.proj location=G_GRACE mapset=PERMANENT input=lwe_{1}_GL output=lwe_{1}" ::: $(python nc_dates.py ~/data/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc)
-
-parallel --bar "r.proj location=G_GRACE mapset=PERMANENT input=err_{1}_GL output=err_{1}" ::: $(python nc_dates.py ~/data/GRACE/GRCTellus.JPL.200204_202009.GLO.RL06M.MSCNv02CRI.nc)
-#+END_SRC
-
-Export GRACE
-
-#+BEGIN_SRC bash
-GRACE=$(g.list type=raster pattern=lwe_????_??_?? separator=comma)
-GRACE_err=$(g.list type=raster pattern=err_????_??_?? separator=comma)
-LIST=sectors_e@Zwally_2012,regions_e@Mouginot_2019,basins_e@Mouginot_2019,${GRACE},${GRACE_err}
-
-g.region res=10000
-(echo ${LIST}; r.out.xyz input=${LIST} separator=comma | cut -d, -f3-) > ./tmp/GRACE_GRACE_err.csv
-#+END_SRC
-
-*** Display
+http://products.esa-icesheets-cci.org/products/downloadlist/GMB/
 
 #+NAME: load_grace
 #+BEGIN_SRC jupyter-python
 import pandas as pd
-import xarray as xr
+from datetime import timedelta, datetime
 
-df = pd.read_csv("./tmp/GRACE_GRACE_err.csv")
+root = '/home/kdm/data/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
+df = pd.read_csv(root + '/GIS00_grace.dat',
+                 delim_whitespace=True,
+                 header=None,
+                 names=['date','mass','err'],
+                 index_col=0)
+# df = None
+# for s in np.arange(1,9):
+#     ss = str(s).zfill(2)
+#     df_tmp = pd.read_csv(root + '/GIS'+ss+'_grace.dat',
+#                          delim_whitespace=True,
+#                          header=None,
+#                          names=['date','mass','err'],
+#                          index_col=0)
+#     if df is None:
+#         df = df_tmp
+#     else:
+#         df = df + df_tmp
 
-# get dates
-c_lwe = df.columns[['lwe_' in _ for _ in df.columns]]
-c_err = df.columns[['err_' in _ for _ in df.columns]]
-time = pd.to_datetime([_[4:] for _ in c_lwe], format="%Y_%m_%d")
 
-# Convert from cm w.e./grid cell to Gt
-df[c_lwe] = df[c_lwe] * 10000 * 10000 * 10 * 1E-12
-df[c_err] = df[c_err] * 10000 * 10000 * 10 * 1E-12
 
-gmb = xr.Dataset()
-gmb['time'] = (("time"), time)
-gmb['cell'] = (("cell"), np.arange(df.index.size))
+def convert_partial_year(number):
+    year = int(number)
+    d = timedelta(days=(number - year)*365)
+    day_one = datetime(year,1,1)
+    date = d + day_one
+    return date
 
-gmb['GMB_sector'] = (("time","cell"), df[c_lwe].T.values)
-gmb['GMB_region'] = (("time","cell"), df[c_lwe].T.values)
-gmb['GMB_basin'] = (("time","cell"), df[c_lwe].T.values)
-
-gmb['err_sector'] = (("time","cell"), df[c_err].T.values)
-gmb['err_region'] = (("time","cell"), df[c_err].T.values)
-gmb['err_basin'] = (("time","cell"), df[c_err].T.values)
-
-gmb['sector'] = (('cell'), df['sectors_e@Zwally_2012'])
-gmb['region'] = (('cell'), df['regions_e@Mouginot_2019'])
-gmb['basin'] = (('cell'), df['basins_e@Mouginot_2019'])
-
-# gmb['GMB_sector'].sum(dim='cell').to_dataframe().plot()
-# gmb['GMB_sector'].sum(dim='cell').to_dataframe().head()
+df.index = pd.to_datetime([convert_partial_year(_) for _ in df.index])
+grace = df
+grace.head()
 #+END_SRC
 
 #+RESULTS: load_grace
+|                            |    mass |     err |
+|----------------------------+---------+---------|
+| 2002-04-16 20:23:59.999999 | 1057.32 | 260.241 |
+| 2002-05-12 09:35:59.999997 | 1122.55 | 116.317 |
+| 2002-08-15 07:11:59.999997 | 801.489 | 65.6365 |
+| 2002-09-17 03:36:00.000001 | 685.488 |  491.12 |
+| 2002-10-16 08:23:59.999999 | 834.592 | 71.0989 |
 
 ** IMBIE
 
@@ -2321,7 +2257,7 @@ for r in mb['region'].values:
 #+RESULTS:
 
 
-** DONE SMB/MMB/MB vs. all others time series
+** DONE SMB/MMB/MB vs. all others time series: REVERSE
 
 #+BEGIN_SRC jupyter-python :tangle fig_compare.py
 import xarray as xr
@@ -2371,7 +2307,7 @@ kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 mb = xr.open_dataset("./TMB/mb_sector.nc")
 M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
 M2021 = M2021 - np.min(M2021)
-M2021_err = (mb['mb']*0.25).to_dataframe('M2021')[::-1].cumsum()[::-1]
+M2021_err = (mb['mb']*0 + 50/365).to_dataframe('M2021')[::-1].cumsum()[::-1]
 p_M2021 = M2021.plot(ax=ax, color=C_M2021, **kw)
 ax.fill_between(M2021.index,
                 (M2021 - M2021_err).values.flatten(),
@@ -2395,15 +2331,23 @@ p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
 
 # GRACE
 <<load_grace>>
-gmb_sum = gmb['GMB_sector'].sum(dim='cell').to_dataframe(name="GRACE")
-gmb_sum = gmb_sum - np.min(gmb_sum)
-gmb_err = gmb['err_sector'].sum(dim='cell').to_dataframe(name="GRACE")
-p_gmb = gmb_sum.plot(ax=ax, label='GRACE', color=C_GMB, **kw)
-ax.fill_between(gmb_err.index,
-                (gmb_sum - gmb_err).values.flatten(),
-                (gmb_sum + gmb_err).values.flatten(),
+grace_scale, grace_offset = 1, 3500
+grace['plot'] = grace_scale * grace['mass']+grace_offset
+grace['plot_err'] = grace_scale * grace['err']
+p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
+ax.fill_between(grace['plot'].index,
+                (grace['plot'] + grace['plot_err']),
+                (grace['plot'] - grace['plot_err']),
                 color=C_GMB, **kw_err)
 
+grace_scale, grace_offset = 0.84, 3000
+grace['plot'] = grace_scale * grace['mass']+grace_offset
+grace['plot_err'] = grace_scale * grace['err']
+p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
+ax.fill_between(grace['plot'].index,
+                (grace['plot'] + grace['plot_err']),
+                (grace['plot'] - grace['plot_err']),
+                color=C_GMB, **kw_err)
 
 
 # SEC
@@ -2441,9 +2385,10 @@ ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.fla
 from adjust_spines import adjust_spines as adj
 adj(ax, ['right','bottom'])
 
-ax.set_ylabel("Mass change [Gt]")
+ax.set_ylabel("Mass loss [Gt]")
 ax.set_xlabel("Time [Year]")
 ax.set_ylim([0,7000])
+ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
 
 color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE]
 label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019']
@@ -2456,6 +2401,178 @@ plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 #+END_SRC
 
 #+RESULTS:
+#+begin_example
+<ipython-input-107-1895a654e464>:177: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+  imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+<ipython-input-107-1895a654e464>:190: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+<ipython-input-107-1895a654e464>:190: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+<ipython-input-107-1895a654e464>:206: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+  df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
+<ipython-input-107-1895a654e464>:249: UserWarning: FixedFormatter should only be used together with FixedLocator
+  ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
+#+end_example
+
+
+
+** INPROGRESS Traditional SMB/MMB/MB vs. all others time series
+
+#+BEGIN_SRC jupyter-python :tangle fig_compare.py
+import xarray as xr
+import numpy as np
+import pandas as pd
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+# matplotlib.pyplot.xkcd()
+
+# | Color       |   R |   G |   B | hex     |
+# |-------------+-----+-----+-----+---------|
+# | light blue  | 166 | 206 | 227 | #a6cee3 |
+# | dark blue   |  31 | 120 | 180 | #1f78b4 |
+# | light green | 178 | 223 | 138 | #b2df8a |
+# | dark green  |  51 | 160 |  44 | #33a02c |
+# | pink        | 251 | 154 | 153 | #fb9a99 |
+# | red         | 227 |  26 |  28 | #e31a1c |
+# | pale orange | 253 | 191 | 111 | #fdbf6f |
+# | orange      | 255 | 127 |   0 | #ff7f00 |
+
+C_M2021 = 'k'
+C_M2019 = 'gray'
+C_GMB = '#e31a1c'
+C_SEC = '#045a8d' # '1f78b4'
+# C_IMBIE = '#2b8cbe' # '#ff7f00'
+C_IMBIE = '#74a9cf'
+C_PROMICE = '#fdbf6f'
+
+# plt.close(1)
+fig = plt.figure(1, figsize=(8,6)) # w,h
+# get_current_fig_manager().window.move(0,0)
+fig.clf()
+fig.set_tight_layout(True)
+# import matplotlib.gridspec as gridspec
+# gs = gridspec.GridSpec(1, 1) #w,h
+# ax = plt.subplot(gs[:,:])
+ax = fig.add_subplot(111)
+
+kw = {'clip_on':True, 'linewidth':1, 'legend':False}
+kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
+
+# MB (this)
+mb = xr.open_dataset("./TMB/mb_sector.nc")
+M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
+M2021 = M2021 - 100
+M2021_err = (mb['mb']*0 + 50/365).to_dataframe('M2021').cumsum()
+p_M2021 = M2021.plot(ax=ax, color=C_M2021, **kw)
+ax.fill_between(M2021.index,
+                (M2021 - M2021_err).values.flatten(),
+                (M2021 + M2021_err).values.flatten(),
+                color=C_M2021, **kw_err)
+
+
+# # Mouginot
+if 'mouginot' not in locals():
+    <<load_mouginot>>
+
+m1986 = mouginot.sel({'time':slice('1986','2021')})
+M2019 = m1986['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
+m2019_offset = 0
+# M2019 = M2019 - np.min(M2019)
+M2019_err = m1986['MB_err'].sum(dim='region').to_dataframe('M2019').cumsum()
+# M2019 = M2019[M2019.index.year >= 1986]
+# M2019_err = M2019_err[M2019_err.index.year >= 1986]
+p_M2019 = (M2019 + m2019_offset).plot(ax=ax, label='M2019', color=C_M2019, **kw)
+((M2019+ m2019_offset)-M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
+((M2019+ m2019_offset)+M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
+
+# GRACE
+<<load_grace>>
+grace_scale, grace_offset = 1, -1900
+grace['plot'] = grace_scale * grace['mass']+grace_offset
+grace['plot_err'] = grace_scale * grace['err']
+p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
+ax.fill_between(grace['plot'].index,
+                (grace['plot'] + grace['plot_err']),
+                (grace['plot'] - grace['plot_err']),
+                color=C_GMB, **kw_err)
+
+# grace_scale, grace_offset = 0.84, 3200
+# grace['plot'] = grace_scale * grace['mass']+grace_offset
+# grace['plot_err'] = grace_scale * grace['err']
+# p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
+# ax.fill_between(grace['plot'].index,
+#                 (grace['plot'] + grace['plot_err']),
+#                 (grace['plot'] - grace['plot_err']),
+#                 color=C_GMB, **kw_err)
+
+
+# SEC
+<<load_sec>>
+sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
+sec_sum = sec_sum - np.min(sec_sum) + -4600
+sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
+p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
+(sec_sum - sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
+(sec_sum + sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
+
+
+
+
+# IMBIE
+<<load_imbie>>
+imbie = imbie[['mb_cum','mb_cum_err']].dropna()
+imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum']) -4500
+p_IMBIE = imbie['mb_cum'].plot(ax=ax, label='IMBIE', color=C_IMBIE, **kw)
+ax.fill_between(imbie.index,
+               imbie['mb_cum'] - imbie['mb_cum_err'].values,
+               imbie['mb_cum'] + imbie['mb_cum_err'].values,
+               color=C_IMBIE, **kw_err)
+
+
+
+# PROMICE MB (Colgan 2019)
+<<load_PROMICE_MB>>
+P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
+P = P - 650
+P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019').cumsum()
+p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
+ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.flatten(), color = C_PROMICE, **kw_err)
+
+from adjust_spines import adjust_spines as adj
+adj(ax, ['left','bottom'])
+
+ax.set_ylabel("Mass loss [Gt]")
+ax.set_xlabel("Time [Year]")
+# ax.set_ylim([0,7000])
+# ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
+
+color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE]
+label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019']
+lines = [Line2D([0], [0], color=c) for c in color]
+plt.legend(lines, label)
+
+# # plt.legend()
+plt.savefig('tmp/mb_cumsum_compare_forward.png', transparent=False, bbox_inches='tight', dpi=300)
+# #plt.savefig('tmp/mb_cumsum_compare_forward.svg', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+: <ipython-input-182-1041576a99ed>:178: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+:   imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+: <ipython-input-182-1041576a99ed>:191: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
+: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+: <ipython-input-182-1041576a99ed>:191: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+: <ipython-input-182-1041576a99ed>:207: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+:   df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
 
 
 
@@ -2494,13 +2611,9 @@ this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .sum()['mb']
 
 
-if 'gmb' not in locals():
-    <<load_GRACE>>
-    gmb = gmb['GMB_sector'].sum(dim='cell')\
-                           .resample({'time':'YS'})\
-                           .mean()
-    gmb = gmb.diff(dim='time')
-    this_mb_gmb = this_mb.sel({'time':slice(gmb.time[0], gmb.time[-1])})    
+if 'grace' not in locals():
+    <<load_grace>>
+    pass
 
 if 'sec' not in locals():
     <<load_SEC>>
@@ -2573,7 +2686,7 @@ def my_plot(ax, x, y):
     return scatter
 
 
-s = my_plot(axGRACE, this_mb_gmb, gmb)
+# s = my_plot(axGRACE, this_mb_gmb, gmb)
 s = my_plot(axSEC, this_mb_sec, sec)
 s = my_plot(axIMBIE,  this_mb_imbie, imbie)
 
@@ -2581,8 +2694,6 @@ plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='ti
 #+END_SRC
 
 #+RESULTS:
-: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
-:  2017 2018 2019 2020]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
