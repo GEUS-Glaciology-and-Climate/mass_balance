@@ -2143,10 +2143,10 @@ mb['smb'].to_dataframe(name='M2021')\
               .rename(columns={'M2021':'MMB'})\
               .plot(ax=ax2, color='gray', linestyle='--', legend=False, drawstyle='steps-post')
 
-axr = ax2.twinx()
-(-1*mb['mmb']).to_dataframe(name='M2021')\
-              .rename(columns={'M2021':'MMB'})\
-              .plot(ax=axr, legend=False, color='gray', linestyle='--')
+# axr = ax2.twinx()
+# (-1*mb['mmb']).to_dataframe(name='M2021')\
+#               .rename(columns={'M2021':'MMB'})\
+#               .plot(ax=axr, legend=False, color='gray', linestyle='--')
 
 mb = mb['mb'].to_dataframe(name='M2021')\
              .rename(columns={'M2021':'MB'})
@@ -2162,20 +2162,18 @@ ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
 ax.set_xlabel("")
 ax2.set_xlabel("Time [Year]")
 ax2.set_ylabel("Mass gain [Gt d$^{-1}$]")
-axr.set_ylabel("MMB loss [Gt d$^{-1}$]")
-axr.set_yticklabels(np.round(np.abs(axr.get_yticks()),2))
+# axr.set_ylabel("MMB loss [Gt d$^{-1}$]")
+# axr.set_yticklabels(np.round(np.abs(axr.get_yticks()),2))
 
 adj(ax, ['left','bottom'])
 adj(ax2, ['left','bottom'])
-adj(axr, ['right','bottom'])
+# adj(axr, ['right','bottom'])
 # plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
 
 plt.savefig('tmp/mb_ts.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-92-87a12fc3241b>:100: UserWarning: FixedFormatter should only be used together with FixedLocator
-:   axr.set_yticklabels(np.round(np.abs(axr.get_yticks()),2))
 
 *** Sector
 
@@ -2306,7 +2304,7 @@ kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 # MB (this)
 mb = xr.open_dataset("./TMB/mb_sector.nc")
 M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
-M2021 = M2021 - np.min(M2021)
+# M2021 = M2021 - np.min(M2021)
 M2021_err = (mb['mb']*0 + 50/365).to_dataframe('M2021')[::-1].cumsum()[::-1]
 p_M2021 = M2021.plot(ax=ax, color=C_M2021, **kw)
 ax.fill_between(M2021.index,
@@ -2319,7 +2317,7 @@ ax.fill_between(M2021.index,
 if 'mouginot' not in locals():
     <<load_mouginot>>
 M2019 = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
-M2019 = M2019 - np.min(M2019) + 600
+M2019 = M2019 - np.min(M2019) - 4400
 M2019_err = mouginot['MB_err'].sum(dim='region').to_dataframe('M2019')[::-1].cumsum()[::-1]
 M2019 = M2019[M2019.index.year >= 1986]
 M2019_err = M2019_err[M2019_err.index.year >= 1986]
@@ -2331,7 +2329,7 @@ p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
 
 # GRACE
 <<load_grace>>
-grace_scale, grace_offset = 1, 3500
+grace_scale, grace_offset = 1, -1400
 grace['plot'] = grace_scale * grace['mass']+grace_offset
 grace['plot_err'] = grace_scale * grace['err']
 p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
@@ -2340,7 +2338,7 @@ ax.fill_between(grace['plot'].index,
                 (grace['plot'] - grace['plot_err']),
                 color=C_GMB, **kw_err)
 
-grace_scale, grace_offset = 0.84, 3000
+grace_scale, grace_offset = 0.84, -1900
 grace['plot'] = grace_scale * grace['mass']+grace_offset
 grace['plot_err'] = grace_scale * grace['err']
 p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
@@ -2353,7 +2351,7 @@ ax.fill_between(grace['plot'].index,
 # SEC
 <<load_sec>>
 sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
-sec_sum = sec_sum - np.min(sec_sum) + 450
+sec_sum = sec_sum - np.min(sec_sum) + -4400
 sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC')[::-1].cumsum()[::-1]
 p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
 (sec_sum - sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
@@ -2365,7 +2363,7 @@ p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
 # IMBIE
 <<load_imbie>>
 imbie = imbie[['mb_cum','mb_cum_err']].dropna()
-imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum']) + 500
+imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum'])  - 4400
 p_IMBIE = imbie['mb_cum'].plot(ax=ax, label='IMBIE', color=C_IMBIE, **kw)
 ax.fill_between(imbie.index,
                imbie['mb_cum'] - imbie['mb_cum_err'][::-1].values,
@@ -2377,7 +2375,7 @@ ax.fill_between(imbie.index,
 # PROMICE MB (Colgan 2019)
 <<load_PROMICE_MB>>
 P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
-P = P - np.min(P) + 1000
+P = P - np.min(P) - 3700
 P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019')[::-1].cumsum()[::-1]
 p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
 ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.flatten(), color = C_PROMICE, **kw_err)
@@ -2387,8 +2385,8 @@ adj(ax, ['right','bottom'])
 
 ax.set_ylabel("Mass loss [Gt]")
 ax.set_xlabel("Time [Year]")
-ax.set_ylim([0,7000])
-ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
+# ax.set_ylim([0,7000])
+# ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
 
 color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE]
 label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019']
@@ -2401,24 +2399,20 @@ plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-<ipython-input-107-1895a654e464>:177: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-  imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
-<ipython-input-107-1895a654e464>:190: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-<ipython-input-107-1895a654e464>:190: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-<ipython-input-107-1895a654e464>:206: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-  df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
-<ipython-input-107-1895a654e464>:249: UserWarning: FixedFormatter should only be used together with FixedLocator
-  ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
-#+end_example
+: <ipython-input-204-c0b6a3f2fbd0>:177: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+:   imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+: <ipython-input-204-c0b6a3f2fbd0>:190: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
+: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+: <ipython-input-204-c0b6a3f2fbd0>:190: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+: <ipython-input-204-c0b6a3f2fbd0>:206: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+:   df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
 
 
 
-** INPROGRESS Traditional SMB/MMB/MB vs. all others time series
+** DONE Traditional SMB/MMB/MB vs. all others time series
 
 #+BEGIN_SRC jupyter-python :tangle fig_compare.py
 import xarray as xr
@@ -2613,7 +2607,8 @@ this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
 
 if 'grace' not in locals():
     <<load_grace>>
-    pass
+    grace = grace['mass'].resample('YS').mean().diff().dropna()
+    this_mb_grace = this_mb.sel({'time':slice(grace.index[0], grace.index[-1])})
 
 if 'sec' not in locals():
     <<load_SEC>>
@@ -2664,7 +2659,7 @@ def my_plot(ax, x, y):
         ax.set_ylabel('IMBIE', labelpad=-25)
         ax.set_xlabel('M2021\n[Gt yr$^{-1}$]', labelpad=-7)
     
-    ax.set_xticks([-400,200])
+    ax.set_xticks([-450,150])
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
     ax.set_ylim(ax.get_xlim())
@@ -2686,7 +2681,7 @@ def my_plot(ax, x, y):
     return scatter
 
 
-# s = my_plot(axGRACE, this_mb_gmb, gmb)
+s = my_plot(axGRACE, this_mb_grace, grace)
 s = my_plot(axSEC, this_mb_sec, sec)
 s = my_plot(axIMBIE,  this_mb_imbie, imbie)
 
@@ -2694,6 +2689,8 @@ plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='ti
 #+END_SRC
 
 #+RESULTS:
+: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
+:  2017 2018 2019 2020]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
