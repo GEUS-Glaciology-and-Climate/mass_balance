@@ -4693,8 +4693,9 @@ Run with =0 5 * * * ~/bin/HIRHAM_daily.sh=
 #+BEGIN_SRC bash 
 #!/bin/bash
 
-cd ~/data/HIRHAM/
-wget -a ~/data/HIRHAM/wget.log --user MB --password <PW> -np -nc ftp.dmi.dk:KDM_SMB_files/*
+cd ~/data/HIRHAM/daily/
+# wget -a ~/data/HIRHAM/wget.log --user MB --password <PW> -np -nc ftp.dmi.dk:KDM_SMB_files/*
+wget --user MB --password <PW> -np -nc ftp.dmi.dk:KDM_SMB_files/*
 #+END_SRC
 
 *** MAR
@@ -4706,7 +4707,8 @@ Run with =0 5 * * * ~/bin/MAR_daily.sh=
 #!/bin/bash
 
 cd ~/data/MAR/
-wget -a ~/data/MAR/wget.log -np -nc ftp://ftp.climato.be/fettweis/MARv3.11/Greenland/NCEP1_1948-2020_20km/MARv3.11-20km-daily-NCEP-NCARv1-2021.nc -o ./daily/MARv3.11-20km-daily-NCEP-NCARv1-2021.nc
+wget -a ~/data/MAR/wget.log -np -nc ftp://ftp.climato.be/fettweis/MARv3.11/Greenland/NCEP1_1948-2020_20km/MARv3.11-20km-daily-NCEP-NCARv1-2021.nc
+mv MARv3.11-20km-daily-NCEP-NCARv1-2021.nc daily
 #+END_SRC
 
 
