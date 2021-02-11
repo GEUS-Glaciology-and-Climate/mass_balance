@@ -1526,7 +1526,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         mb[roi].attrs["long_name"] = "Mouginot 2019 basins"
        
 
-    mb['mb'] = (('time'), smb['smb'] - mmb['mmb'])
+    mb['mb'] = (('time'), smb['smb'] - mmb['mmb'] - bmb['bmb'])
 
     v = 'mb'
     mb[v].attrs["long_name"] = "Mass balance"
@@ -1534,7 +1534,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     mb[v].attrs["units"] = "Gt d-1"
     mb[v].attrs["coordinates"] = 'time'
     
-    mb['mb_ROI'] = (('time',roi), smb['smb_'+roi] - mmb['mmb_'+roi])
+    mb['mb_ROI'] = (('time',roi), smb['smb_'+roi] - mmb['mmb_'+roi] - bmb['bmb_'+roi])
     # mb['mb_ROI'].attrs = mb['mb'].attrs
     # mb['mb_ROI'].attrs["coordinates"] = 'time ROI'
 
@@ -1586,7 +1586,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     # mb['bmb_ROI'].attrs["coordinates"] = 'time ROI'
 
     for RCM in ['HIRHAM','MAR','RACMO']:
-        mb['mb_'+RCM] = (('time',roi), smb[RCM+'_'+roi]-mmb['mmb_'+roi] )
+        mb['mb_'+RCM] = (('time',roi), smb[RCM+'_'+roi]-mmb['mmb_'+roi]-bmb['bmb_'+roi] )
         v = 'mb_'+RCM
         mb[v].attrs['long_name'] = 'Mass balance from ' + v.split('_')[1]
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
@@ -1628,7 +1628,6 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 #+RESULTS:
 
 
-
 * Validation prep
 ** IO (Mouginot)
 
@@ -1645,20 +1644,20 @@ c1 = 61 # Last column
 r0 = 8 # sub-table start [LibreOffice is 1-based, Python is 0-based]
 r1 = 15 # sub-table stop
 
-ds['time'] = (('time'), pd.to_datetime(df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int).values, format="%Y"))
+ds['time'] = (('time'), pd.to_datetime(df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(int).values, format="%Y"))
 ds['region'] = (('region'), df.iloc[r0:r1][df.columns[1]])
-ds['D'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
+ds['D'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(float))
 
 c2  = 82; c3 = 128
-ds['D_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+ds['D_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(float))
 
 r0 = 20; r1=27
-ds['SMB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
-ds['SMB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+ds['SMB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(float))
+ds['SMB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(float))
 
 r0 = 30; r1=37
-ds['MB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
-ds['MB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
+ds['MB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(float))
+ds['MB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(float))
 
 mouginot = ds
 # print(mouginot)
@@ -2106,8 +2105,8 @@ mb['smb'].to_dataframe(name='M2021')\
          .sum()\
          .plot(color='b', linestyle=':', **kw)
 
-(-1*mb['mmb']).to_dataframe(name='M2021')\
-              .rename(columns={'M2021':'MMB'})\
+(-1*(mb['mmb'] + mb['bmb']*1)).to_dataframe(name='M2021')\
+              .rename(columns={'M2021':'MMB + BMB'})\
               .resample('AS')\
               .sum()\
               .plot(color='gray', linestyle='--', **kw)
@@ -2130,8 +2129,6 @@ mb_ann_neg = mb_ann.where(mb_ann['MB'] < 0, 0)
 ax.fill_between(mb_ann_pos.index, mb_ann_pos.values.flatten(), color='r', alpha=0.1, step='post')
 ax.fill_between(mb_ann_neg.index, mb_ann_neg.values.flatten(), color='b', alpha=0.1, step='post')
 
-plt.legend(loc='lower left')
-
 ax2 = fig.add_subplot(212)
 
 mb = mb.sel({'time':slice('2019-01-01','2019-12-31')})
@@ -2139,8 +2136,8 @@ mb['smb'].to_dataframe(name='M2021')\
          .rename(columns={'M2021':'SMB'})\
          .plot(ax=ax2, color='b', linestyle=':', legend=False, drawstyle='steps-post')
 
-(-1*mb['mmb']).to_dataframe(name='M2021')\
-              .rename(columns={'M2021':'MMB'})\
+(-1*(mb['mmb'] + mb['bmb'])).to_dataframe(name='M2021')\
+              .rename(columns={'M2021':'MMB + BMB'})\
               .plot(ax=ax2, color='gray', linestyle='--', legend=False, drawstyle='steps-post')
 
 # axr = ax2.twinx()
@@ -2169,6 +2166,8 @@ adj(ax, ['left','bottom'])
 adj(ax2, ['left','bottom'])
 # adj(axr, ['right','bottom'])
 # plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
+
+plt.legend(loc='lower left')
 
 plt.savefig('tmp/mb_ts.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
@@ -2212,10 +2211,10 @@ for r in mb['region'].values:
     #                 mb_r_smb.values.flatten(),
     #                 color='b', alpha=0.25, step='post')
     
-    (-1*mb_r['mmb_ROI']).to_dataframe(name='M2021')\
+    (-1*(mb_r['mmb_ROI'] + mb_r['bmb_ROI'])).to_dataframe(name='M2021')\
                         .resample('AS')\
                         .sum()\
-                        .rename(columns={'M2021':'MMB'})\
+                        .rename(columns={'M2021':'MMB + BMB'})\
                         .plot(color='gray', linestyle='--', **kw)
 
     mb_r_mb = mb_r['mb_ROI'].to_dataframe(name='M2021')\
@@ -2317,7 +2316,7 @@ ax.fill_between(M2021.index,
 if 'mouginot' not in locals():
     <<load_mouginot>>
 M2019 = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
-M2019 = M2019 - np.min(M2019) - 4400
+M2019 = M2019 - np.min(M2019) - 5100
 M2019_err = mouginot['MB_err'].sum(dim='region').to_dataframe('M2019')[::-1].cumsum()[::-1]
 M2019 = M2019[M2019.index.year >= 1986]
 M2019_err = M2019_err[M2019_err.index.year >= 1986]
@@ -2329,7 +2328,7 @@ p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
 
 # GRACE
 <<load_grace>>
-grace_scale, grace_offset = 1, -1400
+grace_scale, grace_offset = 1, -2300
 grace['plot'] = grace_scale * grace['mass']+grace_offset
 grace['plot_err'] = grace_scale * grace['err']
 p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
@@ -2338,7 +2337,7 @@ ax.fill_between(grace['plot'].index,
                 (grace['plot'] - grace['plot_err']),
                 color=C_GMB, **kw_err)
 
-grace_scale, grace_offset = 0.84, -1900
+grace_scale, grace_offset = 0.84, -2800
 grace['plot'] = grace_scale * grace['mass']+grace_offset
 grace['plot_err'] = grace_scale * grace['err']
 p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
@@ -2351,7 +2350,7 @@ ax.fill_between(grace['plot'].index,
 # SEC
 <<load_sec>>
 sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
-sec_sum = sec_sum - np.min(sec_sum) + -4400
+sec_sum = sec_sum - np.min(sec_sum) + -5200
 sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC')[::-1].cumsum()[::-1]
 p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
 (sec_sum - sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
@@ -2363,7 +2362,7 @@ p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
 # IMBIE
 <<load_imbie>>
 imbie = imbie[['mb_cum','mb_cum_err']].dropna()
-imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum'])  - 4400
+imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum'])  - 5200
 p_IMBIE = imbie['mb_cum'].plot(ax=ax, label='IMBIE', color=C_IMBIE, **kw)
 ax.fill_between(imbie.index,
                imbie['mb_cum'] - imbie['mb_cum_err'][::-1].values,
@@ -2375,7 +2374,7 @@ ax.fill_between(imbie.index,
 # PROMICE MB (Colgan 2019)
 <<load_PROMICE_MB>>
 P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
-P = P - np.min(P) - 3700
+P = P - np.min(P) - 4400
 P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019')[::-1].cumsum()[::-1]
 p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
 ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.flatten(), color = C_PROMICE, **kw_err)
@@ -2399,173 +2398,15 @@ plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-204-c0b6a3f2fbd0>:177: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+: <ipython-input-388-07dd82b68291>:177: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
 :   imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
-: <ipython-input-204-c0b6a3f2fbd0>:190: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
+: <ipython-input-388-07dd82b68291>:190: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
 : Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
 :   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-: <ipython-input-204-c0b6a3f2fbd0>:190: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+: <ipython-input-388-07dd82b68291>:190: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
 : Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
 :   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-: <ipython-input-204-c0b6a3f2fbd0>:206: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-:   df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
-
-
-
-** DONE Traditional SMB/MMB/MB vs. all others time series
-
-#+BEGIN_SRC jupyter-python :tangle fig_compare.py
-import xarray as xr
-import numpy as np
-import pandas as pd
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-from matplotlib import rc
-rc('font', size=12)
-rc('text', usetex=False)
-# matplotlib.pyplot.xkcd()
-
-# | Color       |   R |   G |   B | hex     |
-# |-------------+-----+-----+-----+---------|
-# | light blue  | 166 | 206 | 227 | #a6cee3 |
-# | dark blue   |  31 | 120 | 180 | #1f78b4 |
-# | light green | 178 | 223 | 138 | #b2df8a |
-# | dark green  |  51 | 160 |  44 | #33a02c |
-# | pink        | 251 | 154 | 153 | #fb9a99 |
-# | red         | 227 |  26 |  28 | #e31a1c |
-# | pale orange | 253 | 191 | 111 | #fdbf6f |
-# | orange      | 255 | 127 |   0 | #ff7f00 |
-
-C_M2021 = 'k'
-C_M2019 = 'gray'
-C_GMB = '#e31a1c'
-C_SEC = '#045a8d' # '1f78b4'
-# C_IMBIE = '#2b8cbe' # '#ff7f00'
-C_IMBIE = '#74a9cf'
-C_PROMICE = '#fdbf6f'
-
-# plt.close(1)
-fig = plt.figure(1, figsize=(8,6)) # w,h
-# get_current_fig_manager().window.move(0,0)
-fig.clf()
-fig.set_tight_layout(True)
-# import matplotlib.gridspec as gridspec
-# gs = gridspec.GridSpec(1, 1) #w,h
-# ax = plt.subplot(gs[:,:])
-ax = fig.add_subplot(111)
-
-kw = {'clip_on':True, 'linewidth':1, 'legend':False}
-kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
-
-# MB (this)
-mb = xr.open_dataset("./TMB/mb_sector.nc")
-M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
-M2021 = M2021 - 100
-M2021_err = (mb['mb']*0 + 50/365).to_dataframe('M2021').cumsum()
-p_M2021 = M2021.plot(ax=ax, color=C_M2021, **kw)
-ax.fill_between(M2021.index,
-                (M2021 - M2021_err).values.flatten(),
-                (M2021 + M2021_err).values.flatten(),
-                color=C_M2021, **kw_err)
-
-
-# # Mouginot
-if 'mouginot' not in locals():
-    <<load_mouginot>>
-
-m1986 = mouginot.sel({'time':slice('1986','2021')})
-M2019 = m1986['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
-m2019_offset = 0
-# M2019 = M2019 - np.min(M2019)
-M2019_err = m1986['MB_err'].sum(dim='region').to_dataframe('M2019').cumsum()
-# M2019 = M2019[M2019.index.year >= 1986]
-# M2019_err = M2019_err[M2019_err.index.year >= 1986]
-p_M2019 = (M2019 + m2019_offset).plot(ax=ax, label='M2019', color=C_M2019, **kw)
-((M2019+ m2019_offset)-M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
-((M2019+ m2019_offset)+M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
-
-# GRACE
-<<load_grace>>
-grace_scale, grace_offset = 1, -1900
-grace['plot'] = grace_scale * grace['mass']+grace_offset
-grace['plot_err'] = grace_scale * grace['err']
-p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
-ax.fill_between(grace['plot'].index,
-                (grace['plot'] + grace['plot_err']),
-                (grace['plot'] - grace['plot_err']),
-                color=C_GMB, **kw_err)
-
-# grace_scale, grace_offset = 0.84, 3200
-# grace['plot'] = grace_scale * grace['mass']+grace_offset
-# grace['plot_err'] = grace_scale * grace['err']
-# p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
-# ax.fill_between(grace['plot'].index,
-#                 (grace['plot'] + grace['plot_err']),
-#                 (grace['plot'] - grace['plot_err']),
-#                 color=C_GMB, **kw_err)
-
-
-# SEC
-<<load_sec>>
-sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
-sec_sum = sec_sum - np.min(sec_sum) + -4600
-sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
-p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
-(sec_sum - sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
-(sec_sum + sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
-
-
-
-
-# IMBIE
-<<load_imbie>>
-imbie = imbie[['mb_cum','mb_cum_err']].dropna()
-imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum']) -4500
-p_IMBIE = imbie['mb_cum'].plot(ax=ax, label='IMBIE', color=C_IMBIE, **kw)
-ax.fill_between(imbie.index,
-               imbie['mb_cum'] - imbie['mb_cum_err'].values,
-               imbie['mb_cum'] + imbie['mb_cum_err'].values,
-               color=C_IMBIE, **kw_err)
-
-
-
-# PROMICE MB (Colgan 2019)
-<<load_PROMICE_MB>>
-P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
-P = P - 650
-P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019').cumsum()
-p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
-ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.flatten(), color = C_PROMICE, **kw_err)
-
-from adjust_spines import adjust_spines as adj
-adj(ax, ['left','bottom'])
-
-ax.set_ylabel("Mass loss [Gt]")
-ax.set_xlabel("Time [Year]")
-# ax.set_ylim([0,7000])
-# ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
-
-color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE]
-label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019']
-lines = [Line2D([0], [0], color=c) for c in color]
-plt.legend(lines, label)
-
-# # plt.legend()
-plt.savefig('tmp/mb_cumsum_compare_forward.png', transparent=False, bbox_inches='tight', dpi=300)
-# #plt.savefig('tmp/mb_cumsum_compare_forward.svg', transparent=False, bbox_inches='tight', dpi=300)
-#+END_SRC
-
-#+RESULTS:
-: <ipython-input-182-1041576a99ed>:178: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-:   imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
-: <ipython-input-182-1041576a99ed>:191: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
-: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-: <ipython-input-182-1041576a99ed>:191: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
-: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-: <ipython-input-182-1041576a99ed>:207: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+: <ipython-input-388-07dd82b68291>:206: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
 :   df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
 
 
@@ -2689,12 +2530,22 @@ plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='ti
 #+END_SRC
 
 #+RESULTS:
-: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
-:  2017 2018 2019 2020]
-: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
-:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
-: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
-:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
+#+begin_example
+<ipython-input-1-1decc76ae96c>:92: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+  imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+<ipython-input-1-1decc76ae96c>:105: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+<ipython-input-1-1decc76ae96c>:105: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
+  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+[2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
+ 2017 2018 2019 2020]
+[1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+ 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
+[1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+ 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
+#+end_example
 
 [[./tmp/this_v_grace_sec_imbie.png]]
 
@@ -2728,23 +2579,21 @@ axMB = fig.add_subplot(313)
 # Mouginot SMB, D, and MB (Mouginot, 2019)
 <<load_mouginot>>
 
-# this
-this_smb = xr.open_dataset('./tmp/smb.nc')\
-             .resample({'time':'YS'})\
-             .sum()
-
-<<load_mmb>>
-this_D = mmb.resample({'time':'YS'})\
-            .sum()
-
-this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
-            .resample({'time':'YS'})\
-            .sum()
+mb = xr.open_dataset('./TMB/mb_region.nc')\
+       .resample({'time':'YS'})\
+       .sum()
+    
+this_smb = mb['smb']
+this_D = (mb['mmb']+mb['bmb'])
+this_mb = mb['mb']
 
 mouginot = mouginot.where(mouginot['time'].dt.year >= 1987).dropna(dim='time')
-this_smb = this_smb.where((this_smb['time'].dt.year <= 2018) & (this_smb['time'].dt.year >= 1987)).dropna(dim='time')
-this_D = this_D.where((this_D['time'].dt.year <= 2018) & (this_D['time'].dt.year >= 1987)).dropna(dim='time')
-this_mb = this_mb.where((this_mb['time'].dt.year <= 2018) & (this_mb['time'].dt.year >= 1987)).dropna(dim='time')
+this_smb = this_smb\
+    .where((this_smb['time'].dt.year <= 2018) & (this_smb['time'].dt.year >= 1987)).dropna(dim='time')
+this_D = this_D\
+    .where((this_D['time'].dt.year <= 2018) & (this_D['time'].dt.year >= 1987)).dropna(dim='time')
+this_mb = this_mb\
+    .where((this_mb['time'].dt.year <= 2018) & (this_mb['time'].dt.year >= 1987)).dropna(dim='time')
 
 # graphics
 def my_plot(ax, x, y):
@@ -2797,9 +2646,9 @@ def my_plot(ax, x, y):
     return scatter
 
 
-my_plot(axSMB, mouginot['SMB'].sum(dim='region'), this_smb['smb'])
-my_plot(axD,   mouginot['D'].sum(dim='region'), this_D['mmb'])
-s = my_plot(axMB,  mouginot['MB'].sum(dim='region'), this_mb['mb'])
+my_plot(axSMB, this_smb, mouginot['SMB'].sum(dim='region'))
+my_plot(axD, this_D,  mouginot['D'].sum(dim='region'))
+s = my_plot(axMB, this_mb, mouginot['MB'].sum(dim='region'))
 
 
 # https://stackoverflow.com/questions/17478165/
@@ -2832,33 +2681,10 @@ plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-<ipython-input-84-0854dbe8b3f5>:28: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-  df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
-<ipython-input-84-0854dbe8b3f5>:36: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  ds['time'] = (('time'), pd.to_datetime(df.iloc[r0-1][df.columns[c0:(c1 + 1)]].astype(np.int).values, format="%Y"))
-<ipython-input-84-0854dbe8b3f5>:38: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  ds['D'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
-<ipython-input-84-0854dbe8b3f5>:41: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  ds['D_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
-<ipython-input-84-0854dbe8b3f5>:44: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  ds['SMB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
-<ipython-input-84-0854dbe8b3f5>:45: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  ds['SMB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
-<ipython-input-84-0854dbe8b3f5>:48: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  ds['MB'] = (('time','region'), df.iloc[r0:r1][df.columns[c0:(c1 + 1)]].values.T.astype(np.float))
-<ipython-input-84-0854dbe8b3f5>:49: DeprecationWarning: `np.float` is a deprecated alias for the builtin `float`. To silence this warning, use `float` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.float64` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  ds['MB_err'] = (('time','region'), df.iloc[r0:r1][df.columns[c2:(c3 + 1)]].values.T.astype(np.float))
-<ipython-input-84-0854dbe8b3f5>:198: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-  plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
-#+end_example
+: <ipython-input-26-eb839f7aa12d>:28: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+:   df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
+: <ipython-input-26-eb839f7aa12d>:152: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
 [[./tmp/mouginot_2019.png]]
@@ -2893,20 +2719,14 @@ axMB = fig.add_subplot(313)
 <<load_PROMICE_MB>>
 
 # this
-this_smb = xr.open_dataset('./tmp/smb.nc')\
-             .resample({'time':'YS'})\
-             .sum()\
-             .reindex(time=promice['time'])
-
-<<load_mmb>>
-this_D = mmb.resample({'time':'YS'})\
-            .sum()\
-            .reindex(time=promice['time'])
-
-this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
-            .resample({'time':'YS'})\
-            .sum()\
-           .reindex(time=promice['time'])
+mb = xr.open_dataset('./TMB/mb_region.nc')\
+       .resample({'time':'YS'})\
+       .sum()\
+       .reindex(time=promice['time'])
+            
+this_smb = mb['smb']
+this_D = (mb['mmb']+mb['bmb'])
+this_mb = mb['mb']
 
 # graphics
 def my_plot(ax, x, y):
@@ -2958,9 +2778,9 @@ def my_plot(ax, x, y):
     adj(ax, ['left','bottom'])
     return scatter
 
-my_plot(axSMB, this_smb['smb'], promice['SMB'].sum(dim='sector'))
-my_plot(axD,   this_D['mmb'],   promice['D'].sum(dim='sector'))
-s = my_plot(axMB,  this_mb['mb'], promice['MB'].sum(dim='sector'))
+my_plot(axSMB, this_smb, promice['SMB'].sum(dim='sector'))
+my_plot(axD,   this_D,   promice['D'].sum(dim='sector'))
+s = my_plot(axMB,  this_mb, promice['MB'].sum(dim='sector'))
 
 # https://stackoverflow.com/questions/17478165/
 def axis_to_fig(axis):
@@ -2993,18 +2813,18 @@ plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=3
 
 #+RESULTS:
 #+begin_example
-<ipython-input-90-fb0055b48a63>:26: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
+<ipython-input-24-473832caff17>:26: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
   df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
-<ipython-input-90-fb0055b48a63>:123: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+<ipython-input-24-473832caff17>:73: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
 Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
   y2str = [_[2:4] for _ in years.astype(np.str)]
-<ipython-input-90-fb0055b48a63>:123: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+<ipython-input-24-473832caff17>:73: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
 Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
   y2str = [_[2:4] for _ in years.astype(np.str)]
-<ipython-input-90-fb0055b48a63>:123: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
+<ipython-input-24-473832caff17>:73: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
 Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
   y2str = [_[2:4] for _ in years.astype(np.str)]
-<ipython-input-90-fb0055b48a63>:198: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+<ipython-input-24-473832caff17>:148: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
   plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 #+end_example
 
