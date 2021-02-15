@@ -2169,17 +2169,28 @@ mb = xr.open_dataset("./TMB/mb_sector.nc")
 
 kw = {'ax':ax, 'legend':False, 'drawstyle':'steps-post'}
 
-(365*mb['smb']).to_dataframe(name='M2021')\
-               .rename(columns={'M2021':'SMB'})\
-               .resample('AS')\
-               .mean()\
-               .plot(color='b', linestyle=':', **kw)
+smb = (365*mb['smb']).to_dataframe(name='M2021')\
+                     .rename(columns={'M2021':'SMB'})\
+                     .resample('AS')\
+                     .mean()
+smb.plot(color='b', linestyle=':', **kw)
+ax.fill_between(smb.index.values,
+                (smb-smb*0.15).values.flatten(),
+                (smb+smb*0.15).values.flatten(),
+                color='b', alpha=0.1,
+                step='post')
 
-(365*(-1*(mb['mmb'] + mb['bmb']*1))).to_dataframe(name='M2021')\
-              .rename(columns={'M2021':'MMB + BMB'})\
-              .resample('AS')\
-              .mean()\
-              .plot(color='gray', linestyle='--', **kw)
+
+mmbbmb = (365*(-1*(mb['mmb'] + mb['bmb']*1))).to_dataframe(name='M2021')\
+                                             .rename(columns={'M2021':'MMB + BMB'})\
+                                             .resample('AS')\
+                                             .mean()
+mmbbmb.plot(color='gray', linestyle='--', **kw)
+ax.fill_between(mmbbmb.index.values,
+                (mmbbmb-mmbbmb*0.1).values.flatten(),
+                (mmbbmb+mmbbmb*0.1).values.flatten(),
+                color='k', alpha=0.1,
+                step='post')
 
 # axr = ax.twinx()
 # mb['mmb'].to_dataframe(name='M2021')\
@@ -2194,10 +2205,18 @@ mb_ann = 365 * mb['mb'].to_dataframe(name='M2021')\
                  .mean()
 mb_ann.plot(color='k', linestyle='-', **kw)
 
-mb_ann_pos = mb_ann.where(mb_ann['MB'] > 0, 0)
-mb_ann_neg = mb_ann.where(mb_ann['MB'] < 0, 0)
-ax.fill_between(mb_ann_pos.index, mb_ann_pos.values.flatten(), color='r', alpha=0.1, step='post')
-ax.fill_between(mb_ann_neg.index, mb_ann_neg.values.flatten(), color='b', alpha=0.1, step='post')
+# err: 10 % for MMB, 15 % for SMB. Assume random, then
+mb_ann_err = sqrt((smb.values*0.15)**2 + (mmbbmb.values*0.1)**2).flatten()
+ax.fill_between(mb_ann.index.values,
+                (mb_ann.values.flatten()-mb_ann_err),
+                (mb_ann.values.flatten()+mb_ann_err),
+                color='k', alpha=0.5,
+                step='post')
+
+# mb_ann_pos = mb_ann.where(mb_ann['MB'] > 0, 0)
+# mb_ann_neg = mb_ann.where(mb_ann['MB'] < 0, 0)
+# ax.fill_between(mb_ann_pos.index, mb_ann_pos.values.flatten(), color='r', alpha=0.1, step='post')
+# ax.fill_between(mb_ann_neg.index, mb_ann_neg.values.flatten(), color='b', alpha=0.1, step='post')
 
 ax2 = fig.add_subplot(212)
 
@@ -2220,10 +2239,10 @@ mb = mb['mb'].to_dataframe(name='M2021')\
 
 mb.plot(ax=ax2, color='k', linestyle='-', legend=False, drawstyle='steps-post')
 
-mb_pos = mb.where(mb['MB'] > 0, 0)
-mb_neg = mb.where(mb['MB'] < 0, 0)
-ax2.fill_between(mb_pos.index, mb_pos.values.flatten(), color='r', alpha=0.1, step='post')
-ax2.fill_between(mb_neg.index, mb_neg.values.flatten(), color='b', alpha=0.1, step='post')
+# mb_pos = mb.where(mb['MB'] > 0, 0)
+# mb_neg = mb.where(mb['MB'] < 0, 0)
+# ax2.fill_between(mb_pos.index, mb_pos.values.flatten(), color='r', alpha=0.1, step='post')
+# ax2.fill_between(mb_neg.index, mb_neg.values.flatten(), color='b', alpha=0.1, step='post')
 
 ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
 ax.set_xlabel("")
@@ -2236,6 +2255,9 @@ adj(ax, ['left','bottom'])
 adj(ax2, ['left','bottom'])
 # adj(axr, ['right','bottom'])
 # plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
+
+ax.grid(b=True, which='major', axis='y', alpha=0.33)
+ax2.grid(b=True, which='major', axis='y', alpha=0.33)
 
 plt.legend(loc='lower left')
 
@@ -2293,10 +2315,11 @@ for r in mb['region'].values:
                             .rename(columns={'M2021':'MB'})
     mb_r_mb.plot(color='k', linestyle='-', **kw)
 
-    mb_r_pos = mb_r_mb.where(mb_r_mb['MB'] > 0, 0)
-    mb_r_neg = mb_r_mb.where(mb_r_mb['MB'] < 0, 0)
-    ax.fill_between(mb_r_pos.index, mb_r_pos.values.flatten(), color='r', alpha=0.1, step='post')
-    ax.fill_between(mb_r_neg.index, mb_r_neg.values.flatten(), color='b', alpha=0.1, step='post')
+    # mb_r_pos = mb_r_mb.where(mb_r_mb['MB'] > 0, 0)
+    # mb_r_neg = mb_r_mb.where(mb_r_mb['MB'] < 0, 0)
+    # ax.fill_between(mb_r_pos.index, mb_r_pos.values.flatten(), color='r', alpha=0.1, step='post')
+    # ax.fill_between(mb_r_neg.index, mb_r_neg.values.flatten(), color='b', alpha=0.1, step='post')
+
     # ax.fill_between(mb_r_mb.index,
     #                 mb_r_mb.values.flatten(),
     #                 color='k',
@@ -2308,21 +2331,25 @@ for r in mb['region'].values:
     # ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
     ax.set_ylabel("")
     ax.set_xlabel("")
-    # yl = np.max(np.abs(ax.get_yticks()))
-    # ax.set_yticks([yl,-yl])
     ax.set_xticks(ax.get_xlim())
     # ax.set_xticklabels(ax.get_xlim())
 
-    if r == 'SE':
-        ax.set_ylabel('Mass gain [Gt yr$^{-1}$]')
-        ax.set_xlabel('Time [Year]')
-        ax.set_xticklabels(['1986','2021'])
+    yt = {'NO':50, 'NE':50, 'NW':100, 'CW':100, 'SW':100, 'SE':200, 'CE':100}
+    ax.set_yticks([-yt[r], 0, yt[r]])
+    
+    # if r == 'SE':
+        # ax.set_ylabel('Mass gain [Gt yr$^{-1}$]')
+        # ax.set_xlabel('Time [Year]')
+        # ax.set_xticklabels(['1986','2021'])
 
     adj(ax, ['left','bottom'])
+
+    ax.grid(b=True, which='major', axis='y', alpha=0.33)
+
     # plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
     # plt.ion()
     # plt.show()
-    plt.savefig('fig/mb_ts_'+r+'.png', transparent=False, bbox_inches='tight', dpi=300)
+    plt.savefig('fig/mb_ts_'+r+'.png', transparent=True, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
