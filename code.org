@@ -512,7 +512,8 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
-for f in ${dir}/*.nc; do
+# for f in ${dir}/*.nc; do ## initial
+for f in $(ls ${dir}/*.nc | tail -n 5); do ## operational
   dates=$(python ./nc_dates.py ${f})
   band=0
   d=1985-09-01 # debug
@@ -584,14 +585,15 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/MAR/daily
 f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
 
-for f in ${dir}/MARv3.11*.nc; do
+# for f in ${dir}/MARv3.11*.nc; do ## initial
+for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ## operational
   dates=$(python ./nc_dates.py ${f})
   band=0
   d=1986-01-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 1 ))
 
-    log_info "MAR: ${d}"
+    log_info "${RCM}: ${d}"
 
     if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
 
@@ -657,14 +659,15 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
-for f in ${dir}/*.nc; do
+# for f in ${dir}/*.nc; do  ## initial
+for f in $(ls ${dir}/*.nc | tail -n2); do ## operational
   dates=$(python ./nc_dates.py ${f})
   band=0
   d=1989-07-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 1 ))
 
-    log_info "RACMO: ${d}"
+    log_info "${RCM}: ${d}"
 
     if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
 
@@ -1198,7 +1201,8 @@ mkdir -p tmp/BMB
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
 
-for f in ${dir}/MARv3.11*.nc; do
+# for f in ${dir}/MARv3.11*.nc; do ### initial
+for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ### operational
   dates=$(python ./nc_dates.py ${f})
   band=0
   d=1986-01-01 # debug
@@ -2273,6 +2277,7 @@ for r in mb['region'].values:
 import xarray as xr
 import numpy as np
 import pandas as pd
+from matplotlib.lines import Line2D
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -4882,12 +4887,18 @@ BMB: FORCE
 	./bmb_merge.sh
 	python ./bmb_bsv2nc.py
 
-test:
-	python ./smb_bsv2nc.py
+
+update: FORCE
+	#SMB
+	make SMB
+	# BMB
+	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
+	./bmb_merge.sh
+	python ./bmb_bsv2nc.py
 	python ./build_TMB_nc.py
 	python ./fig_compare.py
-	
-	
+
+
 validate: FORCE
 	grass -e -c EPSG:3413 G
 #	# python ./SEC_prep.py
