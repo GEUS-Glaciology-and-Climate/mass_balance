@@ -623,7 +623,7 @@ for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ## operational
 done
 
 
-log_info "MAR ROI areas"
+log_info "${RCM} ROI areas"
 r.in.gdal -o input="NetCDF:${DATADIR}/MAR/daily/MAR_basins.nc:AREA" output=area
 r.region map=area region=RCM
 
@@ -631,19 +631,19 @@ r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
 | cut -d"|" -f1,13 \
 | datamash -t"|" transpose \
 | sed s/^sum/${d}/ \
-> ./tmp/MAR_sector_area.bsv
+> ./tmp/${RCM}_sector_area.bsv
 
 r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
 | cut -d"|" -f1,13 \
 | datamash -t"|" transpose \
 | sed s/^sum/${d}/ \
-> ./tmp/MAR_basin_area.bsv
+> ./tmp/${RCM}_basin_area.bsv
 
 r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
 | cut -d"|" -f1,13 \
 | datamash -t"|" transpose \
 | sed s/^sum/${d}/ \
-> ./tmp/MAR_region_area.bsv
+> ./tmp/${RCM}_region_area.bsv
 
 #+END_SRC
 
@@ -699,27 +699,26 @@ for f in $(ls ${dir}/*.nc | tail -n2); do ## operational
 done
 
 
-# log_info "RACMO ROI areas"
-# r.in.gdal -o input="NetCDF:${DATADIR}/MAR/daily/MAR_basins.nc:AREA" output=area
+# log_info "${RCM} ROI areas"
 # r.region map=area region=RCM
 
 # r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
 # | cut -d"|" -f1,13 \
 # | datamash -t"|" transpose \
 # | sed s/^sum/${d}/ \
-# > ./tmp/MAR_sector_area.bsv
+# > ./tmp/${RCM}_sector_area.bsv
 
 # r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
 # | cut -d"|" -f1,13 \
 # | datamash -t"|" transpose \
 # | sed s/^sum/${d}/ \
-# > ./tmp/MAR_basin_area.bsv
+# > ./tmp/${RCM}_basin_area.bsv
 
 # r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
 # | cut -d"|" -f1,13 \
 # | datamash -t"|" transpose \
 # | sed s/^sum/${d}/ \
-# > ./tmp/MAR_region_area.bsv
+# > ./tmp/${RCM}_region_area.bsv
 	
 #+END_SRC
 
@@ -761,12 +760,12 @@ time = pd.date_range(start = "1986-01-01",
 smb = xr.Dataset()
 smb["time"] = (("time"), time)
 
-smb["sector"] = pd.read_csv("./tmp/HIRHAM_sector.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+smb["sector"] = pd.read_csv("./tmp/HIRHAM_sector.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 
 rstr = {11:'NW', 12:'NO', 1:'NE', 3:'CE', 9:'CW', 5:'SE', 7:'SW'}
-rnum = pd.read_csv("./tmp/HIRHAM_region.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+rnum = pd.read_csv("./tmp/HIRHAM_region.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 smb["region"] = [rstr[n] for n in rnum]
-smb["basin"] = pd.read_csv("./tmp/HIRHAM_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(np.int)
+smb["basin"] = pd.read_csv("./tmp/HIRHAM_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 
 def bsv2nc(smb, bsv, dim):
     df = pd.read_csv("./tmp/" + bsv + ".bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
@@ -1363,6 +1362,54 @@ Data variables:
 #+end_example
 
 
+** Check BMB results
+
+From citet:karlsson_2021 (Table 1)
+
+| Sector |  GF |  vel | VHD | TOTAL |
+|--------+-----+------+-----+-------|
+| CE     | 0.5 |  1.2 | 0.7 |   2.4 |
+| CW     | 0.7 |  3.6 | 0.5 |   4.8 |
+| NE     | 1.3 |  1.8 | 0.2 |   3.2 |
+| NO     | 0.4 |  0.7 | 0.2 |   1.3 |
+| NW     | 0.6 |  2.9 | 0.5 |   4.0 |
+| SE     | 0.7 |  1.7 | 0.9 |   3.3 |
+| SW     | 1.2 |  1.1 | 1.0 |   3.3 |
+|--------+-----+------+-----+-------|
+| TOTAL  | 5.3 | 13.0 | 4.1 |  22.3 |
+
+
+#+BEGIN_SRC jupyter-python
+import xarray as x
+bmb = xr.open_dataset('./tmp/bmb.nc')
+
+bmb = bmb.sel({'time':slice('2010','2019')}).mean(dim='time')
+bmb = bmb[['GF_region','vel_region','VHD_region']]
+# print(bmb)
+
+df = bmb.to_dataframe()\
+        .sort_index()\
+        .rename({'GF_region':'GF', 'vel_region':'vel', 'VHD_region':'VHD'}, axis='columns')
+
+df['TOTAL'] = df.sum(axis='columns')
+df.loc['TOTAL'] = df.sum(axis='rows')
+
+df.round(3)*365
+#+END_SRC
+
+#+RESULTS:
+| region |    GF |   vel |   VHD |  TOTAL |
+|--------+-------+-------+-------+--------|
+| CE     |  0.73 |  1.46 | 1.825 |   3.65 |
+| CW     |  0.73 | 2.555 | 1.095 |  4.745 |
+| NE     |  1.46 | 1.095 |  0.73 |  3.285 |
+| NO     | 0.365 |  0.73 |  0.73 |  1.825 |
+| NW     |  0.73 |  2.19 | 1.095 |  4.015 |
+| SE     |  0.73 | 2.555 | 1.825 |   5.11 |
+| SW     |  1.46 |  1.46 |  3.65 |  6.205 |
+| TOTAL  |  5.84 | 11.68 | 10.95 | 28.835 |
+
+
 * TMB
 Generate a TMB netcdf file from SMB, MMB, and BMB
 
@@ -1567,7 +1614,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         mb[v].attrs['long_name'] = 'Surface mass balance'
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
-        mb[v].attrs["coordinates"] = 'time ROI'
+        mb[v].attrs["coordinates"] = 'time ' + roi
 
        
     mb['mmb'] = (('time'), mmb['mmb'])
@@ -1577,7 +1624,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
     mb['mmb'].attrs["coordinates"] = 'time'
-    mb['mmb_ROI'].attrs["coordinates"] = 'time ROI'
+    mb['mmb_ROI'].attrs["coordinates"] = 'time ' + roi
 
     
     mb['bmb'] = (('time'), bmb['bmb'])
@@ -1587,7 +1634,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
     mb['bmb'].attrs["coordinates"] = 'time'
-    mb['bmb_ROI'].attrs["coordinates"] = 'time ROI'
+    mb['bmb_ROI'].attrs["coordinates"] = 'time ' + roi
     
         
     # mb['bmb'] = (('time'), bmb['bmb'])
@@ -1600,7 +1647,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     #     mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
     #     mb[v].attrs["units"] = "Gt d-1"
     # mb['bmb'].attrs["coordinates"] = 'time'
-    # mb['bmb_ROI'].attrs["coordinates"] = 'time ROI'
+    # mb['bmb_ROI'].attrs["coordinates"] = 'time ' + roi
 
     for RCM in ['HIRHAM','MAR','RACMO']:
         mb['mb_'+RCM] = (('time',roi), smb[RCM+'_'+roi]-mmb['mmb_'+roi]-bmb['bmb_'+roi] )
@@ -1608,7 +1655,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         mb[v].attrs['long_name'] = 'Mass balance from ' + v.split('_')[1]
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
-        mb[v].attrs["coordinates"] = 'time ROI'
+        mb[v].attrs["coordinates"] = 'time ' + roi
         
     # if roi == 'region':
     #     from IPython import embed; embed()
@@ -1974,7 +2021,7 @@ imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-202
 imbie['index'] = pd.to_datetime('1980-01-01') + pd.to_timedelta((imbie.index-1980) * 365, unit="D")
 # Appears that these fractional dates are supposed to be start-of-month? I think so...
 # Let's hard-code this.
-imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
+imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(int).unique().astype(str) for m in np.arange(1,13).astype(str)]
 imbie.index = imbie['index']
 imbie = imbie.drop('index', axis='columns')
 # imbie.tail(30)
@@ -1989,12 +2036,16 @@ imbie = imbie.drop('index', axis='columns')
 def load_Colgan_2019(sheet=0):
     df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
     
-    df_all = df_all.loc[df_all.index.dropna()].drop(index="Total")
+    df_all = df_all.loc[df_all.index.dropna()]\
+                   .drop(index='Total')\
+                   .drop(columns='Unnamed: 43')
+    if 'Unnamed: 44' in df_all.columns: df_all = df_all.drop(columns='Unnamed: 44')
+    
     df_all.index = (df_all.index.astype(float) * 10).astype(int)
     df_all = df_all.T
-    df_all = df_all.astype(float32)
-
+    df_all = df_all.astype(float)
     df = df_all.iloc[::2]
+    
     df.index = pd.to_datetime(df.index, format="%Y")
 
     df_err = df_all.iloc[1::2]
@@ -2019,6 +2070,8 @@ promice['MB_err'] = (("time","sector"), p.values)
 
 # print(promice)
 #+END_SRC
+
+#+RESULTS: load_PROMICE_MB
 
 
 * Figures
@@ -2093,7 +2146,7 @@ rc('text', usetex=False)
 
 # n = 4
 # color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-# hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+# hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
 #                tuple(color[:,0:-1]))
 # mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
 
@@ -2250,7 +2303,6 @@ for r in mb['region'].values:
     #                 alpha=0.25,
     #                 step='post')
 
-
     # plt.legend(loc='lower left')
 
     # ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
@@ -2260,6 +2312,11 @@ for r in mb['region'].values:
     # ax.set_yticks([yl,-yl])
     ax.set_xticks(ax.get_xlim())
     # ax.set_xticklabels(ax.get_xlim())
+
+    if r == 'SE':
+        ax.set_ylabel('Mass gain [Gt yr$^{-1}$]')
+        ax.set_xlabel('Time [Year]')
+        ax.set_xticklabels(['1986','2021'])
 
     adj(ax, ['left','bottom'])
     # plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
@@ -2426,18 +2483,6 @@ plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-388-07dd82b68291>:177: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-:   imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
-: <ipython-input-388-07dd82b68291>:190: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
-: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-: <ipython-input-388-07dd82b68291>:190: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
-: Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-:   imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-: <ipython-input-388-07dd82b68291>:206: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-:   df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
-
-
 
 ** DONE This vs. IMBIE/GRACE/SEC GIS XY
 
@@ -2762,7 +2807,7 @@ def my_plot(ax, x, y):
 
     years = x.time.dt.year.values
     color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(np.str)]
+    y2str = [_[2:4] for _ in years.astype(str)]
 
     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
     cmap = cm.viridis(color)
@@ -2841,22 +2886,6 @@ plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=3
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-<ipython-input-24-473832caff17>:26: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-  df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
-<ipython-input-24-473832caff17>:73: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  y2str = [_[2:4] for _ in years.astype(np.str)]
-<ipython-input-24-473832caff17>:73: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  y2str = [_[2:4] for _ in years.astype(np.str)]
-<ipython-input-24-473832caff17>:73: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  y2str = [_[2:4] for _ in years.astype(np.str)]
-<ipython-input-24-473832caff17>:148: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
-  plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
-#+end_example
-
 [[./tmp/colgan_2019.png]]
 
 
@@ -2956,7 +2985,7 @@ rc('text', usetex=False)
 
 n = 3
 color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
                tuple(color[:,0:-1]))
 mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
 
@@ -3000,7 +3029,7 @@ rc('text', usetex=False)
 
 # n = 4
 # color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-# hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+# hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
 #                tuple(color[:,0:-1]))
 # mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
 
@@ -3068,7 +3097,7 @@ rc('text', usetex=False)
 
 n = 4
 color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
                tuple(color[:,0:-1]))
 mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
 
@@ -3187,7 +3216,7 @@ rc('text', usetex=False)
 
 n = 6
 color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
                tuple(color[:,0:-1]))
 mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
 
@@ -3296,7 +3325,7 @@ rc('text', usetex=False)
 
 n = 8
 color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
                tuple(color[:,0:-1]))
 mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
 
@@ -3438,7 +3467,7 @@ rc('text', usetex=False)
 
 n = (2020-1986)
 color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-hexcolor = map(lambda rgb:'#%02x%02x%02x' % (np.int(rgb[0]*255),np.int(rgb[1]*255),np.int(rgb[2]*255)),
+hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
                tuple(color[:,0:-1]))
 mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
 
@@ -3632,13 +3661,13 @@ this_mb = xr.open_dataset('./TMB/mb.nc')\
 
 
 # collapse all Wally sectors to just super-sectors
-promice['Z'] = (('sector'), (promice.sector.values/10).astype(np.int))
+promice['Z'] = (('sector'), (promice.sector.values/10).astype(int))
 promice = promice.groupby('Z').sum().rename({'Z':'sector'})
-this_smb['Z'] = (('sector'), (this_smb.sector.values/10).astype(np.int))
+this_smb['Z'] = (('sector'), (this_smb.sector.values/10).astype(int))
 this_smb = this_smb.groupby('Z').sum().rename({'Z':'sector'})
-this_D['Z'] = (('sector'), (this_D.sector.values/10).astype(np.int))
+this_D['Z'] = (('sector'), (this_D.sector.values/10).astype(int))
 this_D = this_D.groupby('Z').sum().rename({'Z':'sector'})
-this_mb['Z'] = (('sector'), (this_mb.sector.values/10).astype(np.int))
+this_mb['Z'] = (('sector'), (this_mb.sector.values/10).astype(int))
 this_mb = this_mb.groupby('Z').sum().rename({'Z':'sector'})
 
 sector = this_mb['sector']
@@ -3648,7 +3677,7 @@ sector = this_mb['sector']
 def my_plot(ax, x, y):
     years = x.time.dt.year.values
     color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(np.str)]
+    y2str = [_[2:4] for _ in years.astype(str)]
 
     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
     cmap = cm.viridis(color)
@@ -3899,7 +3928,7 @@ region = this_mb['region'].values
 def my_plot(ax, x, y):
     years = x.time.dt.year.values
     color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(np.str)]
+    y2str = [_[2:4] for _ in years.astype(str)]
 
     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
     cmap = cm.viridis(color)
@@ -4268,11 +4297,11 @@ this_mb = xr.open_dataset('./TMB/mb.nc')\
 
 
 # collapse all Wally sectors to just super-sectors
-this_smb['Z'] = (('sector'), (this_smb.sector.values/10).astype(np.int))
+this_smb['Z'] = (('sector'), (this_smb.sector.values/10).astype(int))
 this_smb = this_smb.groupby('Z').sum().rename({'Z':'sector'})
-this_D['Z'] = (('sector'), (this_D.sector.values/10).astype(np.int))
+this_D['Z'] = (('sector'), (this_D.sector.values/10).astype(int))
 this_D = this_D.groupby('Z').sum().rename({'Z':'sector'})
-this_mb['Z'] = (('sector'), (this_mb.sector.values/10).astype(np.int))
+this_mb['Z'] = (('sector'), (this_mb.sector.values/10).astype(int))
 this_mb = this_mb.groupby('Z').sum().rename({'Z':'sector'})
 
 sector = this_mb['sector']
@@ -4285,7 +4314,7 @@ plt.bar(this_smb['time'], xpos, this_smb.sector, this_smb
 # def my_plot(ax, x, y):
 #     years = x.time.dt.year.values
 #     color = years - min(years); color = color / max(color)
-#     y2str = [_[2:4] for _ in years.astype(np.str)]
+#     y2str = [_[2:4] for _ in years.astype(str)]
 
 #     # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
 #     cmap = cm.viridis(color)
