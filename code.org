@@ -752,6 +752,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 import datetime
+import os
 
 time = pd.date_range(start = "1986-01-01",
                      end = datetime.date.today() + datetime.timedelta(days = 10),
@@ -765,7 +766,7 @@ smb["sector"] = pd.read_csv("./tmp/HIRHAM_sector.bsv", delimiter="|", nrows=0, i
 rstr = {11:'NW', 12:'NO', 1:'NE', 3:'CE', 9:'CW', 5:'SE', 7:'SW'}
 rnum = pd.read_csv("./tmp/HIRHAM_region.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 smb["region"] = [rstr[n] for n in rnum]
-smb["basin"] = pd.read_csv("./tmp/HIRHAM_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
+# smb["basin"] = pd.read_csv("./tmp/HIRHAM_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 
 def bsv2nc(smb, bsv, dim):
     df = pd.read_csv("./tmp/" + bsv + ".bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
@@ -789,80 +790,57 @@ def bsv2nc(smb, bsv, dim):
 
 smb = bsv2nc(smb, "HIRHAM_sector", "sector")
 smb = bsv2nc(smb, "HIRHAM_region", "region")
-smb = bsv2nc(smb, "HIRHAM_basin", "basin")
+# smb = bsv2nc(smb, "HIRHAM_basin", "basin")
 
 smb = bsv2nc(smb, "MAR_sector", "sector")
 smb = bsv2nc(smb, "MAR_region", "region")
-smb = bsv2nc(smb, "MAR_basin", "basin")
+# smb = bsv2nc(smb, "MAR_basin", "basin")
 
 smb = bsv2nc(smb, "RACMO_sector", "sector")
 smb = bsv2nc(smb, "RACMO_region", "region")
-smb = bsv2nc(smb, "RACMO_basin", "basin")
+# smb = bsv2nc(smb, "RACMO_basin", "basin")
 
-smb.to_netcdf("./tmp/smb3.nc")
+
+
+### create SMB from individual SMBs
+# for roi in ['sector','region','basin']:
+for roi in ['sector','region']:
+    mean = smb[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
+    s = 'smb_' + roi
+    smb[s] = (('time',roi), mean)
+    
+    smb[s].attrs["long_name"] = "Surface mass balance (RCM mean)"
+    smb[s].attrs["standard_name"] = "land_ice_mass_tranport"
+    smb[s].attrs["units"] = "Gt d-1"
+    smb[s].attrs["coordinates"] = "time region"
+
+smb['smb'] = smb['smb_sector'].sum(dim='sector')
+
+fn = './tmp/smb.nc'
+if os.path.exists(fn): os.remove(fn)
+smb.to_netcdf(fn)
 #+END_SRC
 
 #+RESULTS: smb_bsv2nc
+
 
 Test:
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
-ds = xr.open_dataset('./tmp/smb3.nc')
-ds[['HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_dataframe().plot()
+ds = xr.open_dataset('./tmp/smb.nc')
+ds[['smb','HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_dataframe().plot()
+ds[['smb','HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_dataframe().head()
 #+END_SRC
 
 #+RESULTS:
-: <AxesSubplot:xlabel='time'>
-
-*** Create SMB from individual SMBs
-
-
-#+BEGIN_SRC jupyter-python
-import xarray as xr
-ds = xr.open_dataset('./tmp/smb3.nc')
-
-for roi in ['sector','region','basin']:
-    mean = ds[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
-    s = 'smb_' + roi
-    ds[s] = mean
-    
-    ds[s].attrs["long_name"] = "Surface mass balance (RCM mean)"
-    ds[s].attrs["standard_name"] = "land_ice_mass_tranport"
-    ds[s].attrs["units"] = "Gt d-1"
-    ds[s].attrs["coordinates"] = "time region"
-
-ds['smb'] = ds['smb_sector'].sum(dim='sector')
-
-print(ds)
-ds.to_netcdf('./tmp/smb.nc')
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-<xarray.Dataset>
-Dimensions:        (basin: 252, region: 7, sector: 19, time: 12827)
-Coordinates:
-  ,* time           (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-12
-  ,* sector         (sector) int64 11 12 13 14 21 22 31 ... 50 61 62 71 72 81 82
-  ,* region         (region) object 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
-  ,* basin          (basin) int64 1 2 3 4 5 6 7 8 ... 252 253 254 255 257 258 259
-Data variables:
-    HIRHAM_sector  (time, sector) float64 0.01656 0.008927 0.003158 ... nan nan
-    HIRHAM_region  (time, region) float64 -0.005409 -0.01359 2.343 ... nan nan
-    HIRHAM_basin   (time, basin) float64 -0.001006 -8.688e-05 ... nan nan
-    MAR_sector     (time, sector) float64 0.007688 0.00143 0.001082 ... nan nan
-    MAR_region     (time, region) float64 0.004342 0.007353 2.117 ... nan nan
-    MAR_basin      (time, basin) float64 -0.0004718 -0.0003378 ... nan nan
-    RACMO_sector   (time, sector) float64 0.01179 0.004654 0.00282 ... nan nan
-    RACMO_region   (time, region) float64 0.004671 0.01214 1.851 ... nan nan nan
-    RACMO_basin    (time, basin) float64 0.0004132 2.895e-05 0.01098 ... nan nan
-    smb_sector     (time, sector) float64 0.01201 0.005004 0.002354 ... nan nan
-    smb_region     (time, region) float64 0.001201 0.001965 2.104 ... nan nan
-    smb_basin      (time, basin) float64 -0.0003547 -0.0001319 ... nan nan
-    smb            (time) float64 2.347 3.202 4.224 1.591 ... 0.0 0.0 0.0 0.0
-#+end_example
-
+| time                |     smb | HIRHAM_sector | MAR_sector | RACMO_sector |
+|---------------------+---------+---------------+------------+--------------|
+| 1986-01-01 00:00:00 |  2.3474 |       2.41357 |    2.34658 |      2.28207 |
+| 1986-01-02 00:00:00 | 3.20165 |       3.24823 |    3.35151 |      3.00523 |
+| 1986-01-03 00:00:00 | 4.22387 |       4.19169 |     4.1993 |      4.28062 |
+| 1986-01-04 00:00:00 |  1.5914 |       1.66981 |    1.82024 |      1.28414 |
+| 1986-01-05 00:00:00 | 1.97892 |       1.97788 |    2.44208 |      1.51681 |
 
 * MMB to ROI
 
@@ -1274,6 +1252,7 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 import datetime
+import os
 
 time = pd.date_range(start = "1986-01-01",
                      end = datetime.date.today() + datetime.timedelta(days = 10),
@@ -1287,7 +1266,7 @@ bmb["sector"] = pd.read_csv("./tmp/BMB_GF_sector.bsv", delimiter="|", nrows=0, i
 rstr = {11:'NW', 12:'NO', 1:'NE', 3:'CE', 9:'CW', 5:'SE', 7:'SW'}
 rnum = pd.read_csv("./tmp/BMB_GF_region.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 bmb["region"] = [rstr[n] for n in rnum]
-bmb["basin"] = pd.read_csv("./tmp/BMB_GF_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
+# bmb["basin"] = pd.read_csv("./tmp/BMB_GF_basin.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 
 bmb['GF_sector'] = (('sector'),
                     pd.read_csv("./tmp/BMB_GF_sector.bsv",
@@ -1309,32 +1288,36 @@ bmb['VHD_region'] = (('time','region'),
                      pd.read_csv("./tmp/BMB_VHD_region.bsv",
                                  delimiter="|", index_col=0, parse_dates=True).reindex(time))
 
-bmb['GF_basin'] = (('basin'),
-                    pd.read_csv("./tmp/BMB_GF_basin.bsv",
-                                delimiter="|", index_col=0).values.flatten())
-bmb['vel_basin'] = (('basin'),
-                     pd.read_csv("./tmp/BMB_vel_basin.bsv",
-                                 delimiter="|", index_col=0).values.flatten())
+# bmb['GF_basin'] = (('basin'),
+#                     pd.read_csv("./tmp/BMB_GF_basin.bsv",
+#                                 delimiter="|", index_col=0).values.flatten())
+# bmb['vel_basin'] = (('basin'),
+#                      pd.read_csv("./tmp/BMB_vel_basin.bsv",
+#                                  delimiter="|", index_col=0).values.flatten())
 
-df = pd.read_csv("./tmp/BMB_VHD_basin.bsv",
-                 delimiter="|", index_col=0, parse_dates=True).reindex(time)
-df.columns = df.columns.astype(np.int64)
-missing = bmb['basin'].values[~pd.Series(bmb['basin'].values).isin(df.columns)]
-if len(missing) > 0:
-    df[missing] = np.nan
-    df = df.reindex(sorted(df.columns), axis=1)
-bmb['VHD_basin'] = (('time','basin'), df)
+# df = pd.read_csv("./tmp/BMB_VHD_basin.bsv",
+#                  delimiter="|", index_col=0, parse_dates=True).reindex(time)
+# df.columns = df.columns.astype(np.int64)
+# missing = bmb['basin'].values[~pd.Series(bmb['basin'].values).isin(df.columns)]
+# if len(missing) > 0:
+#     df[missing] = np.nan
+#     df = df.reindex(sorted(df.columns), axis=1)
+# bmb['VHD_basin'] = (('time','basin'), df)
 
 
 # VHD is in mm w.eq / day
 # scale from my computed daily VHD to the same units NBK BMB is on, which is [m w.eq]
-for roi in ['sector','region','basin']:
+# for roi in ['sector','region','basin']:
+for roi in ['sector','region']:
     v = 'VHD_'+roi
     bmb[v] = (('time',roi), bmb[v] * 1E-3)
 
 #          grid cells    m^3->kg  kg->Gt
 bmb = bmb * 1000 * 1000 * 1E3    / 1E12
-bmb.to_netcdf('./tmp/bmb.nc')
+
+fn = './tmp/bmb.nc'
+if os.path.exists(fn): os.remove(fn)
+bmb.to_netcdf(fn)
 
 print(bmb)
 # bmb = xr.open_dataset('./tmp/bmb.nc')
@@ -1343,12 +1326,11 @@ print(bmb)
 #+RESULTS:
 #+begin_example
 <xarray.Dataset>
-Dimensions:     (basin: 252, region: 7, sector: 19, time: 12831)
+Dimensions:     (region: 7, sector: 19, time: 12840)
 Coordinates:
-  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-16
+  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-25
   ,* sector      (sector) int64 11 12 13 14 21 22 31 32 ... 50 61 62 71 72 81 82
   ,* region      (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
-  ,* basin       (basin) int64 1 2 3 4 5 6 7 8 ... 252 253 254 255 257 258 259
 Data variables:
     GF_sector   (sector) float64 0.000863 0.0002914 ... 0.001457 0.0001964
     vel_sector  (sector) float64 0.00149 0.0002846 ... 0.005806 0.0002424
@@ -1356,9 +1338,6 @@ Data variables:
     GF_region   (region) float64 0.003862 0.001717 ... 0.001706 0.001373
     vel_region  (region) float64 0.003037 0.003699 ... 0.006114 0.001899
     VHD_region  (time, region) float64 0.0 2.633e-05 3.896e-05 ... nan nan nan
-    GF_basin    (basin) float64 2.533e-05 3.625e-05 ... 5.112e-07 2.702e-06
-    vel_basin   (basin) float64 3.52e-05 1.833e-05 ... 7.486e-11 1.901e-10
-    VHD_basin   (time, basin) float64 9.762e-11 6.26e-07 0.0 0.0 ... nan nan nan
 #+end_example
 
 
@@ -1451,16 +1430,16 @@ ds_region = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwal
                    "err":"err_region"})
 
 
-ds_basin = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","Zwally_2012","region","coverage"])\
-          .groupby("sector")\
-          .sum()\
-          .rename({"sector":"basin",
-                   "discharge":"mmb_basin",
-                   "err":"err_basin"})
+# ds_basin = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","Zwally_2012","region","coverage"])\
+#           .groupby("sector")\
+#           .sum()\
+#           .rename({"sector":"basin",
+#                    "discharge":"mmb_basin",
+#                    "err":"err_basin"})
 
 mmb = ds_sector
 mmb = mmb.merge(ds_region)
-mmb = mmb.merge(ds_basin)
+# mmb = mmb.merge(ds_basin)
 
 mmb['mmb'] = (('time'), mmb['mmb_sector'].sum(dim='sector'))
 mmb['mmb_err'] = (('time'), mmb['err_sector'].sum(dim='sector'))
@@ -1494,7 +1473,7 @@ bmb['bmb'] = bmb['VHD_sector'].sum(dim='sector') \
 
 bmb['bmb_sector'] = bmb['VHD_sector'] + bmb['GF_sector'] + bmb['vel_sector']
 bmb['bmb_region'] = bmb['VHD_region'] + bmb['GF_region'] + bmb['vel_region']
-bmb['bmb_basin'] = bmb['VHD_basin'] + bmb['GF_basin'] + bmb['vel_basin']
+# bmb['bmb_basin'] = bmb['VHD_basin'] + bmb['GF_basin'] + bmb['vel_basin']
 
 # print(bmb)
 bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_dataframe().resample('MS').sum().head(12)
@@ -1542,7 +1521,9 @@ box['smb'] = box['mb'] - box['mmb']
 
 #+BEGIN_SRC jupyter-python
 <<load_box>>
-box = box.loc['1840':'1986'].resample('1D').ffill().iloc[:-1] # cut off 1986-01-01
+box = box.loc['1840':'1986']
+# box = box.loc['1840':'1986'].resample('1D').ffill().iloc[:-1] # cut off 1986-01-01
+box = box.loc['1840':'1986'].iloc[:-1] # cut off 1986-01-01
 
 <<load_smb>>
 time = np.append(box.index, smb['time'].values)
@@ -1560,7 +1541,7 @@ bmb = bmb.reindex({'time':time}).fillna(0)
 
 # add the sectors from SMB to MMB (14 and 21(?) don't have any MMB)
 mmb = mmb.reindex({'sector': smb['sector']})# .fillna(0)
-mmb = mmb.reindex({'basin': smb['basin']})# .fillna(0)
+# mmb = mmb.reindex({'basin': smb['basin']})# .fillna(0)
 mmb = mmb.reindex({'region': smb['region']})# .fillna(0)
 mmb['region'] = mmb['region'].astype(str)
 mmb = mmb.ffill(dim='time')
@@ -1572,6 +1553,7 @@ mmb = mmb.bfill(dim='time')
 
 #+BEGIN_SRC jupyter-python
 import subprocess
+import os
 
 for roi in ['sector', 'region']: # TODO: 'basin'
     mb = xr.Dataset()
@@ -1686,7 +1668,9 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     comp = dict(zlib=True, complevel=2)
     encoding = {var: comp for var in mb.data_vars} # all
 
-    mb.to_netcdf('./TMB/mb_'+roi+'.nc', mode='w', encoding=encoding)
+    fn = './TMB/mb_'+roi+'.nc'
+    if os.path.exists(fn): os.remove(fn)
+    mb.to_netcdf(fn, mode='w', encoding=encoding)
 #+END_SRC
 
 #+RESULTS:
