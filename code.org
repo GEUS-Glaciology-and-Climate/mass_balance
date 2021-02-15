@@ -1466,6 +1466,23 @@ bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_datafram
 | 1986-12-01 00:00:00 | 0.00201692 |  0.506671 |    1.00549 | 1.51417 |
 
 
+** Box 2013
+#+name: load_box
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+
+fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
+box = pd.read_csv('/home/kdm/data/Box_2013/' + fname, index_col=0, parse_dates=True)
+
+box['mmb'] = box['discharge from 6 year lagged average runoff']
+box['mb'] = box['TMB']
+box['smb'] = box['mb'] - box['mmb']
+
+# box.head()
+#+END_SRC
+
+#+RESULTS: load_box
+
 ** Create TMB output
 :PROPERTIES:
 :header-args:jupyter-python+: :tangle build_TMB_nc.py
@@ -1473,26 +1490,22 @@ bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_datafram
 
 
 #+BEGIN_SRC jupyter-python
-# Populate smb dataset
+<<load_box>>
+box = box.loc['1840':'1986'].resample('1D').ffill().iloc[:-1] # cut off 1986-01-01
+
 <<load_smb>>
-
-# Populate mmb dataset
-<<load_mmb>>
-
-# Populate bmb dataset
-<<load_bmb>>
-
-# match times
-t0 = np.min([smb['time'].min().values,
-             mmb['time'].min().values,
-             np.datetime64(datetime.datetime(year=1986, month=1, day=1))])
-t1 = np.max([smb['time'].max().values,
-             mmb['time'].max().values,
-             np.datetime64(datetime.date.today() + datetime.timedelta(days = 7))])
-time = pd.date_range(start=t0, end=t1, freq="D")
+time = np.append(box.index, smb['time'].values)
 smb = smb.reindex({'time':time})
+smb['smb'] = (('time'),
+              np.append(-box['smb'].values/365, smb['smb'].sel({'time':slice('1986','2200')}).values))
+
+<<load_mmb>>
 mmb = mmb.reindex({'time':time})
-bmb = bmb.reindex({'time':time})
+mmb['mmb'] = (('time'),
+              np.append(box['mmb'].values/365, mmb['mmb'].sel({'time':slice('1986','2200')}).values))
+
+<<load_bmb>>
+bmb = bmb.reindex({'time':time}).fillna(0)
 
 # add the sectors from SMB to MMB (14 and 21(?) don't have any MMB)
 mmb = mmb.reindex({'sector': smb['sector']})# .fillna(0)
@@ -2099,16 +2112,16 @@ mb = xr.open_dataset("./TMB/mb_sector.nc")
 
 kw = {'ax':ax, 'legend':False, 'drawstyle':'steps-post'}
 
-mb['smb'].to_dataframe(name='M2021')\
-         .rename(columns={'M2021':'SMB'})\
-         .resample('AS')\
-         .sum()\
-         .plot(color='b', linestyle=':', **kw)
+(365*mb['smb']).to_dataframe(name='M2021')\
+               .rename(columns={'M2021':'SMB'})\
+               .resample('AS')\
+               .mean()\
+               .plot(color='b', linestyle=':', **kw)
 
-(-1*(mb['mmb'] + mb['bmb']*1)).to_dataframe(name='M2021')\
+(365*(-1*(mb['mmb'] + mb['bmb']*1))).to_dataframe(name='M2021')\
               .rename(columns={'M2021':'MMB + BMB'})\
               .resample('AS')\
-              .sum()\
+              .mean()\
               .plot(color='gray', linestyle='--', **kw)
 
 # axr = ax.twinx()
@@ -2118,10 +2131,10 @@ mb['smb'].to_dataframe(name='M2021')\
 #          .sum()\
 #          .plot(ax=axr, legend=False, drawstyle='steps-post', color='gray', linestyle='--')
 # axr.set_ylim([420,520])
-mb_ann = mb['mb'].to_dataframe(name='M2021')\
+mb_ann = 365 * mb['mb'].to_dataframe(name='M2021')\
                  .rename(columns={'M2021':'MB'})\
                  .resample('AS')\
-                 .sum()
+                 .mean()
 mb_ann.plot(color='k', linestyle='-', **kw)
 
 mb_ann_pos = mb_ann.where(mb_ann['MB'] > 0, 0)
@@ -2191,7 +2204,7 @@ plt.close()
 fig = plt.figure(1, figsize=(2.5,1.5)) # w,h
 
 mb = xr.open_dataset("./TMB/mb_region.nc")
-
+mb = mb.sel({'time':slice('1986','2099')})
 
 for r in mb['region'].values:
 
@@ -2302,6 +2315,7 @@ kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 
 # MB (this)
 mb = xr.open_dataset("./TMB/mb_sector.nc")
+mb = mb.sel({'time':slice('1986','2100')})
 M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
 # M2021 = M2021 - np.min(M2021)
 M2021_err = (mb['mb']*0 + 50/365).to_dataframe('M2021')[::-1].cumsum()[::-1]
@@ -2379,6 +2393,15 @@ P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019')[::-1].cumsum()
 p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
 ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.flatten(), color = C_PROMICE, **kw_err)
 
+
+<<load_box>>
+B = box['TMB'].cumsum().loc['1986':]
+B = B - np.min(B) - 3600
+B_err = box['TMB 1sigma'][::-1].cumsum()[::-1].loc['1986':]
+p_box = B.plot(ax=ax, label='K2015', color='cyan', **kw)
+ax.fill_between(B.index.values, (B-B_err).values.flatten(), (B+B_err).values.flatten(),
+                color='cyan', **kw_err)
+
 from adjust_spines import adjust_spines as adj
 adj(ax, ['right','bottom'])
 
@@ -2387,8 +2410,8 @@ ax.set_xlabel("Time [Year]")
 # ax.set_ylim([0,7000])
 # ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
 
-color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE]
-label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019']
+color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE, 'cyan']
+label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019', 'K2015']
 lines = [Line2D([0], [0], color=c) for c in color]
 plt.legend(lines, label)
 
@@ -2429,16 +2452,17 @@ rc('text', usetex=False)
 
 # ONE COLUMN: %\includegraphics[width=8.3cm]{FILE NAME}
 
-fig = plt.figure(1, figsize=(3.26,7)) # w,h
+fig = plt.figure(1, figsize=(3.26, 9.33)) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
 # import matplotlib.gridspec as gridspec
 # gs = gridspec.GridSpec(1, 1) #w,h
 # ax = plt.subplot(gs[:,:])
-axGRACE = fig.add_subplot(311)
-axSEC = fig.add_subplot(312)
-axIMBIE = fig.add_subplot(313)
+axGRACE = fig.add_subplot(411)
+axSEC = fig.add_subplot(412)
+axIMBIE = fig.add_subplot(413)
+axBOX = fig.add_subplot(414)
 
 # this
 this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
@@ -2466,7 +2490,12 @@ if 'imbie' not in locals():
     imbie = imbie[imbie.index.year > 1986]
     imbie = imbie.dropna()
     this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
-    
+
+<<load_box>>
+box = box['TMB'].loc['1986':'2012']
+this_mb_box = this_mb.sel({'time':slice('1986-01-01','2012-12-31')})
+
+
 # graphics
 def my_plot(ax, x, y):
 
@@ -2498,6 +2527,8 @@ def my_plot(ax, x, y):
         ax.set_ylabel('SEC', labelpad=-25)
     if ax == axIMBIE:
         ax.set_ylabel('IMBIE', labelpad=-25)
+    if ax == axBOX:
+        ax.set_ylabel('K2015', labelpad=-25)
         ax.set_xlabel('M2021\n[Gt yr$^{-1}$]', labelpad=-7)
     
     ax.set_xticks([-450,150])
@@ -2525,27 +2556,20 @@ def my_plot(ax, x, y):
 s = my_plot(axGRACE, this_mb_grace, grace)
 s = my_plot(axSEC, this_mb_sec, sec)
 s = my_plot(axIMBIE,  this_mb_imbie, imbie)
+s = my_plot(axBOX,  this_mb_box, box)
 
 plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-<ipython-input-1-1decc76ae96c>:92: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-  imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
-<ipython-input-1-1decc76ae96c>:105: DeprecationWarning: `np.int` is a deprecated alias for the builtin `int`. To silence this warning, use `int` by itself. Doing this will not modify any behavior and is safe. When replacing `np.int`, you may wish to use e.g. `np.int64` or `np.int32` to specify the precision. If you wish to review your current use, check the release note link for additional information.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-<ipython-input-1-1decc76ae96c>:105: DeprecationWarning: `np.str` is a deprecated alias for the builtin `str`. To silence this warning, use `str` by itself. Doing this will not modify any behavior and is safe. If you specifically wanted the numpy scalar type, use `np.str_` here.
-Deprecated in NumPy 1.20; for more details and guidance: https://numpy.org/devdocs/release/1.20.0-notes.html#deprecations
-  imbie['index'] = [pd.to_datetime(y + '-' + m + '-01') for y in imbie.index.astype(np.int).unique().astype(np.str) for m in np.arange(1,13).astype(np.str)]
-[2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
- 2017 2018 2019 2020]
-[1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
- 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
-[1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
- 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
-#+end_example
+: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
+:  2017 2018 2019 2020]
+: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
+: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
+: [1986 1987 1988 1989 1990 1991 1992 1993 1994 1995 1996 1997 1998 1999
+:  2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012]
 
 [[./tmp/this_v_grace_sec_imbie.png]]
 
