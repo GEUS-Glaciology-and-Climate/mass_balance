@@ -2390,16 +2390,22 @@ kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 mb = xr.open_dataset("./TMB/mb_sector.nc")
 mb = mb.sel({'time':slice('1986','2100')})
 M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
-# M2021 = M2021 - np.min(M2021)
-M2021_err = (mb['mb']*0 + 50/365).to_dataframe('M2021')[::-1].cumsum()[::-1]
 p_M2021 = M2021.plot(ax=ax, color=C_M2021, **kw)
+
+# (((mb['smb'].resample({'time':'YS'}).sum()*0.15)**2 + (mb['mmb'].resample({'time':'YS'}).sum()*0.1)**2)**0.5).to_dataframe(name='err').describe()
+# mean: 68
+
+tt = (M2021.index.max() - M2021.index) / (M2021.index.max() - M2021.index.min())
+M2021['bumpy'] = M2021['M2021']
+M2021['smooth'] = M2021['bumpy'].rolling(365).mean()
+M2021['err_core'] = (M2021['bumpy'] * (1-tt)) + (M2021['smooth'] * tt)
+M2021['err'] = (M2021['err_core'] * 0 + 68/365)[::-1].cumsum()[::-1]
 ax.fill_between(M2021.index,
-                (M2021 - M2021_err).values.flatten(),
-                (M2021 + M2021_err).values.flatten(),
+                (M2021['err_core'] - M2021['err']).values.flatten(),
+                (M2021['err_core'] + M2021['err']).values.flatten(),
                 color=C_M2021, **kw_err)
 
-
-# # Mouginot
+# Mouginot
 if 'mouginot' not in locals():
     <<load_mouginot>>
 M2019 = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
