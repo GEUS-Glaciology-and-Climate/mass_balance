@@ -2388,18 +2388,29 @@ kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 
 # MB (this)
 mb = xr.open_dataset("./TMB/mb_sector.nc")
-mb = mb.sel({'time':slice('1986','2100')})
-M2021 = mb['mb'].to_dataframe(name='M2021').cumsum()
-p_M2021 = M2021.plot(ax=ax, color=C_M2021, **kw)
+mb = mb.sel({'time':slice('1971','2100')})
+M2021 = mb['mb'].to_dataframe(name='mb_cum').resample('1D').ffill().cumsum()
+M2021.loc[:'1985'] = M2021.loc[:'1985'].resample('Y').mean().resample('1D').bfill()
 
 # (((mb['smb'].resample({'time':'YS'}).sum()*0.15)**2 + (mb['mmb'].resample({'time':'YS'}).sum()*0.1)**2)**0.5).to_dataframe(name='err').describe()
 # mean: 68
 
-tt = (M2021.index.max() - M2021.index) / (M2021.index.max() - M2021.index.min())
-M2021['bumpy'] = M2021['M2021']
+OFFSET = M2021['mb_cum'].resample('YS').mean().max()
+M2021['mb_cum'] = M2021['mb_cum'] - OFFSET
+
+tt = (M2021.index.max() - M2021.index) / (M2021.index.max() - pd.Timestamp('2000-01-01'))
+tt = tt.where(tt <= 1, 1)
+
+M2021['bumpy'] = M2021['mb_cum']
 M2021['smooth'] = M2021['bumpy'].rolling(365).mean()
 M2021['err_core'] = (M2021['bumpy'] * (1-tt)) + (M2021['smooth'] * tt)
+# M2021['err_core'] = M2021['mb_cum']
+
 M2021['err'] = (M2021['err_core'] * 0 + 68/365)[::-1].cumsum()[::-1]
+p_M2021 = M2021['mb_cum'].plot(ax=ax, color=C_M2021, drawstyle='steps-post', **kw)
+# p_M2021 = M2021['mb_cum'].loc['1986':].plot(ax=ax, color=C_M2021, **kw)
+# _ = M2021['mb_cum'].loc[:'1986'].resample('YS').mean().plot(ax=ax, color=C_M2021, drawstyle='steps', **kw)
+# _ = M2021['mb_cum'].loc[:'1986'].plot(ax=ax, color=C_M2021, drawstyle='steps', **kw)
 ax.fill_between(M2021.index,
                 (M2021['err_core'] - M2021['err']).values.flatten(),
                 (M2021['err_core'] + M2021['err']).values.flatten(),
@@ -2411,8 +2422,8 @@ if 'mouginot' not in locals():
 M2019 = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
 M2019 = M2019 - np.min(M2019) - 5100
 M2019_err = mouginot['MB_err'].sum(dim='region').to_dataframe('M2019')[::-1].cumsum()[::-1]
-M2019 = M2019[M2019.index.year >= 1986]
-M2019_err = M2019_err[M2019_err.index.year >= 1986]
+M2019 = M2019[M2019.index.year >= 1971]
+M2019_err = M2019_err[M2019_err.index.year >= 1971]
 p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
 (M2019-M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
 (M2019+M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
@@ -2424,20 +2435,20 @@ p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
 grace_scale, grace_offset = 1, -2300
 grace['plot'] = grace_scale * grace['mass']+grace_offset
 grace['plot_err'] = grace_scale * grace['err']
-p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
+p_gmb = grace['plot'].plot(ax=ax, label='GMB', color=C_GMB, **kw)
 ax.fill_between(grace['plot'].index,
                 (grace['plot'] + grace['plot_err']),
                 (grace['plot'] - grace['plot_err']),
                 color=C_GMB, **kw_err)
 
-grace_scale, grace_offset = 0.84, -2800
-grace['plot'] = grace_scale * grace['mass']+grace_offset
-grace['plot_err'] = grace_scale * grace['err']
-p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
-ax.fill_between(grace['plot'].index,
-                (grace['plot'] + grace['plot_err']),
-                (grace['plot'] - grace['plot_err']),
-                color=C_GMB, **kw_err)
+# grace_scale, grace_offset = 0.84, -2800
+# grace['plot'] = grace_scale * grace['mass']+grace_offset
+# grace['plot_err'] = grace_scale * grace['err']
+# p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
+# ax.fill_between(grace['plot'].index,
+#                 (grace['plot'] + grace['plot_err']),
+#                 (grace['plot'] - grace['plot_err']),
+#                 color=C_GMB, **kw_err)
 
 
 # SEC
@@ -2445,7 +2456,7 @@ ax.fill_between(grace['plot'].index,
 sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
 sec_sum = sec_sum - np.min(sec_sum) + -5200
 sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC')[::-1].cumsum()[::-1]
-p_SEC = sec_sum.plot(ax=ax, label='SEC', color=C_SEC, **kw)
+p_SEC = sec_sum.plot(ax=ax, label='VC', color=C_SEC, **kw)
 (sec_sum - sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
 (sec_sum + sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
 
@@ -2488,9 +2499,10 @@ ax.set_ylabel("Mass loss [Gt]")
 ax.set_xlabel("Time [Year]")
 # ax.set_ylim([0,7000])
 # ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
-
+ax.grid(b=True, which='major', axis='y', alpha=0.33)
+    
 color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE, 'cyan']
-label = ['M2021', 'M2019', 'GRACE', 'SEC', 'IMBIE', 'C2019', 'K2015']
+label = ['This Study', 'M2019', 'GMB', 'VC', 'IMBIE', 'C2019', 'K2015']
 lines = [Line2D([0], [0], color=c) for c in color]
 plt.legend(lines, label)
 
@@ -2500,146 +2512,6 @@ plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 #+END_SRC
 
 #+RESULTS:
-
-** DONE This vs. IMBIE/GRACE/SEC GIS XY
-
-#+BEGIN_SRC jupyter-python
-import xarray as xr
-import numpy as np
-import pandas as pd
-import scipy as sp
-import scipy.stats as sps
-from adjust_spines import adjust_spines as adj
-import matplotlib.pyplot as plt
-from matplotlib import rc
-rc('font', size=12)
-rc('text', usetex=False)
-
-# plt.close(1)
-
-# ONE COLUMN: %\includegraphics[width=8.3cm]{FILE NAME}
-
-fig = plt.figure(1, figsize=(3.26, 9.33)) # w,h
-# get_current_fig_manager().window.move(0,0)
-fig.clf()
-fig.set_tight_layout(True)
-# import matplotlib.gridspec as gridspec
-# gs = gridspec.GridSpec(1, 1) #w,h
-# ax = plt.subplot(gs[:,:])
-axGRACE = fig.add_subplot(411)
-axSEC = fig.add_subplot(412)
-axIMBIE = fig.add_subplot(413)
-axBOX = fig.add_subplot(414)
-
-# this
-this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
-            .resample({'time':'YS'})\
-            .sum()['mb']
-
-
-if 'grace' not in locals():
-    <<load_grace>>
-    grace = grace['mass'].resample('YS').mean().diff().dropna()
-    this_mb_grace = this_mb.sel({'time':slice(grace.index[0], grace.index[-1])})
-
-if 'sec' not in locals():
-    <<load_SEC>>
-    sec = sec['SEC'].sum(dim='sector')\
-                    .resample({'time':'YS'})\
-                    .sum()
-    this_mb_sec = this_mb.sel({'time':slice(sec.time[0], sec.time[-1])})    
-    
-if 'imbie' not in locals():
-    <<load_imbie>>
-    # imbie = imbie.resample('1D').mean().interpolate(method='time')
-    imbie = imbie.resample('YS').mean()
-    imbie = imbie['mb']
-    imbie = imbie[imbie.index.year > 1986]
-    imbie = imbie.dropna()
-    this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
-
-<<load_box>>
-box = box['TMB'].loc['1986':'2012']
-this_mb_box = this_mb.sel({'time':slice('1986-01-01','2012-12-31')})
-
-
-# graphics
-def my_plot(ax, x, y):
-
-    if type(x) == xr.core.dataarray.DataArray:
-        years = x.time.dt.year.values
-    else:
-        years = x.index.year.values
-        
-    print(years)
-    color = years - min(years); color = color / max(color)
-    y2str = [_[2:4] for _ in years.astype(str)]
-
-    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
-    cmap = cm.viridis(color)
-    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
-
-    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
-    for i,s in enumerate(y2str):
-        ax.text(x.values[i], y.values[i], s,
-                c = cmap(color)[i],
-                fontsize=10,
-                fontweight='bold',
-                horizontalalignment='center',
-                verticalalignment='center')
-
-    if ax == axGRACE:
-        ax.set_ylabel('GRACE\n[Gt yr$^{-1}$]', labelpad=-25)
-    if ax == axSEC:
-        ax.set_ylabel('SEC', labelpad=-25)
-    if ax == axIMBIE:
-        ax.set_ylabel('IMBIE', labelpad=-25)
-    if ax == axBOX:
-        ax.set_ylabel('K2015', labelpad=-25)
-        ax.set_xlabel('M2021\n[Gt yr$^{-1}$]', labelpad=-7)
-    
-    ax.set_xticks([-450,150])
-    ax.set_yticks(ax.get_xticks())
-    ax.set_xlim(ax.get_xticks()[[0,-1]])
-    ax.set_ylim(ax.get_xlim())
-
-    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
-    bias = np.mean(x.values - y.values)
-    # np.sqrt(np.mean((predictions-targets)**2))
-    rmse = np.sqrt(np.mean((x.values - y.values)**2))
-    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
-    ax.text(1.0, -0.03,
-            "r: %.2f\nbias: %.1f\nrmse: %.1f"
-            % (round(r_value,2), round(bias,1), round(rmse,2)),
-            transform=ax.transAxes,
-            horizontalalignment='right',
-            fontsize=9)
-
-    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
-    adj(ax, ['left','bottom'])
-    return scatter
-
-
-s = my_plot(axGRACE, this_mb_grace, grace)
-s = my_plot(axSEC, this_mb_sec, sec)
-s = my_plot(axIMBIE,  this_mb_imbie, imbie)
-s = my_plot(axBOX,  this_mb_box, box)
-
-plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
-#+END_SRC
-
-#+RESULTS:
-: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
-:  2017 2018 2019 2020]
-: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
-:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
-: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
-:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
-: [1986 1987 1988 1989 1990 1991 1992 1993 1994 1995 1996 1997 1998 1999
-:  2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012]
-
-[[./tmp/this_v_grace_sec_imbie.png]]
-
 
 ** DONE This vs. Mouginot (2019): GIS xy
 
@@ -2716,7 +2588,7 @@ def my_plot(ax, x, y):
     if ax == axMB:
         ax.text(0, 0.9, 'MB', transform=ax.transAxes)
         ax.set_xticks([-400, 0, 200])
-        ax.set_xlabel('M2021\n[Gt yr$^{-1}$]')
+        ax.set_xlabel('This Study\n[Gt yr$^{-1}$]')
 
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
@@ -2727,7 +2599,7 @@ def my_plot(ax, x, y):
     # np.sqrt(np.mean((predictions-targets)**2))
     rmse = np.sqrt(np.mean((x.values - y.values)**2))
     # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
-    ax.text(1.0, -0.03, "r: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value,2), round(bias,1), round(rmse,2)),
+    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value,2), round(bias,1), round(rmse,2)),
             transform=ax.transAxes,
             horizontalalignment='right',
             fontsize=9)
@@ -2772,9 +2644,7 @@ plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-26-eb839f7aa12d>:28: FutureWarning: Your version of xlrd is 1.2.0. In xlrd >= 2.0, only the xls format is supported. As a result, the openpyxl engine will be used if it is installed and the engine argument is not specified. Install openpyxl instead.
-:   df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
-: <ipython-input-26-eb839f7aa12d>:152: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-78-e62a8decfc25>:152: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -2849,7 +2719,7 @@ def my_plot(ax, x, y):
     if ax == axMB:
         ax.text(0, 0.9, 'MB', transform=ax.transAxes)
         ax.set_xticks([-400, 0, 200])
-        ax.set_xlabel('M2021\n[Gt yr$^{-1}$]')
+        ax.set_xlabel('This Study\n[Gt yr$^{-1}$]')
 
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
@@ -2860,7 +2730,7 @@ def my_plot(ax, x, y):
     # np.sqrt(np.mean((predictions-targets)**2))
     rmse = np.sqrt(np.mean((x.values - y.values)**2))
     # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
-    ax.text(1.0, -0.03, "r: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value,2), round(bias,1), round(rmse,2)),
+    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value,2), round(bias,1), round(rmse,2)),
             transform=ax.transAxes,
             horizontalalignment='right',
             fontsize=9)
@@ -2903,7 +2773,148 @@ plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=3
 #+END_SRC
 
 #+RESULTS:
-[[./tmp/colgan_2019.png]]
+: <ipython-input-79-1d2631d8a6bf>:152: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
+
+
+** DONE This vs. IMBIE/GRACE/SEC GIS XY
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+import numpy as np
+import pandas as pd
+import scipy as sp
+import scipy.stats as sps
+from adjust_spines import adjust_spines as adj
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+# plt.close(1)
+
+# ONE COLUMN: %\includegraphics[width=8.3cm]{FILE NAME}
+
+fig = plt.figure(1, figsize=(3.26, 9.33)) # w,h
+# get_current_fig_manager().window.move(0,0)
+fig.clf()
+fig.set_tight_layout(True)
+# import matplotlib.gridspec as gridspec
+# gs = gridspec.GridSpec(1, 1) #w,h
+# ax = plt.subplot(gs[:,:])
+axGRACE = fig.add_subplot(411)
+axSEC = fig.add_subplot(412)
+axIMBIE = fig.add_subplot(413)
+axBOX = fig.add_subplot(414)
+
+# this
+this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
+            .resample({'time':'YS'})\
+            .sum()['mb']
+
+
+if 'grace' not in locals():
+    <<load_grace>>
+    grace = grace['mass'].resample('1D').mean().interpolate(method='time').resample('YS').mean().diff().dropna()
+    this_mb_grace = this_mb.sel({'time':slice(grace.index[0], grace.index[-1])})
+
+if 'sec' not in locals():
+    <<load_SEC>>
+    sec = sec['SEC'].sum(dim='sector')\
+                    .resample({'time':'YS'})\
+                    .sum()
+    this_mb_sec = this_mb.sel({'time':slice(sec.time[0], sec.time[-1])})    
+    
+if 'imbie' not in locals():
+    <<load_imbie>>
+    # imbie = imbie.resample('1D').mean().interpolate(method='time')
+    imbie = imbie.resample('YS').mean()
+    imbie = imbie['mb']
+    imbie = imbie[imbie.index.year > 1986]
+    imbie = imbie.dropna()
+    this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
+
+<<load_box>>
+box = box['TMB'].loc['1986':'2012']
+this_mb_box = this_mb.sel({'time':slice('1986-01-01','2012-12-31')})
+
+
+# graphics
+def my_plot(ax, x, y):
+
+    if type(x) == xr.core.dataarray.DataArray:
+        years = x.time.dt.year.values
+    else:
+        years = x.index.year.values
+        
+    print(years)
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(str)]
+
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
+
+    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
+    for i,s in enumerate(y2str):
+        ax.text(x.values[i], y.values[i], s,
+                c = cmap(color)[i],
+                fontsize=10,
+                fontweight='bold',
+                horizontalalignment='center',
+                verticalalignment='center')
+
+    if ax == axGRACE:
+        ax.set_ylabel('GMB\n[Gt yr$^{-1}$]', labelpad=-25)
+    if ax == axSEC:
+        ax.set_ylabel('VC\n[Gt yr$^{-1}$]', labelpad=-25)
+    if ax == axIMBIE:
+        ax.set_ylabel('IMBIE\n[Gt yr$^{-1}$]', labelpad=-25)
+    if ax == axBOX:
+        ax.set_ylabel('K2015\n[Gt yr$^{-1}$]', labelpad=-25)
+        ax.set_xlabel('This Study\n[Gt yr$^{-1}$]', labelpad=-7)
+    
+    ax.set_xticks([-450,150])
+    ax.set_yticks(ax.get_xticks())
+    ax.set_xlim(ax.get_xticks()[[0,-1]])
+    ax.set_ylim(ax.get_xlim())
+
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    bias = np.mean(x.values - y.values)
+    # np.sqrt(np.mean((predictions-targets)**2))
+    rmse = np.sqrt(np.mean((x.values - y.values)**2))
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(1.0, -0.03,
+            "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f"
+            % (round(r_value,2), round(bias,1), round(rmse,2)),
+            transform=ax.transAxes,
+            horizontalalignment='right',
+            fontsize=9)
+
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
+
+s = my_plot(axGRACE, this_mb_grace, grace)
+s = my_plot(axSEC, this_mb_sec, sec)
+s = my_plot(axIMBIE,  this_mb_imbie, imbie)
+s = my_plot(axBOX,  this_mb_box, box)
+
+plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
+:  2017 2018 2019 2020]
+: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
+: [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
+:  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
+: [1986 1987 1988 1989 1990 1991 1992 1993 1994 1995 1996 1997 1998 1999
+:  2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012]
+
+[[./tmp/this_v_grace_sec_imbie.png]]
 
 
 ** DONE HIRHAM MAR RACMO timeseries
