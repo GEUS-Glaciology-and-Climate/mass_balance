@@ -753,6 +753,8 @@ import xarray as xr
 import numpy as np
 import datetime
 import os
+import uncertainties
+from uncertainties import unumpy
 
 time = pd.date_range(start = "1986-01-01",
                      end = datetime.date.today() + datetime.timedelta(days = 10),
@@ -778,14 +780,22 @@ def bsv2nc(smb, bsv, dim):
         df[missing] = np.nan
         df = df.reindex(sorted(df.columns), axis=1)
  
-    if 'HIRHAM' in bsv: grid = 912 * 912
-    if 'RACMO' in bsv: grid = 1000 * 1000
-    if 'MAR' in bsv: grid = 1000 * 1000
+    if 'HIRHAM' in bsv:
+        grid = 912 * 912
+        error = 0.07
+    if 'MAR' in bsv:
+        grid = 1000 * 1000
+        error = 0.15
+    if 'RACMO' in bsv:
+        grid = 1000 * 1000
+        error = 0.10
+        
     #       mm->m  grid  m^3->kg  kg->Gt
     CONV = 1E-3  * grid * 1E3    / 1E12
     df = df * CONV
     
     smb[bsv] = (("time", dim), df)
+    smb[bsv + '_err'] = (("time", dim), df*error)
     return smb
 
 smb = bsv2nc(smb, "HIRHAM_sector", "sector")
@@ -802,19 +812,29 @@ smb = bsv2nc(smb, "RACMO_region", "region")
 
 
 
+err = unumpy.uarray([1,1,1], [0.1, 0.15, 0.7])
+print('{:.4f}'.format(err.sum()))
+
 ### create SMB from individual SMBs
 # for roi in ['sector','region','basin']:
 for roi in ['sector','region']:
     mean = smb[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
     s = 'smb_' + roi
     smb[s] = (('time',roi), mean)
-    
-    smb[s].attrs["long_name"] = "Surface mass balance (RCM mean)"
-    smb[s].attrs["standard_name"] = "land_ice_mass_tranport"
-    smb[s].attrs["units"] = "Gt d-1"
-    smb[s].attrs["coordinates"] = "time region"
+    # smb[s].attrs["long_name"] = "Surface mass balance (RCM mean)"
+    # smb[s].attrs["standard_name"] = "land_ice_mass_tranport"
+    # smb[s].attrs["units"] = "Gt d-1"
+    # smb[s].attrs["coordinates"] = "time region"
 
-smb['smb'] = smb['smb_sector'].sum(dim='sector')
+    s = s + '_err'
+    smb[s] = (('time',roi), mean * 0.08)
+    # smb[s].attrs["long_name"] = "Surface mass balance (RCM mean) uncertainty"
+    # smb[s].attrs["standard_name"] = "land_ice_mass_tranport"
+    # smb[s].attrs["units"] = "Gt d-1"
+    # smb[s].attrs["coordinates"] = "time region"
+
+smb['smb'] = (('time'), smb['smb_sector'].sum(dim='sector'))
+smb['smb_err'] = (('time'), smb['smb_sector'].sum(dim='sector') * 0.08)
 
 fn = './tmp/smb.nc'
 if os.path.exists(fn): os.remove(fn)
@@ -822,6 +842,7 @@ smb.to_netcdf(fn)
 #+END_SRC
 
 #+RESULTS: smb_bsv2nc
+: 3.0000+/-0.7228
 
 
 Test:
@@ -1312,8 +1333,16 @@ for roi in ['sector','region']:
     v = 'VHD_'+roi
     bmb[v] = (('time',roi), bmb[v] * 1E-3)
 
+
 #          grid cells    m^3->kg  kg->Gt
 bmb = bmb * 1000 * 1000 * 1E3    / 1E12
+
+bmb['GF_sector_err'] = bmb['GF_sector'] * 0.5
+bmb['vel_sector_err'] = bmb['vel_sector'] * 0.333
+bmb['VHD_sector_err'] = bmb['VHD_sector'] * 0.15
+bmb['GF_region_err'] = bmb['GF_region'] * 0.5
+bmb['vel_region_err'] = bmb['vel_region'] * 0.333
+bmb['VHD_region_err'] = bmb['VHD_region'] * 0.15
 
 fn = './tmp/bmb.nc'
 if os.path.exists(fn): os.remove(fn)
@@ -1326,18 +1355,24 @@ print(bmb)
 #+RESULTS:
 #+begin_example
 <xarray.Dataset>
-Dimensions:     (region: 7, sector: 19, time: 12840)
+Dimensions:         (region: 7, sector: 19, time: 12842)
 Coordinates:
-  ,* time        (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-25
-  ,* sector      (sector) int64 11 12 13 14 21 22 31 32 ... 50 61 62 71 72 81 82
-  ,* region      (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
+  ,* time            (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-27
+  ,* sector          (sector) int64 11 12 13 14 21 22 31 ... 50 61 62 71 72 81 82
+  ,* region          (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
 Data variables:
-    GF_sector   (sector) float64 0.000863 0.0002914 ... 0.001457 0.0001964
-    vel_sector  (sector) float64 0.00149 0.0002846 ... 0.005806 0.0002424
-    VHD_sector  (time, sector) float64 0.0 0.0 0.0 0.0 0.0 ... nan nan nan nan
-    GF_region   (region) float64 0.003862 0.001717 ... 0.001706 0.001373
-    vel_region  (region) float64 0.003037 0.003699 ... 0.006114 0.001899
-    VHD_region  (time, region) float64 0.0 2.633e-05 3.896e-05 ... nan nan nan
+    GF_sector       (sector) float64 0.000863 0.0002914 ... 0.001457 0.0001964
+    vel_sector      (sector) float64 0.00149 0.0002846 ... 0.005806 0.0002424
+    VHD_sector      (time, sector) float64 0.0 0.0 0.0 0.0 ... nan nan nan nan
+    GF_region       (region) float64 0.003862 0.001717 ... 0.001706 0.001373
+    vel_region      (region) float64 0.003037 0.003699 ... 0.006114 0.001899
+    VHD_region      (time, region) float64 0.0 2.633e-05 3.896e-05 ... nan nan
+    GF_sector_err   (sector) float64 0.0004315 0.0001457 ... 0.0007284 9.82e-05
+    vel_sector_err  (sector) float64 0.0004962 9.478e-05 ... 0.001933 8.071e-05
+    VHD_sector_err  (time, sector) float64 0.0 0.0 0.0 0.0 ... nan nan nan nan
+    GF_region_err   (region) float64 0.001931 0.0008587 ... 0.0008528 0.0006863
+    vel_region_err  (region) float64 0.001011 0.001232 ... 0.002036 0.0006324
+    VHD_region_err  (time, region) float64 0.0 3.949e-06 5.845e-06 ... nan nan
 #+end_example
 
 
@@ -1410,7 +1445,8 @@ smb['region'] = smb['region'].astype(str)
 #+BEGIN_SRC jupyter-python
 import xarray as xr
 
-ds = xr.open_dataset("/home/kdm/data/Mankoff_2020/ice/latest/gate.nc")
+# ds = xr.open_dataset("/home/kdm/data/Mankoff_2020/ice/latest/gate.nc")
+ds = xr.open_dataset("/home/kdm/projects/ice_discharge/out/gate.nc")
 
 # rstr = {'NW':11, 'NO':12, 'NE':1, 'CE':3, 'CW':9, 'SE':5, 'SW':7}
 # rnum = [rstr[r] for r in ds['region'].values]
@@ -1457,8 +1493,7 @@ mmb['region'] = mmb['region'].astype(str)
 
 #+RESULTS: load_mmb
 
-
-** Load BMB (Karlsson 202)
+** Load BMB (Karlsson 2021)
 
 #+NAME: load_bmb
 #+BEGIN_SRC jupyter-python
@@ -1467,13 +1502,29 @@ mmb['region'] = mmb['region'].astype(str)
 bmb = xr.open_dataset('./tmp/bmb.nc')
 bmb['region'] = bmb['region'].astype(str)
 
-bmb['bmb'] = bmb['VHD_sector'].sum(dim='sector') \
-    + bmb['GF_sector'].sum(dim='sector') \
-    + bmb['vel_sector'].sum(dim='sector')
+bmb['bmb'] = (('time'), bmb['GF_sector'].sum(dim='sector') \
+              + bmb['vel_sector'].sum(dim='sector') \
+              + bmb['VHD_sector'].sum(dim='sector'))
 
-bmb['bmb_sector'] = bmb['VHD_sector'] + bmb['GF_sector'] + bmb['vel_sector']
-bmb['bmb_region'] = bmb['VHD_region'] + bmb['GF_region'] + bmb['vel_region']
+bmb['bmb_sector'] = (('time','sector'), bmb['VHD_sector'] + bmb['GF_sector'] + bmb['vel_sector'])
+bmb['bmb_region'] = (('time','region'), bmb['VHD_region'] + bmb['GF_region'] + bmb['vel_region'])
 # bmb['bmb_basin'] = bmb['VHD_basin'] + bmb['GF_basin'] + bmb['vel_basin']
+
+bmb['bmb_err'] = (('time'), ((bmb['GF_sector_err']**2 + bmb['vel_sector_err']**2 + bmb['VHD_sector_err']**2)**0.5).sum(dim='sector'))
+
+bmb['bmb_sector_err'] = (('time','sector'), \
+                         ((bmb['GF_sector_err'].expand_dims({'time':bmb['time'].size}))**2 \
+                          + (bmb['vel_sector_err'].expand_dims({'time':bmb['time'].size}))**2 \
+                          + bmb['VHD_sector_err']**2\
+                          )**0.5\
+                         )
+
+bmb['bmb_region_err'] = (('time','region'), \
+                         ((bmb['GF_region_err'].expand_dims({'time':bmb['time'].size}))**2 \
+                          + (bmb['vel_region_err'].expand_dims({'time':bmb['time'].size}))**2 \
+                          + bmb['VHD_region_err']**2\
+                          )**0.5\
+                         )
 
 # print(bmb)
 bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_dataframe().resample('MS').sum().head(12)
@@ -1505,8 +1556,11 @@ fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kj
 box = pd.read_csv('/home/kdm/data/Box_2013/' + fname, index_col=0, parse_dates=True)
 
 box['mmb'] = box['discharge from 6 year lagged average runoff']
+box['mmb_err'] = box['discharge 1sigma']
 box['mb'] = box['TMB']
+box['mb_err'] = box['TMB 1sigma']
 box['smb'] = box['mb'] - box['mmb']
+box['smb_err'] = (box['mb_err']**2 + box['mmb_err']**2)**0.5
 
 # box.head()
 #+END_SRC
@@ -1525,16 +1579,36 @@ box = box.loc['1840':'1986']
 # box = box.loc['1840':'1986'].resample('1D').ffill().iloc[:-1] # cut off 1986-01-01
 box = box.loc['1840':'1986'].iloc[:-1] # cut off 1986-01-01
 
+
+
 <<load_smb>>
 time = np.append(box.index, smb['time'].values)
 smb = smb.reindex({'time':time})
 smb['smb'] = (('time'),
               np.append(-box['smb'].values/365, smb['smb'].sel({'time':slice('1986','2200')}).values))
+smb['smb_err'] = (('time'),
+                  np.append(box['smb_err'].values/365, smb['smb_err'].sel({'time':slice('1986','2200')}).values))
+
+
 
 <<load_mmb>>
+
+dt_last_obs = mmb['time'].values[-1]
+err = []
+for dt in pd.date_range(start=dt_last_obs, end=time[-1]):
+    std = mmb['mmb'].sel(time=(mmb['time.month'] == dt.month) & (mmb['time.day'] == dt.day)).std().values
+    # print(std)
+    err_today = max(max(err), 2*std) if dt != dt_last_obs else 2*std
+    err.append(err_today)
+
 mmb = mmb.reindex({'time':time})
 mmb['mmb'] = (('time'),
               np.append(box['mmb'].values/365, mmb['mmb'].sel({'time':slice('1986','2200')}).values))
+mmb['mmb_err'] = (('time'),
+                  np.hstack((box['mmb_err'].values/365,
+                            mmb['mmb_err'].sel({'time':slice('1986',dt_last_obs)}).values,
+                             err[1:])).ravel())
+
 
 <<load_bmb>>
 bmb = bmb.reindex({'time':time}).fillna(0)
@@ -1573,6 +1647,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
        
 
     mb['mb'] = (('time'), smb['smb'] - mmb['mmb'] - bmb['bmb'])
+    mb['mb_err'] = (('time'), (smb['smb_err']**2 + mmb['mmb_err']**2 + bmb['bmb_err']**2)**0.5)
 
     v = 'mb'
     mb[v].attrs["long_name"] = "Mass balance"
@@ -1581,6 +1656,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     mb[v].attrs["coordinates"] = 'time'
     
     mb['mb_ROI'] = (('time',roi), smb['smb_'+roi] - mmb['mmb_'+roi] - bmb['bmb_'+roi])
+    mb['mb_ROI_err'] = (('time',roi), (smb['smb_'+roi+'_err']**2 + mmb['err_'+roi]**2 + bmb['bmb_'+roi+'_err']**2)**0.5)
     # mb['mb_ROI'].attrs = mb['mb'].attrs
     # mb['mb_ROI'].attrs["coordinates"] = 'time ROI'
 
@@ -1588,21 +1664,29 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     #     from IPython import embed; embed()
     
     mb['smb'] = (('time'), smb['smb'])
+    mb['smb_err'] = (('time'), smb['smb_err'])
     mb['smb_ROI'] = (('time',roi), smb['smb_'+roi])
+    mb['smb_ROI_err'] = (('time',roi), smb['smb_'+roi+'_err'])
     # mb['smb_HIRHAM'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi] )
     # mb['smb_MAR'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
     # mb['smb_RACMO'] = (('time',roi), smb['HIRHAM_'+roi]-mmb['mmb_'+roi])
-    for v in ['smb', 'smb_ROI']:
-        mb[v].attrs['long_name'] = 'Surface mass balance'
+    for v in ['smb', 'smb_ROI', 'smb_err', 'smb_ROI_err']:
+        ln = 'Surface mass balance'
+        if 'err' in v: ln = ln + ' uncertainty'
+        mb[v].attrs['long_name'] = ln
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
         mb[v].attrs["coordinates"] = 'time ' + roi
 
        
     mb['mmb'] = (('time'), mmb['mmb'])
+    mb['mmb_err'] = (('time'), mmb['mmb_err'])
     mb['mmb_ROI'] = (('time',roi), mmb['mmb_'+roi])
-    for v in ['mmb','mmb_ROI']:
-        mb[v].attrs['long_name'] = 'Marine mass balance'
+    mb['mmb_ROI_err'] = (('time',roi), mmb['err_'+roi])
+    for v in ['mmb','mmb_ROI', 'mmb_err', 'mmb_ROI_err']:
+        ln = 'Marine mass balance'
+        if 'err' in v: ln = ln + ' uncertainty'
+        mb[v].attrs['long_name'] = ln
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
     mb['mmb'].attrs["coordinates"] = 'time'
@@ -1610,9 +1694,13 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     
     mb['bmb'] = (('time'), bmb['bmb'])
+    mb['bmb_err'] = (('time'), bmb['bmb_err'])
     mb['bmb_ROI'] = (('time',roi), bmb['bmb_'+roi])
+    mb['bmb_ROI_err'] = (('time',roi), bmb['bmb_'+roi+'_err'])
     for v in ['bmb','bmb_ROI']:
-        mb[v].attrs['long_name'] = 'Marine mass balance'
+        ln = 'Basal mass balance'
+        if 'err' in v: ln = ln + ' uncertainty'
+        mb[v].attrs['long_name'] = ln
         mb[v].attrs["standard_name"] = "land_ice_mass_tranport"
         mb[v].attrs["units"] = "Gt d-1"
     mb['bmb'].attrs["coordinates"] = 'time'
@@ -2042,15 +2130,15 @@ promice = xr.Dataset()
 promice['time'] = (("time"), p.index)
 promice['sector'] = (("sector"), p.columns)
 promice['D'] = (("time","sector"), p.values)
-promice['D_err'] = (("time","sector"), p.values)
+promice['D_err'] = (("time","sector"), e.values)
 
 p,e = load_Colgan_2019(sheet=4)
 promice['SMB'] = (("time","sector"), p.values)
-promice['SMB_err'] = (("time","sector"), p.values)
+promice['SMB_err'] = (("time","sector"), e.values)
 
 p,e = load_Colgan_2019(sheet=5)
 promice['MB'] = (("time","sector"), p.values)
-promice['MB_err'] = (("time","sector"), p.values)
+promice['MB_err'] = (("time","sector"), e.values)
 
 # print(promice)
 #+END_SRC
@@ -2153,26 +2241,27 @@ mb = xr.open_dataset("./TMB/mb_sector.nc")
 
 kw = {'ax':ax, 'legend':False, 'drawstyle':'steps-post'}
 
-smb = (365*mb['smb']).to_dataframe(name='M2021')\
-                     .rename(columns={'M2021':'SMB'})\
-                     .resample('AS')\
-                     .mean()
-smb.plot(color='b', linestyle=':', **kw)
+smb = (365*mb[['smb','smb_err']]).to_dataframe()\
+                                 .resample('AS')\
+                                 .mean()
+smb['smb'].plot(color='b', linestyle=':', **kw)
 ax.fill_between(smb.index.values,
-                (smb-smb*0.15).values.flatten(),
-                (smb+smb*0.15).values.flatten(),
+                (smb['smb']-smb['smb_err']).values.flatten(),
+                (smb['smb']+smb['smb_err']).values.flatten(),
                 color='b', alpha=0.1,
                 step='post')
 
 
-mmbbmb = (365*(-1*(mb['mmb'] + mb['bmb']*1))).to_dataframe(name='M2021')\
-                                             .rename(columns={'M2021':'MMB + BMB'})\
-                                             .resample('AS')\
-                                             .mean()
-mmbbmb.plot(color='gray', linestyle='--', **kw)
+mmbbmb = (-365*mb[['mmb','bmb','mmb_err','bmb_err']]).to_dataframe()\
+                                                     .resample('AS')\
+                                                     .mean()
+mmbbmb['sum'] = mmbbmb[['mmb','bmb']].sum(axis='columns')
+mmbbmb['err'] = (mmbbmb['mmb_err']**2 + mmbbmb['bmb_err']**2)**0.5
+
+mmbbmb['sum'].plot(color='gray', linestyle='--', **kw)
 ax.fill_between(mmbbmb.index.values,
-                (mmbbmb-mmbbmb*0.1).values.flatten(),
-                (mmbbmb+mmbbmb*0.1).values.flatten(),
+                (mmbbmb['sum']-mmbbmb['err']).values.flatten(),
+                (mmbbmb['sum']+mmbbmb['err']).values.flatten(),
                 color='k', alpha=0.1,
                 step='post')
 
@@ -2183,17 +2272,15 @@ ax.fill_between(mmbbmb.index.values,
 #          .sum()\
 #          .plot(ax=axr, legend=False, drawstyle='steps-post', color='gray', linestyle='--')
 # axr.set_ylim([420,520])
-mb_ann = 365 * mb['mb'].to_dataframe(name='M2021')\
-                 .rename(columns={'M2021':'MB'})\
-                 .resample('AS')\
-                 .mean()
-mb_ann.plot(color='k', linestyle='-', **kw)
 
-# err: 10 % for MMB, 15 % for SMB. Assume random, then
-mb_ann_err = sqrt((smb.values*0.15)**2 + (mmbbmb.values*0.1)**2).flatten()
+mb_ann = 365 * mb[['mb','mb_err']].to_dataframe()\
+                                  .resample('AS')\
+                                  .mean()
+mb_ann['mb'].plot(color='k', linestyle='-', **kw)
+
 ax.fill_between(mb_ann.index.values,
-                (mb_ann.values.flatten()-mb_ann_err),
-                (mb_ann.values.flatten()+mb_ann_err),
+                (mb_ann['mb'] - mb_ann['mb_err']).values.flatten(),
+                (mb_ann['mb'] + mb_ann['mb_err']).values.flatten(),
                 color='k', alpha=0.5,
                 step='post')
 
@@ -2389,28 +2476,20 @@ kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 # MB (this)
 mb = xr.open_dataset("./TMB/mb_sector.nc")
 mb = mb.sel({'time':slice('1971','2100')})
-M2021 = mb['mb'].to_dataframe(name='mb_cum').resample('1D').ffill().cumsum()
+M2021 = mb['mb'].to_dataframe(name='mb').resample('1D').ffill().cumsum()
+M2021['err'] = mb['mmb_err'].to_dataframe(name='err')[::-1].cumsum()[::-1]
 M2021.loc[:'1985'] = M2021.loc[:'1985'].resample('Y').mean().resample('1D').bfill()
 
-# (((mb['smb'].resample({'time':'YS'}).sum()*0.15)**2 + (mb['mmb'].resample({'time':'YS'}).sum()*0.1)**2)**0.5).to_dataframe(name='err').describe()
-# mean: 68
-
-OFFSET = M2021['mb_cum'].resample('YS').mean().max()
-M2021['mb_cum'] = M2021['mb_cum'] - OFFSET
+OFFSET = M2021['mb'].resample('YS').mean().max()
+M2021['mb'] = M2021['mb'] - OFFSET
 
 tt = (M2021.index.max() - M2021.index) / (M2021.index.max() - pd.Timestamp('2000-01-01'))
 tt = tt.where(tt <= 1, 1)
 
-M2021['bumpy'] = M2021['mb_cum']
+M2021['bumpy'] = M2021['mb']
 M2021['smooth'] = M2021['bumpy'].rolling(365).mean()
 M2021['err_core'] = (M2021['bumpy'] * (1-tt)) + (M2021['smooth'] * tt)
-# M2021['err_core'] = M2021['mb_cum']
-
-M2021['err'] = (M2021['err_core'] * 0 + 68/365)[::-1].cumsum()[::-1]
-p_M2021 = M2021['mb_cum'].plot(ax=ax, color=C_M2021, drawstyle='steps-post', **kw)
-# p_M2021 = M2021['mb_cum'].loc['1986':].plot(ax=ax, color=C_M2021, **kw)
-# _ = M2021['mb_cum'].loc[:'1986'].resample('YS').mean().plot(ax=ax, color=C_M2021, drawstyle='steps', **kw)
-# _ = M2021['mb_cum'].loc[:'1986'].plot(ax=ax, color=C_M2021, drawstyle='steps', **kw)
+p_M2021 = M2021['mb'].plot(ax=ax, color=C_M2021, drawstyle='steps-post', **kw)
 ax.fill_between(M2021.index,
                 (M2021['err_core'] - M2021['err']).values.flatten(),
                 (M2021['err_core'] + M2021['err']).values.flatten(),
@@ -2425,8 +2504,8 @@ M2019_err = mouginot['MB_err'].sum(dim='region').to_dataframe('M2019')[::-1].cum
 M2019 = M2019[M2019.index.year >= 1971]
 M2019_err = M2019_err[M2019_err.index.year >= 1971]
 p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
-(M2019-M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
-(M2019+M2019_err).plot(ax=ax, color=C_M2019, alpha=0.25, **kw)
+(M2019-M2019_err*0.75).plot(ax=ax, color=C_M2019, alpha=0.25, linestyle='--', **kw)
+(M2019+M2019_err*0.75).plot(ax=ax, color=C_M2019, alpha=0.25, linestyle='--', **kw)
 
 
 
@@ -2481,7 +2560,8 @@ P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
 P = P - np.min(P) - 4400
 P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019')[::-1].cumsum()[::-1]
 p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
-ax.fill_between(P.index.values, (P-P_err).values.flatten(), (P+P_err).values.flatten(), color = C_PROMICE, **kw_err)
+kw_err['alpha'] = 0.5
+ax.fill_between(P.index.values, (P-P_err*0.75).values.flatten(), (P+P_err*0.75).values.flatten(), color = C_PROMICE, **kw_err)
 
 
 <<load_box>>
@@ -2489,6 +2569,7 @@ B = box['TMB'].cumsum().loc['1986':]
 B = B - np.min(B) - 3600
 B_err = box['TMB 1sigma'][::-1].cumsum()[::-1].loc['1986':]
 p_box = B.plot(ax=ax, label='K2015', color='cyan', **kw)
+kw_err['alpha'] = 0.05
 ax.fill_between(B.index.values, (B-B_err).values.flatten(), (B+B_err).values.flatten(),
                 color='cyan', **kw_err)
 
@@ -2541,25 +2622,17 @@ axMB = fig.add_subplot(313)
 
 # Mouginot SMB, D, and MB (Mouginot, 2019)
 <<load_mouginot>>
+mouginot = mouginot.where(mouginot['time'].dt.year >= 1987).dropna(dim='time')
+mouginot = mouginot.sum(dim='region')
 
 mb = xr.open_dataset('./TMB/mb_region.nc')\
        .resample({'time':'YS'})\
        .sum()
+
+mb = mb.where((mb['time'].dt.year <= 2018) & (mb['time'].dt.year >= 1987)).dropna(dim='time')
     
-this_smb = mb['smb']
-this_D = (mb['mmb']+mb['bmb'])
-this_mb = mb['mb']
-
-mouginot = mouginot.where(mouginot['time'].dt.year >= 1987).dropna(dim='time')
-this_smb = this_smb\
-    .where((this_smb['time'].dt.year <= 2018) & (this_smb['time'].dt.year >= 1987)).dropna(dim='time')
-this_D = this_D\
-    .where((this_D['time'].dt.year <= 2018) & (this_D['time'].dt.year >= 1987)).dropna(dim='time')
-this_mb = this_mb\
-    .where((this_mb['time'].dt.year <= 2018) & (this_mb['time'].dt.year >= 1987)).dropna(dim='time')
-
 # graphics
-def my_plot(ax, x, y):
+def my_plot(ax, x, xerr, y, yerr):
 
     years = x.time.dt.year.values
     color = years - min(years); color = color / max(color)
@@ -2569,6 +2642,7 @@ def my_plot(ax, x, y):
     cmap = cm.viridis(color)
     cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
 
+    e = ax.errorbar(x.values, y.values, xerr=xerr, yerr=yerr, fmt=',', color='k', alpha=0.5, linewidth=0.5)
     scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
     for i,s in enumerate(y2str):
         ax.text(x.values[i], y.values[i], s,
@@ -2609,9 +2683,9 @@ def my_plot(ax, x, y):
     return scatter
 
 
-my_plot(axSMB, this_smb, mouginot['SMB'].sum(dim='region'))
-my_plot(axD, this_D,  mouginot['D'].sum(dim='region'))
-s = my_plot(axMB, this_mb, mouginot['MB'].sum(dim='region'))
+my_plot(axSMB, mb['smb'], mb['smb_err'], mouginot['SMB'], mouginot['SMB_err'])
+my_plot(axD, mb['mmb']+mb['bmb'], (mb['mmb_err']**2+mb['bmb_err']**2)**0.5, mouginot['D'], mouginot['D_err'])
+s = my_plot(axMB, mb['mb'], mb['mb_err'], mouginot['MB'], mouginot['MB_err'])
 
 
 # https://stackoverflow.com/questions/17478165/
@@ -2644,7 +2718,7 @@ plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-78-e62a8decfc25>:152: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-147-7154e2525c1e>:145: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -2678,19 +2752,15 @@ axMB = fig.add_subplot(313)
 
 # PROMICE MB (Colgan 2019)
 <<load_PROMICE_MB>>
+promice = promice.sum(dim='sector')
 
-# this
 mb = xr.open_dataset('./TMB/mb_region.nc')\
        .resample({'time':'YS'})\
        .sum()\
        .reindex(time=promice['time'])
             
-this_smb = mb['smb']
-this_D = (mb['mmb']+mb['bmb'])
-this_mb = mb['mb']
-
 # graphics
-def my_plot(ax, x, y):
+def my_plot(ax, x, xerr, y, yerr):
 
     years = x.time.dt.year.values
     color = years - min(years); color = color / max(color)
@@ -2700,7 +2770,9 @@ def my_plot(ax, x, y):
     cmap = cm.viridis(color)
     cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
 
+    e = ax.errorbar(x.values, y.values, xerr=xerr, yerr=yerr, fmt=',', color='k', alpha=0.5, linewidth=0.5)
     scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
+    
     for i,s in enumerate(y2str):
         ax.text(x.values[i], y.values[i], s,
                 c = cmap(color)[i],
@@ -2739,9 +2811,10 @@ def my_plot(ax, x, y):
     adj(ax, ['left','bottom'])
     return scatter
 
-my_plot(axSMB, this_smb, promice['SMB'].sum(dim='sector'))
-my_plot(axD,   this_D,   promice['D'].sum(dim='sector'))
-s = my_plot(axMB,  this_mb, promice['MB'].sum(dim='sector'))
+
+my_plot(axSMB, mb['smb'], mb['smb_err'], promice['SMB'], promice['SMB_err'])
+my_plot(axD,   mb['mmb']+mb['bmb'], (mb['mmb_err']**2+mb['bmb_err']**2)**0.5, promice['D'], promice['D_err'])
+s = my_plot(axMB,  mb['mb'], mb['mb_err'], promice['MB'], promice['MB_err'])
 
 # https://stackoverflow.com/questions/17478165/
 def axis_to_fig(axis):
@@ -2767,13 +2840,13 @@ cb.draw_all()
 cb.ax.xaxis.set_ticks_position('top')
 cb.ax.xaxis.set_label_position('top')
 # cb.set_label("Time [year]", labelpad=-20)
-axCB.set_xticklabels(mouginot['time'].dt.year[[0,-1]].values)
+axCB.set_xticklabels(promice['time'].dt.year[[0,-1]].values)
 
 plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-79-1d2631d8a6bf>:152: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-18-8e7cc1a3456f>:151: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -2810,37 +2883,36 @@ axBOX = fig.add_subplot(414)
 # this
 this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .resample({'time':'YS'})\
-            .sum()['mb']
+            .sum()[['mb','mb_err']]
 
 
 if 'grace' not in locals():
     <<load_grace>>
-    grace = grace['mass'].resample('1D').mean().interpolate(method='time').resample('YS').mean().diff().dropna()
+    grace = grace.resample('1D').mean().interpolate(method='time').resample('YS').mean().diff().dropna()
     this_mb_grace = this_mb.sel({'time':slice(grace.index[0], grace.index[-1])})
 
 if 'sec' not in locals():
     <<load_SEC>>
-    sec = sec['SEC'].sum(dim='sector')\
-                    .resample({'time':'YS'})\
-                    .sum()
+    sec = sec.sum(dim='sector')\
+             .resample({'time':'YS'})\
+             .sum()
     this_mb_sec = this_mb.sel({'time':slice(sec.time[0], sec.time[-1])})    
     
 if 'imbie' not in locals():
     <<load_imbie>>
     # imbie = imbie.resample('1D').mean().interpolate(method='time')
     imbie = imbie.resample('YS').mean()
-    imbie = imbie['mb']
     imbie = imbie[imbie.index.year > 1986]
     imbie = imbie.dropna()
     this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
 
 <<load_box>>
-box = box['TMB'].loc['1986':'2012']
+box = box.loc['1986':'2012'].rename(columns={'TMB 1sigma':'err'})[['TMB','err']]
 this_mb_box = this_mb.sel({'time':slice('1986-01-01','2012-12-31')})
 
 
 # graphics
-def my_plot(ax, x, y):
+def my_plot(ax, x, xerr, y, yerr):
 
     if type(x) == xr.core.dataarray.DataArray:
         years = x.time.dt.year.values
@@ -2855,6 +2927,7 @@ def my_plot(ax, x, y):
     cmap = cm.viridis(color)
     cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
 
+    e = ax.errorbar(x.values, y.values, xerr=xerr, yerr=yerr, fmt=',', color='k', alpha=0.5, linewidth=0.5)
     scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
     for i,s in enumerate(y2str):
         ax.text(x.values[i], y.values[i], s,
@@ -2896,10 +2969,10 @@ def my_plot(ax, x, y):
     return scatter
 
 
-s = my_plot(axGRACE, this_mb_grace, grace)
-s = my_plot(axSEC, this_mb_sec, sec)
-s = my_plot(axIMBIE,  this_mb_imbie, imbie)
-s = my_plot(axBOX,  this_mb_box, box)
+s = my_plot(axGRACE, this_mb_grace['mb'], this_mb_grace['mb_err'], grace['mass'], grace['err'])
+s = my_plot(axSEC, this_mb_sec['mb'], this_mb_sec['mb_err'], sec['SEC'], sec['err'])
+s = my_plot(axIMBIE,  this_mb_imbie['mb'], this_mb_imbie['mb_err'], imbie['mb'], imbie['mb_err'])
+s = my_plot(axBOX,  this_mb_box['mb'], this_mb_box['mb_err'], box['TMB'], box['err'])
 
 plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
