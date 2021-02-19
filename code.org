@@ -3314,6 +3314,26 @@ plt.savefig('tmp/mb_3RCM.png', transparent=False, bbox_inches='tight', dpi=300)
 
 #+RESULTS:
 
+** INPROGRESS ROIs, RCMS, and extended ROIs
+
+#+BEGIN_SRC bash
+grass -c ./G_RACMO/ROI_e
+
+g.region region=RCM -pa
+
+d.mon wx0
+d.erase
+
+d.rast mask_ice
+d.vect sectors@Zwally_2012 color=blue fill_color=none
+# d.vect sectors_e@Zwally_2012 color=blue fill_color=none
+
+d.vect basins@Mouginot_2019 color=red fill_color=none
+# d.vect regions_e@Mouginot_2019 color=red fill_color=none
+
+#+END_SRC
+
+
 ** NOTDONE SMB timeseries
 
 #+BEGIN_SRC jupyter-python
