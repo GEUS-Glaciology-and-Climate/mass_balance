@@ -1555,12 +1555,14 @@ import pandas as pd
 fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
 box = pd.read_csv('/home/kdm/data/Box_2013/' + fname, index_col=0, parse_dates=True)
 
+# dfK["SMB"]=dfK.accumulation-dfK.runoff
+
 box['mmb'] = box['discharge from 6 year lagged average runoff']
 box['mmb_err'] = box['discharge 1sigma']
 box['mb'] = box['TMB']
 box['mb_err'] = box['TMB 1sigma']
-box['smb'] = box['mb'] - box['mmb']
-box['smb_err'] = (box['mb_err']**2 + box['mmb_err']**2)**0.5
+box['smb'] = box['accumulation'] - box['runoff']
+box['smb_err'] = (box['accumulation 1sigma']**2 + box['runoff 1sigma']**2)**0.5
 
 # box.head()
 #+END_SRC
@@ -1585,7 +1587,7 @@ box = box.loc['1840':'1986'].iloc[:-1] # cut off 1986-01-01
 time = np.append(box.index, smb['time'].values)
 smb = smb.reindex({'time':time})
 smb['smb'] = (('time'),
-              np.append(-box['smb'].values/365, smb['smb'].sel({'time':slice('1986','2200')}).values))
+              np.append(box['smb'].values/365, smb['smb'].sel({'time':slice('1986','2200')}).values))
 smb['smb_err'] = (('time'),
                   np.append(box['smb_err'].values/365, smb['smb_err'].sel({'time':slice('1986','2200')}).values))
 
@@ -1733,25 +1735,25 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         # smb['smb_'+roi].isel({'time':0}), '\n\n', mmb['mmb_'+roi].isel({'time':0}), '\n\n', (smb['smb_'+roi] - mmb['mmb_'+roi]).isel({'time':0}), '\n\n', mb.isel({'time':0})
 
     
-    mb.attrs["featureType"] = "timeSeries"
-    mb.attrs["title"] = "Greenland mass balance"
-    mb.attrs["summary"] = "Greenland mass balance"
-    mb.attrs["keywords"] = "Greenland; Mass; Mass balance"
-    # mb.attrs["Conventions"] = "CF-1.8"
-    mb.attrs["source"] = "git commit: " + subprocess.check_output(["git", "describe", "--always"]).strip().decode('UTF-8')
-    # mb.attrs["comment"] = "TODO"
-    # mb.attrs["acknowledgment"] = "TODO"
-    # mb.attrs["license"] = "TODO"
-    # mb.attrs["date_created"] = datetime.datetime.now().strftime("%Y-%m-%d")
-    mb.attrs["creator_name"] = "Ken Mankoff"
-    mb.attrs["creator_email"] = "kdm@geus.dk"
-    mb.attrs["creator_url"] = "http://kenmankoff.com"
-    mb.attrs["institution"] = "GEUS"
-    # mb.attrs["time_coverage_start"] = "TODO"
-    # mb.attrs["time_coverage_end"] = "TODO"
-    # mb.attrs["time_coverage_resolution"] = "TODO"
-    mb.attrs["references"] = "10.22008/promice/mass_balance"
-    mb.attrs["product_version"] = 1.0
+    mb.attrs['featureType'] = 'timeSeries'
+    mb.attrs['title'] = 'Greenland ice sheet mass balance from 1840 through next week'
+    mb.attrs['summary'] = mb.attrs['title']
+    mb.attrs['keywords'] = 'Greenland; Mass; Mass balance'
+    # mb.attrs['Conventions'] = 'CF-1.8'
+    mb.attrs['source'] = 'git commit: ' + subprocess.check_output(['git', 'describe', '--always']).strip().decode('UTF-8')
+    # mb.attrs['comment'] = 'TODO'
+    # mb.attrs['acknowledgment'] = 'TODO'
+    # mb.attrs['license'] = 'TODO'
+    # mb.attrs['date_created'] = datetime.datetime.now().strftime('%Y-%m-%d')
+    mb.attrs['creator_name'] = 'Ken Mankoff'
+    mb.attrs['creator_email'] = 'kdm@geus.dk'
+    mb.attrs['creator_url'] = 'http://kenmankoff.com'
+    mb.attrs['institution'] = 'GEUS'
+    # mb.attrs['time_coverage_start'] = 'TODO'
+    # mb.attrs['time_coverage_end'] = 'TODO'
+    # mb.attrs['time_coverage_resolution'] = 'TODO'
+    mb.attrs['references'] = '10.22008/promice/mass_balance'
+    mb.attrs['product_version'] = 1.0
 
     comp = dict(zlib=True, complevel=2)
     encoding = {var: comp for var in mb.data_vars} # all
@@ -1759,6 +1761,10 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     fn = './TMB/mb_'+roi+'.nc'
     if os.path.exists(fn): os.remove(fn)
     mb.to_netcdf(fn, mode='w', encoding=encoding)
+
+
+# maybe also some CSV output
+mb[['mb','mb_err','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe().to_csv('./TMB/mb_smb_mmb_bmb.csv')
 #+END_SRC
 
 #+RESULTS:
@@ -2480,7 +2486,8 @@ M2021 = mb['mb'].to_dataframe(name='mb').resample('1D').ffill().cumsum()
 M2021['err'] = mb['mmb_err'].to_dataframe(name='err')[::-1].cumsum()[::-1]
 M2021.loc[:'1985'] = M2021.loc[:'1985'].resample('Y').mean().resample('1D').bfill()
 
-OFFSET = M2021['mb'].resample('YS').mean().max()
+# OFFSET = M2021['mb'].resample('YS').mean().max()
+OFFSET = -400
 M2021['mb'] = M2021['mb'] - OFFSET
 
 tt = (M2021.index.max() - M2021.index) / (M2021.index.max() - pd.Timestamp('2000-01-01'))
@@ -2661,7 +2668,7 @@ def my_plot(ax, x, xerr, y, yerr):
         ax.set_xticks([0,600])
     if ax == axMB:
         ax.text(0, 0.9, 'MB', transform=ax.transAxes)
-        ax.set_xticks([-400, 0, 200])
+        ax.set_xticks([-450, 0, 150])
         ax.set_xlabel('This Study\n[Gt yr$^{-1}$]')
 
     ax.set_yticks(ax.get_xticks())
@@ -2718,7 +2725,7 @@ plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-147-7154e2525c1e>:145: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-12-e2b694aa7a6b>:145: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('tmp/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -2790,7 +2797,7 @@ def my_plot(ax, x, xerr, y, yerr):
         ax.set_xticks([0,600])
     if ax == axMB:
         ax.text(0, 0.9, 'MB', transform=ax.transAxes)
-        ax.set_xticks([-400, 0, 200])
+        ax.set_xticks([-450, 0, 150])
         ax.set_xlabel('This Study\n[Gt yr$^{-1}$]')
 
     ax.set_yticks(ax.get_xticks())
@@ -2846,7 +2853,7 @@ plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=3
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-18-8e7cc1a3456f>:151: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-6-7ee885e94103>:151: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('tmp/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -5053,50 +5060,3 @@ clean_SMB:
 
 
 * Testing
-** NOTDONE Compare annual RACMO to HIRHAM 
-*** MAR
-
-See above
-
-*** HIRHAM annual
-
-#+BEGIN_SRC bash
-cd ${DATADIR}/HIRHAM/daily/
-mkdir ann
-# cdo yearsum DarcySensitivity_RP810_Daily2D_GL2LIN_Darcy_60m_liqCL_wh1_smb_HydroYr_1999_2000_DM_SD.nc ./ann/1999.nc
-parallel --progress --bar "cdo timsum \"*{1}_????_DM_SD.nc\" ./ann/{1}.nc" ::: $(seq 1986 2016)
-#+END_SRC
-
-
-
-
-*** Compare
-
-#+BEGIN_SRC jupyter-python
-import pandas as pd
-import xarray as xr
-
-# for masks
-era0 = xr.open_dataset('/home/kdm/data/MAR/daily2/MARv3.11.5-20km-daily-ERA5-2000.nc')
-era = xr.open_mfdataset('/home/kdm/data/MAR/daily2/ann/*.nc', combine='by_coords').squeeze()
-era_mask = era.where(era0['MSK'] > 50)
-era_sum = era_mask.sum(dim=['X12_84','Y21_155'])
-
-era = pd.DataFrame(era_sum['SMB'].to_dataframe()['SMB']).rename(columns={'SMB':'MAR'})
-era.index = pd.to_datetime(era.index.year, format='%Y')
-
-h = xr.open_mfdataset('/home/kdm/data/HIRHAM/daily/ann/*.nc', combine='by_coords')\
-      .squeeze()\
-      .sum(dim=['x','y'])
-
-h = pd.DataFrame(h.to_dataframe()['smb']).rename(columns={'smb':'HIRHAM'})
-h.index = pd.to_datetime(h.index.year, format='%Y')
-
-df = era
-df = df.merge(h/10, left_index=True, right_index=True)
-# df = df.merge(h.to_dataframe()['smb'], left_index=True, right_index=True).rename(columns={'smb':'HIRHAM'})
-df.plot(drawstyle='steps')
-#+END_SRC
-
-#+RESULTS:
-: <AxesSubplot:>
