@@ -757,7 +757,7 @@ import uncertainties
 from uncertainties import unumpy
 
 time = pd.date_range(start = "1986-01-01",
-                     end = datetime.date.today() + datetime.timedelta(days = 10),
+                     end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 10),
                      freq = "D")
 
 smb = xr.Dataset()
@@ -1276,7 +1276,7 @@ import datetime
 import os
 
 time = pd.date_range(start = "1986-01-01",
-                     end = datetime.date.today() + datetime.timedelta(days = 10),
+                     end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 10),
                      freq = "D")
 
 bmb = xr.Dataset()
