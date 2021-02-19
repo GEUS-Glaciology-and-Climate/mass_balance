@@ -2802,7 +2802,7 @@ P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
 P = P - np.min(P) - 4400
 P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019')[::-1].cumsum()[::-1]
 p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
-kw_err['alpha'] = 0.5
+kw_err['alpha'] = 0.33
 ax.fill_between(P.index.values, (P-P_err*0.75).values.flatten(), (P+P_err*0.75).values.flatten(), color = C_PROMICE, **kw_err)
 
 
@@ -3187,9 +3187,9 @@ def my_plot(ax, x, xerr, y, yerr):
         ax.set_ylabel('IMBIE\n[Gt yr$^{-1}$]', labelpad=-25)
     if ax == axBOX:
         ax.set_ylabel('K2015\n[Gt yr$^{-1}$]', labelpad=-25)
-        ax.set_xlabel('This Study\n[Gt yr$^{-1}$]', labelpad=-7)
+        ax.set_xlabel('This Study\n[Gt yr$^{-1}$]', labelpad=0)
     
-    ax.set_xticks([-450,150])
+    ax.set_xticks([-450, 0, 150])
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
     ax.set_ylim(ax.get_xlim())
