@@ -2173,7 +2173,8 @@ promice['MB_err'] = (("time","sector"), e.values)
 %\end{figure*}
 
 
-** DONE ROIs w/o coast
+** Overview map
+*** ROIs w/o coast
 
 + Coast is noisy and poorly defined due to different RCM boundaries
 + Generate ROIs without the coast, just interior divisions
@@ -2206,6 +2207,240 @@ for roi in sector region; do
   v.out.ogr input=${roi}_interior_smooth output=./tmp/${roi}_interior.gpkg
 done
 #+END_SRC
+
+
+*** Greenland outline
+#+BEGIN_SRC bash
+wget https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip -O ./tmp/countries.zip
+
+(cd tmp; unzip countries.zip)
+v.import input=./tmp/ne_10m_admin_0_countries.shp output=countries
+v.extract input=countries output=greenland where='name = "Greenland"'
+#+END_SRC
+
+*** Other
+#+BEGIN_SRC bash
+v.import input=~/data/Mankoff_2020/ice/latest/gates.gpkg output=gates
+#+END_SRC
+
+*** Graphic
+
+#+BEGIN_SRC bash :session *total_mass_balance-shell* :results verbatim
+lightblue="166:206:227"
+lightgreen="178:223:138"
+pink="251:154:153"
+
+cat << EOF | ps.map -e input=- output=./tmp/overview.eps --o
+
+border n
+
+# scale 1:1000000
+
+paper a3
+  end
+
+vareas gates
+  color black
+  width 3
+  label MMB gates
+  end
+
+text -94000 -1106944 NO
+  color ${lightblue}
+  fontsize 24
+  end
+
+text -185295 -1605917 NW
+  color ${lightblue}
+  fontsize 24
+  end
+
+text 202794 -1403555 NE
+  color ${lightblue}
+  fontsize 24
+  end
+
+text 39242 -2121523 CW
+  color ${lightblue}
+  fontsize 24
+  end
+
+text 466141 -2124295 CE
+  color ${lightblue}
+  fontsize 24
+  end
+
+text -120000 -2800681 SW
+  color ${lightblue}
+  fontsize 24
+  end
+
+text 110000 -2650000 SE
+  color ${lightblue}
+  fontsize 24
+  end
+
+text -254597 -1154069 11
+  color ${pink}
+  fontsize 18
+  end
+
+text -10655 -1034870 12
+  color ${pink}
+  fontsize 18
+  end
+
+text 144580 -1015465 13
+  color ${pink}
+  fontsize 18
+  end
+
+text 294272 -1021009 14
+  color ${pink}
+  fontsize 18
+  end
+     
+text 247147 -1281584 21
+  color ${pink}
+  fontsize 18
+  end
+
+text 452281 -1436820 22
+  color ${pink}
+  fontsize 18
+  end
+
+text 424560 -1736204 23
+  color ${pink}
+  fontsize 18
+  end
+
+text 349714 -1941338 31
+  color ${pink}
+  fontsize 18
+  end
+
+text 650000 -2157560 32
+  color ${pink}
+  fontsize 18
+  end
+
+text 380000 -2257354 33
+  color ${pink}
+  fontsize 18
+  end
+
+text 220000 -2451399 41
+  color ${pink}
+  fontsize 18
+  end
+
+text 83595 -2700000 42
+  color ${pink}
+  fontsize 18
+  end
+
+text 60000 -2936512 43
+  color ${pink}
+  fontsize 18
+  end
+
+text 10000 -3105609 50
+  color ${pink}
+  fontsize 18
+  end
+
+text -100000 -2906020 61
+  color ${pink}
+  fontsize 18
+  end
+
+text -100000 -2595547 62
+  color ${pink}
+  fontsize 18
+  end
+
+text 47558 -2262898 71
+  color ${pink}
+  fontsize 18
+  end
+
+text -93817 -2027272 72
+  color ${pink}
+  fontsize 18
+  end
+
+text -265685 -1544931 81
+  color ${pink}
+  fontsize 18
+  end
+
+text -450000 -1312077 82
+  color ${pink}
+  fontsize 18
+  end
+
+vlines sector_interior_smooth
+  color $pink
+  width 2
+  label Sector       
+  end
+    
+vlines region_interior_smooth
+  color $lightblue
+  width 5
+  label Region
+  end
+    
+vareas sectors@Zwally_2012
+  color white
+  fcolor white
+  label Ice
+  end
+
+vareas greenland
+  color gray
+  fcolor 192:192:192
+  label Land
+  end
+
+# vlegend
+#   where 6 13
+#   fontsize 18
+#   end
+
+# scalebar s
+#   length 100
+#   units kilometers
+#   segment 1
+#   where 7 12
+#   fontsize 18
+#   end
+ 
+EOF
+convert -trim ./tmp/overview.eps ./fig/overview.png
+o ./fig/overview.png
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+[Raster MASK present]
+[Raster MASK present]
+[Raster MASK present]
+[Raster MASK present]
+> > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > Scale set to 1 : 7313327
+...
+...
+...
+...
+...
+Reading text file ...
+ps.map complete. PostScript file './tmp/overview.eps' successfully written.
+[Raster MASK present]
+[Raster MASK present]
+[Raster MASK present]
+#+end_example
+
 
 
 ** DONE SMB/MMB/MB timeseries
