@@ -1424,7 +1424,232 @@ df.round(3)*365
 | TOTAL  |  5.84 | 11.68 | 10.95 | 28.835 |
 
 
+* Historical
+** Runoff
+
+The 1840 through 2012 runoff comes from an [[mu4e:msgid:AM5PR04MB309006FAB95A2D37B1FCF497B46B9@AM5PR04MB3090.eurprd04.prod.outlook.com][email]]
+
+#+BEGIN_QUOTE
+From: Kristian Kjellerup Kjeldsen
+To: Ken Mankoff
+Date: Tue 16 Mar 2021 01:39:18 PM PDT
+Attachments: [1] Runoff_v3.xlsx(30.7K)
+#+END_QUOTE
+
+And is saved as [[./dat/historical_runoff.csv]] with some header changes
+
+#+BEGIN_SRC bash :results verbatim
+md5sum ./dat/historical_runoff.csv
+#+END_SRC
+
+#+RESULTS:
+: 29972813de2196042c585ae95614b65e  ./dat/historical_runoff.csv
+
+** SMB and D
+
+
+Provenance:
+
+#+BEGIN_QUOTE
+From: Kristian Kjellerup Kjeldsen
+To: Ken Mankoff
+Cc: Jason Eric Box
+Date: Tue 16 Mar 2021 04:05:12 AM PDT
+Attachments: [1] TMB_GrIS_all_Export.xlsx (45.2K), [2] TMB_160321.pdf (589.9K)
+#+END_QUOTE
+
+Then saved as CSV with columns renamed in [[./dat/historical_SMB_D_MB.csv]]
+
+** Adjust SMB and D using 1986 through 2012 overlap
+*** load the data
+
+#+NAME: load_KB
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+
+### Adjusted data from Kjeldsen email
+# fname = 'historical_SMB_D_MB.csv'
+# kb = pd.read_csv('./dat/' + fname, index_col=0, parse_dates=True)
+# kb.index = [pd.to_datetime(str(_) + '-01-01') for _ in kb.index.year]
+# kb = kb.rename(columns={'SMB' : 'KB_smb',
+#                                   'SMB err' : 'KB_smb_err',
+#                                   'D 6yr' : 'KB_mmb',
+#                                   'D err' : 'KB_mmb_err'})
+# kb = kb[['KB_smb','KB_smb_err','KB_mmb','KB_mmb_err']]
+
+### Published data
+fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
+kb = pd.read_csv('/home/kdm/data/Box_2013/' + fname, index_col=0, parse_dates=True)\
+    .rename(columns={'discharge from 6 year lagged average runoff' : 'mmb',
+                     'discharge 1sigma' : 'mmb_err'})
+
+kb.index.name = 'time'
+
+kb['smb'] = kb['accumulation'] - kb['runoff']
+kb['smb_err'] = (kb['accumulation 1sigma']**2 + kb['runoff 1sigma']**2)**0.5
+# kb['mb_no_bmb'] = kb['smb'] - kb['mmb']
+# kb['mb_no_bmb_err'] = (kb['smb_err']**2 + kb['mmb_err']**2)**0.5
+
+kb = kb.drop(columns=['accumulation', 'accumulation 1sigma', 'melt', 'melt 1sigma', 'retention',
+                      'retention 1sigma',
+                      # 'runoff', 'runoff 1sigma',
+                      'TMB', 'TMB 1sigma'])
+#+END_SRC
+
+#+RESULTS: load_KB
+
+#+NAME: prep_kb_adj
+#+BEGIN_SRC jupyter-python
+<<load_kb>>
+<<load_smb>>
+<<load_mmb>>
+
+time = pd.date_range(start = "1986-01-01", end = str(mmb['time'].values[-1]), freq = "D")
+mmb = mmb.reindex({'time':time}).bfill(dim='time')
+
+smb = smb[['smb','smb_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
+mmb = mmb[['mmb','mmb_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
+
+kb = kb.loc['1986':'2012']
+#+END_SRC
+
+#+RESULTS: prep_kb_adj
+
+#+RESULTS:
+
+*** Plot overlapping SMB and MMB
+
+#+BEGIN_SRC jupyter-python
+<<prep_kb_adj>>
+
+import scipy as sp
+import scipy.stats as sps
+from adjust_spines import adjust_spines as adj
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+fig = plt.figure(1, figsize=(3.26,7.25)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+axSMB = fig.add_subplot(311)
+axD = fig.add_subplot(312)
+axMB = fig.add_subplot(313)
+
+SMB_BIAS = 31.23
+MMB_BIAS = 25.9
+
+def my_plot(ax, x, xerr, y, yerr):
+
+    years = x.index.year.values
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(str)]
+
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
+
+    e = ax.errorbar(x.values, y.values, xerr=xerr, yerr=yerr, fmt=',', color='k', alpha=0.5, linewidth=0.5)
+    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
+    
+    for i,s in enumerate(y2str):
+        ax.text(x.values[i], y.values[i], s,
+                c = cmap(color)[i],
+                fontsize=10,
+                fontweight='bold',
+                horizontalalignment='center',
+                verticalalignment='center')
+
+        if ax == axSMB: BIAS = SMB_BIAS
+        if ax == axD: BIAS = MMB_BIAS
+        if ax == axMB: continue
+        ax.text(x.values[i], y.values[i] - BIAS, '.',
+                c = cmap(color)[i],
+                fontsize=15,
+                fontweight='bold',
+                horizontalalignment='center',
+                verticalalignment='center')
+        
+    if ax == axSMB:
+        ax.text(0, 0.9, 'SMB', transform=ax.transAxes)
+        ax.set_xticks([0,600])
+        ax.set_ylabel('KB (historical)\n[Gt yr$^{-1}$]', labelpad=-25)
+    if ax == axD:
+        ax.text(0, 0.9, 'MMB', transform=ax.transAxes)
+        ax.set_xticks([375,600])
+        # ax.set_xticks([0,600])
+    if ax == axMB:
+        ax.text(0, 0.9, 'MB [+BMB]', transform=ax.transAxes)
+        ax.set_xticks([-450, 0, 150])
+        ax.set_xlabel('This Study (recent)\n[Gt yr$^{-1}$]')
+
+    ax.set_yticks(ax.get_xticks())
+    ax.set_xlim(ax.get_xticks()[[0,-1]])
+    ax.set_ylim(ax.get_xlim())
+
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    bias = np.mean(x.values - y.values)
+    # np.sqrt(np.mean((predictions-targets)**2))
+    rmse = np.sqrt(np.mean((x.values - y.values)**2))
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+
+    arrow = str(" → 0")
+    if ax == axMB: arrow = ""
+    s = "r$^2$: %.2f\nbias: %.1f"+arrow+"\nrmse: %.1f"
+    ax.text(1.0, -0.03, s % (round(r_value**2,2), round(bias,1), round(rmse,2)),
+            transform=ax.transAxes,
+            horizontalalignment='right',
+            fontsize=9)
+
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
+
+my_plot(axSMB, smb['smb'], smb['smb_err'], kb['smb'], kb['smb_err'])
+my_plot(axD,   mmb['mmb'], mmb['mmb_err'], kb['mmb'], kb['mmb_err'])
+s = my_plot(axMB,
+            smb['smb']-mmb['mmb'],
+            (smb['smb_err']**2+mmb['mmb_err']**2)**0.5,
+            (kb['smb']-SMB_BIAS) - (kb['mmb']-MMB_BIAS),
+            (kb['smb_err']**2+kb['mmb_err']**2)**0.5)
+
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
+
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+# axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+axCB = add_sub_axes(axMB, [0.0, -0.8, 1, 0.075])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+cb.ax.xaxis.set_ticks_position('top')
+cb.ax.xaxis.set_label_position('top')
+# cb.set_label("Time [year]", labelpad=-20)
+axCB.set_xticklabels(kb.index.year[[0,-1]].values)
+
+plt.savefig('fig/KB_adjusted.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+: <ipython-input-64-49391b7caaa1>:212: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('fig/KB_adjusted.png', transparent=False, bbox_inches='tight', dpi=300)
+
 * TMB
+
 Generate a TMB netcdf file from SMB, MMB, and BMB
 
 ** Load SMB
@@ -1502,15 +1727,17 @@ mmb['region'] = mmb['region'].astype(str)
 bmb = xr.open_dataset('./tmp/bmb.nc')
 bmb['region'] = bmb['region'].astype(str)
 
-bmb['bmb'] = (('time'), bmb['GF_sector'].sum(dim='sector') \
-              + bmb['vel_sector'].sum(dim='sector') \
-              + bmb['VHD_sector'].sum(dim='sector'))
+bmb['bmb'] = (('time'), (bmb['GF_sector'] \
+                         + bmb['vel_sector'] \
+                         + bmb['VHD_sector']).sum(dim='sector'))
+
+bmb['bmb_err'] = (('time'), ((bmb['GF_sector_err']**2 \
+                              + bmb['vel_sector_err']**2 \
+                              + bmb['VHD_sector_err']**2)**0.5).sum(dim='sector'))
 
 bmb['bmb_sector'] = (('time','sector'), bmb['VHD_sector'] + bmb['GF_sector'] + bmb['vel_sector'])
 bmb['bmb_region'] = (('time','region'), bmb['VHD_region'] + bmb['GF_region'] + bmb['vel_region'])
 # bmb['bmb_basin'] = bmb['VHD_basin'] + bmb['GF_basin'] + bmb['vel_basin']
-
-bmb['bmb_err'] = (('time'), ((bmb['GF_sector_err']**2 + bmb['vel_sector_err']**2 + bmb['VHD_sector_err']**2)**0.5).sum(dim='sector'))
 
 bmb['bmb_sector_err'] = (('time','sector'), \
                          ((bmb['GF_sector_err'].expand_dims({'time':bmb['time'].size}))**2 \
@@ -1546,55 +1773,99 @@ bmb[['VHD_sector','GF_sector','vel_sector','bmb']].sum(dim='sector').to_datafram
 | 1986-11-01 00:00:00 | 0.00239901 |  0.490327 |   0.973051 | 1.46578 |
 | 1986-12-01 00:00:00 | 0.00201692 |  0.506671 |    1.00549 | 1.51417 |
 
++ Monthly changes in VHD seem reasonable
++ Changes in GF and vel (constants) are due to days-in-month.
 
-** Box 2013
-#+name: load_box
+** Load and adjust Historical (KB)
+
+#+NAME: load_and_adjust_KB
 #+BEGIN_SRC jupyter-python
-import pandas as pd
+<<load_kb>>
 
-fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
-box = pd.read_csv('/home/kdm/data/Box_2013/' + fname, index_col=0, parse_dates=True)
+SMB_BIAS = 31.23
+MMB_BIAS = 25.9
 
-# dfK["SMB"]=dfK.accumulation-dfK.runoff
+kb['smb'] = kb['smb'] - SMB_BIAS
+kb['mmb'] = kb['mmb'] - MMB_BIAS
 
-box['mmb'] = box['discharge from 6 year lagged average runoff']
-box['mmb_err'] = box['discharge 1sigma']
-box['mb'] = box['TMB']
-box['mb_err'] = box['TMB 1sigma']
-box['smb'] = box['accumulation'] - box['runoff']
-box['smb_err'] = (box['accumulation 1sigma']**2 + box['runoff 1sigma']**2)**0.5
+## Add BMB
+import scipy.stats as sps
 
-# box.head()
+<<load_bmb>>
+
+# constant or time invariant:
+bmb_C = bmb[['GF_sector','vel_sector','GF_sector_err','vel_sector_err']]\
+    .to_dataframe()\
+    .sum(axis='index')
+
+# VHD is time variable.
+v = bmb[['VHD_sector','VHD_sector_err']]\
+    .resample({'time':'YS'})\
+    .sum()\
+    .sum(dim='sector')\
+    .to_dataframe()
+
+vr = v.merge(kb['runoff'], left_index=True, right_index=True)
+slope, intercept, r_value, p_value, std_err = sps.linregress(vr['runoff'].values,
+                                                             vr['VHD_sector'].values)
+
+print('slope: ', slope)
+print('intercept: ', intercept)
+print('r^2: ', r_value**2)
+print('p: ', p_value)
+print('std_err :', std_err)
+
+kb['bmb_GF'] = bmb_C['GF_sector']*365
+kb['bmb_GF_err'] = bmb_C['GF_sector_err']*365
+kb['bmb_vel'] = bmb_C['vel_sector']*365
+kb['bmb_vel_err'] = bmb_C['vel_sector_err']*365
+
+kb['bmb_VHD'] = (kb['runoff']) * slope
+kb['bmb_VHD_err'] = (kb['runoff 1sigma']) * slope
+
+kb[[_ for _ in kb.columns if '_' in _ ]].head()
+
+kb['bmb'] = kb[['bmb_GF','bmb_vel','bmb_VHD']].sum(axis='columns')
+kb['bmb_err'] = (kb['bmb_GF']**2 \
+                  + kb['bmb_vel']**2 \
+                  + kb['bmb_VHD']**2)**0.5
+
+kb['mb'] = kb['smb'] - kb['mmb'] - kb['bmb']
 #+END_SRC
 
-#+RESULTS: load_box
+#+RESULTS: load_and_adjust_KB
+: slope:  0.0432215562085079
+: intercept:  -4.910958249349447
+: r^2:  0.7883317314056919
+: p:  6.557623130167223e-10
+: std_err : 0.004479234197443158
 
+  
 ** Create TMB output
 :PROPERTIES:
 :header-args:jupyter-python+: :tangle build_TMB_nc.py
 :END:
 
-
 #+BEGIN_SRC jupyter-python
-<<load_box>>
-box = box.loc['1840':'1986']
-# box = box.loc['1840':'1986'].resample('1D').ffill().iloc[:-1] # cut off 1986-01-01
-box = box.loc['1840':'1986'].iloc[:-1] # cut off 1986-01-01
+<<load_and_adjust_KB>>
+
+kb = kb.loc['1840':'1986']
+# kb = kb.loc['1840':'1986'].resample('1D').ffill().iloc[:-1] # cut off 1986-01-01
+kb = kb.loc['1840':'1986'].iloc[:-1] # cut off 1986-01-01
 
 
 
 <<load_smb>>
-time = np.append(box.index, smb['time'].values)
+time = np.append(kb.index, smb['time'].values)
 smb = smb.reindex({'time':time})
 smb['smb'] = (('time'),
-              np.append(box['smb'].values/365, smb['smb'].sel({'time':slice('1986','2200')}).values))
+              np.append(kb['smb'].values/365, smb['smb'].sel({'time':slice('1986','2200')}).values))
 smb['smb_err'] = (('time'),
-                  np.append(box['smb_err'].values/365, smb['smb_err'].sel({'time':slice('1986','2200')}).values))
+                  np.append(kb['smb_err'].values/365, smb['smb_err'].sel({'time':slice('1986','2200')}).values))
 
 
 
 <<load_mmb>>
-
 dt_last_obs = mmb['time'].values[-1]
 err = []
 for dt in pd.date_range(start=dt_last_obs, end=time[-1]):
@@ -1605,15 +1876,20 @@ for dt in pd.date_range(start=dt_last_obs, end=time[-1]):
 
 mmb = mmb.reindex({'time':time})
 mmb['mmb'] = (('time'),
-              np.append(box['mmb'].values/365, mmb['mmb'].sel({'time':slice('1986','2200')}).values))
+              np.append(kb['mmb'].values/365, mmb['mmb'].sel({'time':slice('1986','2200')}).values))
 mmb['mmb_err'] = (('time'),
-                  np.hstack((box['mmb_err'].values/365,
-                            mmb['mmb_err'].sel({'time':slice('1986',dt_last_obs)}).values,
+                  np.hstack((kb['mmb_err'].values/365,
+                             mmb['mmb_err'].sel({'time':slice('1986',dt_last_obs)}).values,
                              err[1:])).ravel())
 
 
 <<load_bmb>>
 bmb = bmb.reindex({'time':time}).fillna(0)
+bmb['bmb'] = (('time'),
+              np.append(kb['bmb'].values/365, bmb['bmb'].sel({'time':slice('1986','2200')}).values))
+bmb['bmb_err'] = (('time'),
+                  np.append(kb['bmb_err'].values/365, bmb['bmb_err'].sel({'time':slice('1986','2200')}).values))
+
 
 # add the sectors from SMB to MMB (14 and 21(?) don't have any MMB)
 mmb = mmb.reindex({'sector': smb['sector']})# .fillna(0)
@@ -1625,7 +1901,11 @@ mmb = mmb.bfill(dim='time')
 #+END_SRC
 
 #+RESULTS:
-
+: slope:  0.0432215562085079
+: intercept:  -4.910958249349447
+: r^2:  0.7883317314056919
+: p:  6.557623130167223e-10
+: std_err : 0.004479234197443158
 
 #+BEGIN_SRC jupyter-python
 import subprocess
@@ -1648,7 +1928,9 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         mb[roi].attrs["long_name"] = "Mouginot 2019 basins"
        
 
-    mb['mb'] = (('time'), smb['smb'] - mmb['mmb'] - bmb['bmb'])
+    mb_hist = (kb['smb'] - kb['mmb'] - kb['bmb'])/365
+    mb_recent = (smb['smb'] - mmb['mmb'] - bmb['bmb']).to_dataframe('mb').loc['1986':]['mb']
+    mb['mb'] = (('time'), mb_hist.append(mb_recent))
     mb['mb_err'] = (('time'), (smb['smb_err']**2 + mmb['mmb_err']**2 + bmb['bmb_err']**2)**0.5)
 
     v = 'mb'
@@ -1768,7 +2050,6 @@ mb[['mb','mb_err','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe
 #+END_SRC
 
 #+RESULTS:
-
 
 * Validation prep
 ** IO (Mouginot)
@@ -2455,36 +2736,22 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 rc('font', size=12)
 rc('text', usetex=False)
-# matplotlib.pyplot.xkcd()
 
-# n = 4
-# color = plt.cm.viridis(np.linspace(0.1,0.9,n)) # This returns RGBA; convert:
-# hexcolor = map(lambda rgb:'#%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255)),
-#                tuple(color[:,0:-1]))
-# mpl.rcParams['axes.prop_cycle'] = cycler('color' , hexcolor)
-
-# plt.close(1)
 fig = plt.figure(1, figsize=(8,6)) # w,h
-# get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
-# import matplotlib.gridspec as gridspec
-# gs = gridspec.GridSpec(1, 1) #w,h
-# ax = plt.subplot(gs[:,:])
 ax = fig.add_subplot(211)
 
-# MB (this)
 mb = xr.open_dataset("./TMB/mb_sector.nc")
-# mb['mb'] = (('time'), mb[['HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector'))
-# https://stackoverflow.com/questions/60944525/calculate-mean-of-several-xarray-variables
-# mb['mb'] = mb[['HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_array(dim='new').mean('new')
-# mb['mb'].to_dataframe(name='M2021').resample('AS').sum().plot(ax=ax, drawstyle='steps')
 
 kw = {'ax':ax, 'legend':False, 'drawstyle':'steps-post'}
 
-smb = (365*mb[['smb','smb_err']]).to_dataframe()\
-                                 .resample('AS')\
-                                 .mean()
+smb = mb[['smb','smb_err']]\
+    .to_dataframe()\
+    .resample('1D')\
+    .interpolate(method='time')\
+    .resample('AS')\
+    .sum()
 smb['smb'].plot(color='b', linestyle=':', **kw)
 ax.fill_between(smb.index.values,
                 (smb['smb']-smb['smb_err']).values.flatten(),
@@ -2492,10 +2759,12 @@ ax.fill_between(smb.index.values,
                 color='b', alpha=0.1,
                 step='post')
 
-
-mmbbmb = (-365*mb[['mmb','bmb','mmb_err','bmb_err']]).to_dataframe()\
-                                                     .resample('AS')\
-                                                     .mean()
+mmbbmb = -mb[['mmb','bmb','mmb_err','bmb_err']]\
+    .to_dataframe()\
+    .resample('1D')\
+    .interpolate(method='time')\
+    .resample('AS')\
+    .sum()
 mmbbmb['sum'] = mmbbmb[['mmb','bmb']].sum(axis='columns')
 mmbbmb['err'] = (mmbbmb['mmb_err']**2 + mmbbmb['bmb_err']**2)**0.5
 
@@ -2506,17 +2775,12 @@ ax.fill_between(mmbbmb.index.values,
                 color='k', alpha=0.1,
                 step='post')
 
-# axr = ax.twinx()
-# mb['mmb'].to_dataframe(name='M2021')\
-#          .rename(columns={'M2021':'MMB'})\
-#          .resample('AS')\
-#          .sum()\
-#          .plot(ax=axr, legend=False, drawstyle='steps-post', color='gray', linestyle='--')
-# axr.set_ylim([420,520])
+mb_ann = mb[['mb','mb_err']].to_dataframe()\
+                             .resample('1D')\
+                             .interpolate(method='time')\
+                             .resample('AS')\
+                             .sum()
 
-mb_ann = 365 * mb[['mb','mb_err']].to_dataframe()\
-                                  .resample('AS')\
-                                  .mean()
 mb_ann['mb'].plot(color='k', linestyle='-', **kw)
 
 ax.fill_between(mb_ann.index.values,
@@ -2524,11 +2788,6 @@ ax.fill_between(mb_ann.index.values,
                 (mb_ann['mb'] + mb_ann['mb_err']).values.flatten(),
                 color='k', alpha=0.5,
                 step='post')
-
-# mb_ann_pos = mb_ann.where(mb_ann['MB'] > 0, 0)
-# mb_ann_neg = mb_ann.where(mb_ann['MB'] < 0, 0)
-# ax.fill_between(mb_ann_pos.index, mb_ann_pos.values.flatten(), color='r', alpha=0.1, step='post')
-# ax.fill_between(mb_ann_neg.index, mb_ann_neg.values.flatten(), color='b', alpha=0.1, step='post')
 
 ax2 = fig.add_subplot(212)
 
@@ -2541,39 +2800,25 @@ mb['smb'].to_dataframe(name='M2021')\
               .rename(columns={'M2021':'MMB + BMB'})\
               .plot(ax=ax2, color='gray', linestyle='--', legend=False, drawstyle='steps-post')
 
-# axr = ax2.twinx()
-# (-1*mb['mmb']).to_dataframe(name='M2021')\
-#               .rename(columns={'M2021':'MMB'})\
-#               .plot(ax=axr, legend=False, color='gray', linestyle='--')
-
 mb = mb['mb'].to_dataframe(name='M2021')\
              .rename(columns={'M2021':'MB'})
 
 mb.plot(ax=ax2, color='k', linestyle='-', legend=False, drawstyle='steps-post')
 
-# mb_pos = mb.where(mb['MB'] > 0, 0)
-# mb_neg = mb.where(mb['MB'] < 0, 0)
-# ax2.fill_between(mb_pos.index, mb_pos.values.flatten(), color='r', alpha=0.1, step='post')
-# ax2.fill_between(mb_neg.index, mb_neg.values.flatten(), color='b', alpha=0.1, step='post')
-
 ax.set_ylabel("Mass gain [Gt yr$^{-1}$]")
 ax.set_xlabel("")
 ax2.set_xlabel("Time [Year]")
 ax2.set_ylabel("Mass gain [Gt d$^{-1}$]")
-# axr.set_ylabel("MMB loss [Gt d$^{-1}$]")
-# axr.set_yticklabels(np.round(np.abs(axr.get_yticks()),2))
 
 adj(ax, ['left','bottom'])
 adj(ax2, ['left','bottom'])
-# adj(axr, ['right','bottom'])
-# plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
 
 ax.grid(b=True, which='major', axis='y', alpha=0.33)
 ax2.grid(b=True, which='major', axis='y', alpha=0.33)
 
 plt.legend(loc='lower left')
 
-plt.savefig('tmp/mb_ts.png', transparent=False, bbox_inches='tight', dpi=300)
+plt.savefig('fig/mb_ts.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
@@ -2667,174 +2912,142 @@ for r in mb['region'].values:
 #+RESULTS:
 
 
-** DONE SMB/MMB/MB vs. all others time series: REVERSE
+** NOTDONE This recent vs. historical GIS xy
 
-#+BEGIN_SRC jupyter-python :tangle fig_compare.py
+#+BEGIN_SRC jupyter-python
 import xarray as xr
 import numpy as np
 import pandas as pd
-from matplotlib.lines import Line2D
-
-import matplotlib as mpl
+import scipy as sp
+import scipy.stats as sps
+from adjust_spines import adjust_spines as adj
 import matplotlib.pyplot as plt
 from matplotlib import rc
 rc('font', size=12)
 rc('text', usetex=False)
-# matplotlib.pyplot.xkcd()
-
-# | Color       |   R |   G |   B | hex     |
-# |-------------+-----+-----+-----+---------|
-# | light blue  | 166 | 206 | 227 | #a6cee3 |
-# | dark blue   |  31 | 120 | 180 | #1f78b4 |
-# | light green | 178 | 223 | 138 | #b2df8a |
-# | dark green  |  51 | 160 |  44 | #33a02c |
-# | pink        | 251 | 154 | 153 | #fb9a99 |
-# | red         | 227 |  26 |  28 | #e31a1c |
-# | pale orange | 253 | 191 | 111 | #fdbf6f |
-# | orange      | 255 | 127 |   0 | #ff7f00 |
-
-C_M2021 = 'k'
-C_M2019 = 'gray'
-C_GMB = '#e31a1c'
-C_SEC = '#045a8d' # '1f78b4'
-# C_IMBIE = '#2b8cbe' # '#ff7f00'
-C_IMBIE = '#74a9cf'
-C_PROMICE = '#fdbf6f'
 
 # plt.close(1)
-fig = plt.figure(1, figsize=(8,6)) # w,h
+fig = plt.figure(1, figsize=(3.26,7.25)) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
 # import matplotlib.gridspec as gridspec
 # gs = gridspec.GridSpec(1, 1) #w,h
 # ax = plt.subplot(gs[:,:])
-ax = fig.add_subplot(111)
+axSMB = fig.add_subplot(311)
+axD = fig.add_subplot(312)
+axMB = fig.add_subplot(313)
 
-kw = {'clip_on':True, 'linewidth':1, 'legend':False}
-kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
+# df_1840 from modified Kjeldsen (2015)
+<<load_kjeldsen>>
+df_1840 = df_1840.loc['1986':'2012']
 
-# MB (this)
-mb = xr.open_dataset("./TMB/mb_sector.nc")
-mb = mb.sel({'time':slice('1971','2100')})
-M2021 = mb['mb'].to_dataframe(name='mb').resample('1D').ffill().cumsum()
-M2021['err'] = mb['mmb_err'].to_dataframe(name='err')[::-1].cumsum()[::-1]
-M2021.loc[:'1985'] = M2021.loc[:'1985'].resample('Y').mean().resample('1D').bfill()
+mb = xr.open_dataset('./TMB/mb_region.nc')\
+       .resample({'time':'YS'})\
+       .sum()\
+       .reindex(time=df_1840.index)
+            
+# graphics
+def my_plot(ax, x, xerr, y, yerr):
 
-# OFFSET = M2021['mb'].resample('YS').mean().max()
-OFFSET = -400
-M2021['mb'] = M2021['mb'] - OFFSET
+    years = x.time.dt.year.values
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(str)]
 
-tt = (M2021.index.max() - M2021.index) / (M2021.index.max() - pd.Timestamp('2000-01-01'))
-tt = tt.where(tt <= 1, 1)
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
 
-M2021['bumpy'] = M2021['mb']
-M2021['smooth'] = M2021['bumpy'].rolling(365).mean()
-M2021['err_core'] = (M2021['bumpy'] * (1-tt)) + (M2021['smooth'] * tt)
-p_M2021 = M2021['mb'].plot(ax=ax, color=C_M2021, drawstyle='steps-post', **kw)
-ax.fill_between(M2021.index,
-                (M2021['err_core'] - M2021['err']).values.flatten(),
-                (M2021['err_core'] + M2021['err']).values.flatten(),
-                color=C_M2021, **kw_err)
-
-# Mouginot
-if 'mouginot' not in locals():
-    <<load_mouginot>>
-M2019 = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
-M2019 = M2019 - np.min(M2019) - 5100
-M2019_err = mouginot['MB_err'].sum(dim='region').to_dataframe('M2019')[::-1].cumsum()[::-1]
-M2019 = M2019[M2019.index.year >= 1971]
-M2019_err = M2019_err[M2019_err.index.year >= 1971]
-p_M2019 = M2019.plot(ax=ax, label='M2019', color=C_M2019, **kw)
-(M2019-M2019_err*0.75).plot(ax=ax, color=C_M2019, alpha=0.25, linestyle='--', **kw)
-(M2019+M2019_err*0.75).plot(ax=ax, color=C_M2019, alpha=0.25, linestyle='--', **kw)
-
-
-
-# GRACE
-<<load_grace>>
-grace_scale, grace_offset = 1, -2300
-grace['plot'] = grace_scale * grace['mass']+grace_offset
-grace['plot_err'] = grace_scale * grace['err']
-p_gmb = grace['plot'].plot(ax=ax, label='GMB', color=C_GMB, **kw)
-ax.fill_between(grace['plot'].index,
-                (grace['plot'] + grace['plot_err']),
-                (grace['plot'] - grace['plot_err']),
-                color=C_GMB, **kw_err)
-
-# grace_scale, grace_offset = 0.84, -2800
-# grace['plot'] = grace_scale * grace['mass']+grace_offset
-# grace['plot_err'] = grace_scale * grace['err']
-# p_gmb = grace['plot'].plot(ax=ax, label='GRACE', color=C_GMB, **kw)
-# ax.fill_between(grace['plot'].index,
-#                 (grace['plot'] + grace['plot_err']),
-#                 (grace['plot'] - grace['plot_err']),
-#                 color=C_GMB, **kw_err)
-
-
-# SEC
-<<load_sec>>
-sec_sum = sec['SEC'].sum(dim='sector').to_dataframe(name='SEC').cumsum()
-sec_sum = sec_sum - np.min(sec_sum) + -5200
-sec_err = sec['err'].sum(dim='sector').to_dataframe(name='SEC')[::-1].cumsum()[::-1]
-p_SEC = sec_sum.plot(ax=ax, label='VC', color=C_SEC, **kw)
-(sec_sum - sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
-(sec_sum + sec_err).plot(ax=ax, linestyle='--', color=C_SEC, **kw)
-
-
-
-
-# IMBIE
-<<load_imbie>>
-imbie = imbie[['mb_cum','mb_cum_err']].dropna()
-imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum'])  - 5200
-p_IMBIE = imbie['mb_cum'].plot(ax=ax, label='IMBIE', color=C_IMBIE, **kw)
-ax.fill_between(imbie.index,
-               imbie['mb_cum'] - imbie['mb_cum_err'][::-1].values,
-               imbie['mb_cum'] + imbie['mb_cum_err'][::-1].values,
-               color=C_IMBIE, **kw_err)
-
-
-
-# PROMICE MB (Colgan 2019)
-<<load_PROMICE_MB>>
-P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
-P = P - np.min(P) - 4400
-P_err = promice['MB_err'].sum(dim="sector").to_dataframe('C2019')[::-1].cumsum()[::-1]
-p_PROMICE = P.plot(ax=ax, label='C2019', color=C_PROMICE, **kw)
-kw_err['alpha'] = 0.33
-ax.fill_between(P.index.values, (P-P_err*0.75).values.flatten(), (P+P_err*0.75).values.flatten(), color = C_PROMICE, **kw_err)
-
-
-<<load_box>>
-B = box['TMB'].cumsum().loc['1986':]
-B = B - np.min(B) - 3600
-B_err = box['TMB 1sigma'][::-1].cumsum()[::-1].loc['1986':]
-p_box = B.plot(ax=ax, label='K2015', color='cyan', **kw)
-kw_err['alpha'] = 0.05
-ax.fill_between(B.index.values, (B-B_err).values.flatten(), (B+B_err).values.flatten(),
-                color='cyan', **kw_err)
-
-from adjust_spines import adjust_spines as adj
-adj(ax, ['right','bottom'])
-
-ax.set_ylabel("Mass loss [Gt]")
-ax.set_xlabel("Time [Year]")
-# ax.set_ylim([0,7000])
-# ax.set_yticklabels(['0','-1000','-2000','-3000','-4000','-5000','-6000','-7000'])
-ax.grid(b=True, which='major', axis='y', alpha=0.33)
+    e = ax.errorbar(x.values, y.values, xerr=xerr, yerr=yerr, fmt=',', color='k', alpha=0.5, linewidth=0.5)
+    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
     
-color = [C_M2021, C_M2019, C_GMB, C_SEC, C_IMBIE, C_PROMICE, 'cyan']
-label = ['This Study', 'M2019', 'GMB', 'VC', 'IMBIE', 'C2019', 'K2015']
-lines = [Line2D([0], [0], color=c) for c in color]
-plt.legend(lines, label)
+    for i,s in enumerate(y2str):
+        ax.text(x.values[i], y.values[i], s,
+                c = cmap(color)[i],
+                fontsize=10,
+                fontweight='bold',
+                horizontalalignment='center',
+                verticalalignment='center')
 
-# plt.legend()
-plt.savefig('tmp/mb_cumsum_compare.png', transparent=False, bbox_inches='tight', dpi=300)
-plt.savefig('tmp/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight', dpi=300)
+    if ax == axSMB:
+        ax.text(0, 0.9, 'SMB', transform=ax.transAxes)
+        ax.set_xticks([0,600])
+        ax.set_ylabel('Historical\n[Gt yr$^{-1}$]', labelpad=-25)
+    if ax == axD:
+        ax.text(0, 0.9, 'MMB [+ BMB]', transform=ax.transAxes)
+        ax.set_xticks([0,600])
+    if ax == axMB:
+        ax.text(0, 0.9, 'MB', transform=ax.transAxes)
+        ax.set_xticks([-450, 0, 150])
+        ax.set_xlabel('Recent\n[Gt yr$^{-1}$]')
+
+    ax.set_yticks(ax.get_xticks())
+    ax.set_xlim(ax.get_xticks()[[0,-1]])
+    ax.set_ylim(ax.get_xlim())
+
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    bias = np.mean(x.values - y.values)
+    # np.sqrt(np.mean((predictions-targets)**2))
+    rmse = np.sqrt(np.mean((x.values - y.values)**2))
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value**2,2), round(bias,1), round(rmse,2)),
+            transform=ax.transAxes,
+            horizontalalignment='right',
+            fontsize=9)
+
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
+
+my_plot(axSMB, mb['smb'], mb['smb_err'], df_1840['smb'], df_1840['smb_err'])
+my_plot(axD,   mb['mmb']+mb['bmb'], (mb['mmb_err']**2+mb['bmb_err']**2)**0.5, df_1840['D'], df_1840['D_err'])
+s = my_plot(axMB,  mb['mb'], mb['mb_err'], df_1840['mb'], df_1840['mb_err'])
+
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
+
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+# axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+axCB = add_sub_axes(axMB, [0.0, -0.8, 1, 0.075])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+cb.ax.xaxis.set_ticks_position('top')
+cb.ax.xaxis.set_label_position('top')
+# cb.set_label("Time [year]", labelpad=-20)
+axCB.set_xticklabels(df_1840.index.year[[0,-1]].values)
+
+plt.savefig('fig/kjeldsen_2015.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
+:RESULTS:
+# [goto error]
+: 
+: NameErrorTraceback (most recent call last)
+: <ipython-input-57-c609bb5b98c1> in <module>
+:      24 # df_1840 from modified Kjeldsen (2015)
+:      25 
+: ---> 26 df_1840 = df_1840.loc['1986':'2012']
+:      27 
+:      28 mb = xr.open_dataset('./TMB/mb_region.nc')\
+: 
+: NameError: name 'df_1840' is not defined
+:END:
+
 
 ** DONE This vs. Mouginot (2019): GIS xy
 
@@ -2915,7 +3128,7 @@ def my_plot(ax, x, xerr, y, yerr):
     # np.sqrt(np.mean((predictions-targets)**2))
     rmse = np.sqrt(np.mean((x.values - y.values)**2))
     # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
-    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value,2), round(bias,1), round(rmse,2)),
+    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value**2,2), round(bias,1), round(rmse,2)),
             transform=ax.transAxes,
             horizontalalignment='right',
             fontsize=9)
@@ -3044,7 +3257,7 @@ def my_plot(ax, x, xerr, y, yerr):
     # np.sqrt(np.mean((predictions-targets)**2))
     rmse = np.sqrt(np.mean((x.values - y.values)**2))
     # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
-    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value,2), round(bias,1), round(rmse,2)),
+    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value**2,2), round(bias,1), round(rmse,2)),
             transform=ax.transAxes,
             horizontalalignment='right',
             fontsize=9)
@@ -3110,17 +3323,16 @@ rc('text', usetex=False)
 
 # ONE COLUMN: %\includegraphics[width=8.3cm]{FILE NAME}
 
-fig = plt.figure(1, figsize=(3.26, 9.33)) # w,h
+fig = plt.figure(1, figsize=(3.26, 7)) # w,h
 # get_current_fig_manager().window.move(0,0)
 fig.clf()
 fig.set_tight_layout(True)
 # import matplotlib.gridspec as gridspec
 # gs = gridspec.GridSpec(1, 1) #w,h
 # ax = plt.subplot(gs[:,:])
-axGRACE = fig.add_subplot(411)
-axSEC = fig.add_subplot(412)
-axIMBIE = fig.add_subplot(413)
-axBOX = fig.add_subplot(414)
+axGRACE = fig.add_subplot(311)
+axSEC = fig.add_subplot(312)
+axIMBIE = fig.add_subplot(313)
 
 # this
 this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
@@ -3128,10 +3340,17 @@ this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .sum()[['mb','mb_err']]
 
 
+del(grace)
 if 'grace' not in locals():
     <<load_grace>>
-    grace = grace.resample('1D').mean().interpolate(method='time').resample('YS').mean().diff().dropna()
-    this_mb_grace = this_mb.sel({'time':slice(grace.index[0], grace.index[-1])})
+    # g2 = grace.copy(deep=True)
+    # grace = grace.resample('1D').mean().interpolate(method='time').resample('YS').mean().diff().dropna()
+    # grace = grace.diff().dropna().resample('YS').sum()
+    grace = (grace.resample('1D').mean().interpolate(method='time')/365).resample('YS').sum().diff()
+    grace[grace.index.year == 2017] = np.nan
+    grace = grace.dropna()
+    grace = grace.iloc[1:-1]
+    this_mb_grace = this_mb.sel({'time':grace.index})
 
 if 'sec' not in locals():
     <<load_SEC>>
@@ -3147,11 +3366,6 @@ if 'imbie' not in locals():
     imbie = imbie[imbie.index.year > 1986]
     imbie = imbie.dropna()
     this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
-
-<<load_box>>
-box = box.loc['1986':'2012'].rename(columns={'TMB 1sigma':'err'})[['TMB','err']]
-this_mb_box = this_mb.sel({'time':slice('1986-01-01','2012-12-31')})
-
 
 # graphics
 def my_plot(ax, x, xerr, y, yerr):
@@ -3185,8 +3399,6 @@ def my_plot(ax, x, xerr, y, yerr):
         ax.set_ylabel('VC\n[Gt yr$^{-1}$]', labelpad=-25)
     if ax == axIMBIE:
         ax.set_ylabel('IMBIE\n[Gt yr$^{-1}$]', labelpad=-25)
-    if ax == axBOX:
-        ax.set_ylabel('K2015\n[Gt yr$^{-1}$]', labelpad=-25)
         ax.set_xlabel('This Study\n[Gt yr$^{-1}$]', labelpad=0)
     
     ax.set_xticks([-450, 0, 150])
@@ -3201,12 +3413,21 @@ def my_plot(ax, x, xerr, y, yerr):
     # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
     ax.text(1.0, -0.03,
             "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f"
-            % (round(r_value,2), round(bias,1), round(rmse,2)),
+            % (round(r_value**2,2), round(bias,1), round(rmse,2)),
             transform=ax.transAxes,
             horizontalalignment='right',
             fontsize=9)
 
     ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+
+    axCB = add_sub_axes(ax, [0.05, 0.95, 0.3, 0.05])
+    cb = plt.colorbar(scatter, cax=axCB, orientation='horizontal', ticks=[0,1])
+    cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+    cb.draw_all()
+    axCB.set_xticklabels(years[[0,-1]])
+    for tick in axCB.xaxis.get_major_ticks():
+        tick.label.set_fontsize(9) 
+
     adj(ax, ['left','bottom'])
     return scatter
 
@@ -3214,20 +3435,19 @@ def my_plot(ax, x, xerr, y, yerr):
 s = my_plot(axGRACE, this_mb_grace['mb'], this_mb_grace['mb_err'], grace['mass'], grace['err'])
 s = my_plot(axSEC, this_mb_sec['mb'], this_mb_sec['mb_err'], sec['SEC'], sec['err'])
 s = my_plot(axIMBIE,  this_mb_imbie['mb'], this_mb_imbie['mb_err'], imbie['mb'], imbie['mb_err'])
-s = my_plot(axBOX,  this_mb_box['mb'], this_mb_box['mb_err'], box['TMB'], box['err'])
 
-plt.savefig('tmp/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
+plt.savefig('fig/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: [2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016
-:  2017 2018 2019 2020]
+: [2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2018
+:  2019]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
-: [1986 1987 1988 1989 1990 1991 1992 1993 1994 1995 1996 1997 1998 1999
-:  2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012]
+: <ipython-input-123-d5f1d6d7abec>:191: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('fig/this_v_grace_sec_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 
 [[./tmp/this_v_grace_sec_imbie.png]]
 
@@ -4761,6 +4981,400 @@ plt.bar(this_smb['time'], xpos, this_smb.sector, this_smb
 #+RESULTS:
 
 
+** DONE Mankoff 2020 mmb vs. 6yr avg runoff
+
+Comparison data provenance:
+
++ [[mu4e:msgid:AM5PR04MB309066C23A108AEF8D386F64B46B9@AM5PR04MB3090.eurprd04.prod.outlook.com][link to email]]
+
+#+BEGIN_QUOTE
+From: Kristian Kjellerup Kjeldsen
+To: Ken Mankoff
+Date: Tue 16 Mar 2021 08:27:30 AM PDT
+Attachments: SID vs 6ave runoff.xlsx (11.9K)
+#+END_QUOTE
+
+That attachment saved as [[./dat/D_vs_6yr_runoff.csv]] with column headers changed.
+
+#+BEGIN_SRC bash :results verbatim
+md5sum ./dat/D_vs_6yr_runoff.csv
+#+END_SRC
+
+#+RESULTS:
+: 7f447034ced2060fd73d8d0c8984aca3  ./dat/D_vs_6yr_runoff.csv
+
+
+#+BEGIN_SRC jupyter-python
+import numpy as np
+import pandas as pd
+from adjust_spines import adjust_spines as adj
+import scipy.stats as sps
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+# plt.close(1)
+fig = plt.figure(1, figsize=(3.26,3)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+ax = fig.add_subplot(111)
+
+df = pd.read_csv('./dat/D_vs_6yr_runoff.csv', parse_dates=True, index_col=0)
+
+# graphics
+def my_plot(ax, x, xerr, y, yerr):
+
+    years = x.index.year.values
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(str)]
+
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
+
+    e = ax.errorbar(x.values, y.values, xerr=xerr, yerr=yerr, fmt=',', color='k', alpha=0.5, linewidth=0.5)
+    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
+    for i,s in enumerate(y2str):
+        ax.text(x.values[i], y.values[i], s,
+                c = cmap(color)[i],
+                fontsize=10,
+                fontweight='bold',
+                horizontalalignment='center',
+                verticalalignment='center')
+
+    # ax.text(0, 0.9, 'MMB', transform=ax.transAxes)
+    ax.set_xticks([250,550])
+    ax.set_xlabel('Runoff\n[Gt yr$^{-1}$]')
+    ax.set_ylabel('Discharge\n[Gt yr$^{-1}$]', labelpad=-25)
+
+    ax.set_yticks(ax.get_xticks())
+    ax.set_xlim(ax.get_xticks()[[0,-1]])
+    ax.set_ylim(ax.get_xlim())
+        
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    # print(slope, intercept, r_value**2, p_value, std_err)
+    bias = np.mean(x.values - y.values)
+    rmse = np.sqrt(np.mean((x.values - y.values)**2))
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value**2,2), round(bias,1), round(rmse,2)),
+            transform=ax.transAxes,
+            horizontalalignment='right',
+            fontsize=9)
+
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
+s = my_plot(ax, df['6yr_runoff'], df['6yr_runoff']*0, df['D'], df['D']*0)
+
+
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
+
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+# axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+axCB = add_sub_axes(ax, [0.0, -0.75, 1, 0.075])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+cb.ax.xaxis.set_ticks_position('top')
+cb.ax.xaxis.set_label_position('top')
+# cb.set_label("Time [year]", labelpad=-20)
+axCB.set_xticklabels(df.index.year[[0,-1]].values)
+
+plt.savefig('fig/mmb_v_6yr.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+: <ipython-input-178-6cf82cd001b2>:92: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('fig/mmb_v_6yr.png', transparent=False, bbox_inches='tight', dpi=300)
+
+
+[[./fig/mmb_v_6yr.png]]
+
+
+** DONE Mankoff 2020 runoff vs . 6yr avg runoff
+
+Comparison data provenance:
+
++ [[mu4e:msgid:AM5PR04MB309066C23A108AEF8D386F64B46B9@AM5PR04MB3090.eurprd04.prod.outlook.com][link to email]]
+
+#+BEGIN_QUOTE
+From: Kristian Kjellerup Kjeldsen
+To: Ken Mankoff
+Date: Tue 16 Mar 2021 08:27:30 AM PDT
+Attachments: SID vs 6ave runoff.xlsx (11.9K)
+#+END_QUOTE
+
+That attachment saved as [[./dat/D_vs_6yr_runoff.csv]] with column headers changed.
+
+#+BEGIN_SRC bash :results verbatim
+md5sum ./dat/D_vs_6yr_runoff.csv
+#+END_SRC
+
+#+RESULTS:
+: 7f447034ced2060fd73d8d0c8984aca3  ./dat/D_vs_6yr_runoff.csv
+
+#+BEGIN_SRC jupyter-python
+import numpy as np
+import pandas as pd
+import xarray as xr
+from adjust_spines import adjust_spines as adj
+import scipy.stats as sps
+
+import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+# plt.close(1)
+fig = plt.figure(1, figsize=(3.26,5)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+axMAR = fig.add_subplot(211)
+axRACMO = fig.add_subplot(212)
+
+df = pd.read_csv('./dat/D_vs_6yr_runoff.csv', parse_dates=True, index_col=0)
+
+if 'RACMO' not in locals():
+    RACMO = xr.open_mfdataset('/home/kdm/data/Mankoff_2020/water/ice/runoff/RACMO*.nc')['runoff']\
+          .sel({'time':slice('1986','2012')})\
+          .sum(dim='station')\
+          .resample({'time':'YS'})\
+          .mean()\
+          .to_dataframe()
+
+    MAR = xr.open_mfdataset('/home/kdm/data/Mankoff_2020/water/ice/runoff/MAR*.nc')['runoff']\
+          .sel({'time':slice('1986','2012')})\
+          .sum(dim='station')\
+          .resample({'time':'YS'})\
+          .mean()\
+          .to_dataframe()
+    
+    # m^3/s summed to year
+    RACMO = RACMO * 0.03155
+    MAR = MAR * 0.03155
+
+# graphics
+def my_plot(ax, x, xerr, y, yerr):
+
+    years = x.index.year.values
+    color = years - min(years); color = color / max(color)
+    y2str = [_[2:4] for _ in years.astype(str)]
+
+    # https://stackoverflow.com/questions/51034408/how-to-make-the-color-of-one-end-of-colorbar-darker-in-matplotlib
+    cmap = cm.viridis(color)
+    cmap = mpl.colors.ListedColormap(cmap[:-3,:-1])
+
+    e = ax.errorbar(x.values, y.values, xerr=xerr, yerr=yerr, fmt=',', color='k', alpha=0.5, linewidth=0.5)
+    scatter = ax.scatter(x.values, y.values, alpha=0, c=color, cmap=cmap)
+    for i,s in enumerate(y2str):
+        ax.text(x.values[i], y.values[i], s,
+                c = cmap(color)[i],
+                fontsize=10,
+                fontweight='bold',
+                horizontalalignment='center',
+                verticalalignment='center')
+
+    if ax == axMAR:
+        ax.set_ylabel('MAR runoff\n[Gt yr$^{-1}$]', labelpad=-25)
+    else:
+        ax.set_ylabel('RACMO runoff\n[Gt yr$^{-1}$]', labelpad=-25)
+        ax.set_xlabel('KB runoff\n[Gt yr$^{-1}$]')
+
+    ax.set_xticks([0,1E3])
+    ax.set_yticks(ax.get_xticks())
+    ax.set_xlim(ax.get_xticks()[[0,-1]])
+    ax.set_ylim(ax.get_xlim())
+        
+    slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
+    # print(slope, intercept, r_value**2, p_value, std_err)
+    bias = np.mean(x.values - y.values)
+    rmse = np.sqrt(np.mean((x.values - y.values)**2))
+    # ax.plot(x, slope * x + intercept, 'k', linewidth=0.5)
+    ax.text(1.0, -0.03, "r$^2$: %.2f\nbias: %.1f\nrmse: %.1f" % (round(r_value**2,2), round(bias,1), round(rmse,2)),
+            transform=ax.transAxes,
+            horizontalalignment='right',
+            fontsize=9)
+
+    ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
+    adj(ax, ['left','bottom'])
+    return scatter
+
+s = my_plot(axRACMO, df['6yr_runoff'], df['6yr_runoff']*0, RACMO['runoff'], RACMO['runoff']*0)
+s = my_plot(axMAR, df['6yr_runoff'], df['6yr_runoff']*0, MAR['runoff'], MAR['runoff']*0)
+
+
+# https://stackoverflow.com/questions/17478165/
+def axis_to_fig(axis):
+    fig = axis.figure
+    def transform(coord):
+        return fig.transFigure.inverted().transform(
+            axis.transAxes.transform(coord))
+    return transform
+
+def add_sub_axes(axis, rect):
+    fig = axis.figure
+    left, bottom, width, height = rect
+    trans = axis_to_fig(axis)
+    figleft, figbottom = trans((left, bottom))
+    figwidth, figheight = trans([width,height]) - trans([0,0])
+    return fig.add_axes([figleft, figbottom, figwidth, figheight])
+
+# axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
+axCB = add_sub_axes(axRACMO, [0.0, -0.75, 1, 0.075])
+cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
+cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
+cb.draw_all()
+cb.ax.xaxis.set_ticks_position('top')
+cb.ax.xaxis.set_label_position('top')
+# cb.set_label("Time [year]", labelpad=-20)
+axCB.set_xticklabels(df.index.year[[0,-1]].values)
+
+plt.savefig('fig/runoff_MAR_RACMO_KB.png', transparent=False, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+: <ipython-input-56-766334983d5d>:116: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+:   plt.savefig('fig/runoff_MAR_RACMO_KB.png', transparent=False, bbox_inches='tight', dpi=300)
+
+
+[[./fig/mmb_v_6yr.png]]
+
+
+** Stats
+
+*** Annual GIS
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+
+mb = xr.open_dataset('./TMB/mb_region.nc')\
+       .resample({'time':'1D'})\
+       .interpolate()\
+       .resample({'time':'YS'})\
+       .sum()
+
+df_yr = mb[['mb','mb_err','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe()
+
+df_yr.describe()
+#+END_SRC
+
+#+RESULTS:
+|       |       mb |  mb_err |     smb | smb_err |     mmb | mmb_err |     bmb |  bmb_err |
+|-------+----------+---------+---------+---------+---------+---------+---------+----------|
+| count |      182 |     182 |     182 |     182 |     182 |     182 |     182 |      182 |
+| mean  | -102.305 | 86.4549 | 354.496 | 66.1975 | 429.251 | 41.0903 | 27.5499 |  14.6388 |
+| std   |  95.3457 | 9.82746 | 76.6481 |   21.58 | 42.5868 | 5.89583 | 2.94747 |  4.58547 |
+| min   | -434.602 | 11.5812 | 82.2118 | 6.57694 | 84.1386 |  8.7907 | 2.68443 | 0.779265 |
+| 25%   |  -160.12 | 80.3589 |  311.91 | 64.7006 | 405.333 | 37.2432 |  26.123 |  15.0577 |
+| 50%   | -91.2036 | 87.8489 | 362.007 |  74.262 | 429.959 | 40.6933 | 27.8016 |  16.4186 |
+| 75%   |  -39.761 | 92.0313 | 398.331 | 79.7856 | 451.414 | 44.6182 | 29.0129 |  17.3025 |
+| max   |  148.424 | 105.213 | 603.404 | 93.0328 |  504.25 | 52.3235 | 34.0366 |  20.0621 |
+
+Years with min & max mb
+
+#+BEGIN_SRC jupyter-python
+print(df_yr.iloc[df_yr['mb'].argmin()])
+print("")
+print(df_yr.iloc[df_yr['mb'].argmax()])
+print("")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+mb        -434.602037
+mb_err     103.767156
+smb         95.646046
+smb_err      7.651684
+mmb        496.211501
+mmb_err     51.345162
+bmb         34.036582
+bmb_err      6.831743
+Name: 2012-01-01 00:00:00, dtype: float64
+
+mb         148.424408
+mb_err      78.861884
+smb        603.403984
+smb_err     69.791974
+mmb        430.800000
+mmb_err     34.190000
+bmb         24.179576
+bmb_err     11.777614
+Name: 1985-01-01 00:00:00, dtype: float64
+#+end_example
+
+Largest change
+
+#+BEGIN_SRC jupyter-python
+df_yr_diff = df_yr.diff()
+df_yr_diff.describe()
+#+END_SRC
+
+#+RESULTS:
+|       |        mb |    mb_err |      smb |   smb_err |      mmb |   mmb_err |        bmb |     bmb_err |
+|-------+-----------+-----------+----------+-----------+----------+-----------+------------+-------------|
+| count |       181 |       181 |      181 |       181 |      181 |       181 |        181 |         181 |
+| mean  | -0.242814 | -0.415007 |  -2.0052 | -0.390133 | -1.64134 | -0.153203 |  -0.121039 |   -0.078128 |
+| std   |   81.0839 |   7.35376 |  79.3727 |   6.89853 |  31.9808 |   3.58547 |    2.50087 |    0.996112 |
+| min   |  -360.914 |  -61.3578 | -350.869 |  -28.0695 | -420.111 |  -43.5328 |   -18.5792 |    -6.22185 |
+| 25%   |  -40.0463 |  -3.13589 | -40.4169 |  -3.35965 | -3.60679 | -0.924105 |   -1.02823 |   -0.424349 |
+| 50%   |  -4.10018 | -0.110043 | -3.86164 | -0.126352 | 0.855534 |  0.134652 | -0.0121199 | -0.00647888 |
+| 75%   |   42.1178 |    2.9268 |  36.4895 |   2.88638 |  4.72267 |  0.932234 |   0.910387 |     0.42807 |
+| max   |    347.72 |   16.7093 |  342.639 |   27.4111 |  22.7996 |   10.8596 |     7.9449 |     1.78975 |
+
+Years with min & max change in mb
+
+#+BEGIN_SRC jupyter-python
+print(df_yr_diff[['mb','mb_err','mmb']].iloc[df_yr_diff['mb'].argmin()])
+print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmin()])
+print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmin()-1])
+print("")
+
+print(df_yr_diff[['mb','mb_err','mmb']].iloc[df_yr_diff['mb'].argmax()])
+print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmax()])
+print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmax()-1])
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+mb       -360.913546
+mb_err     15.337915
+mmb         2.850850
+Name: 2019-01-01 00:00:00, dtype: float64
+mb       -431.518994
+mb_err     95.409750
+Name: 2019-01-01 00:00:00, dtype: float64
+mb       -70.605448
+mb_err    80.071835
+Name: 2018-01-01 00:00:00, dtype: float64
+
+mb        347.720065
+mb_err      6.933070
+mmb        -3.063021
+Name: 1996-01-01 00:00:00, dtype: float64
+mb        139.772202
+mb_err     80.533761
+Name: 1996-01-01 00:00:00, dtype: float64
+mb       -207.947863
+mb_err     73.600691
+Name: 1995-01-01 00:00:00, dtype: float64
+#+end_example
+
 ** CRediT
 
 #+NAME: tbl_credit
@@ -5315,3 +5929,104 @@ clean_SMB:
 
 
 * Testing
+** Kjeldsen 2015 vs. Box 2013
+
++ Kjeldsen expands Box to include peripheral glaciers.
++ We want to un-do that scaling, but include the error estimate and Y2011 & Y2012 from Kjeldsen
+
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+
+datadir='/home/kdm/data/'
+kw = {'index_col':0, 'parse_dates':True}
+b = pd.read_csv(datadir+'Box_2013/Greenland_mass_balance_1840-2011_Box_and_Colgan_2013.txt', delim_whitespace=True, **kw)
+k = pd.read_csv(datadir+'Box_2013/Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv', **kw)
+
+print(b.columns)
+print(k.columns)
+
+d = b['TMB'] - k['TMB']
+d.plot()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+: Index(['Snow', 'Accu', 'Melt', 'A_int', 'Runof', 'SMB', 'Disc', 'TMB', 'T_mean', 'PDD_t'], dtype='object')
+: Index(['accumulation', 'accumulation 1sigma', 'melt', 'melt 1sigma', 'retention',
+:        'retention 1sigma', 'runoff', 'runoff 1sigma',
+:        'discharge from 6 year lagged average runoff', 'discharge 1sigma', 'TMB', 'TMB 1sigma'],
+:       dtype='object')
+: <AxesSubplot:>
+:END:
+
+** This Study VHD vs. Box 2013 runoff
+
+#+BEGIN_SRC jupyter-python
+import pandas as pd
+import xarray as xr
+
+<<load_kjeldsen>>
+
+bmb = xr.open_dataset('./tmp/bmb.nc')
+
+ru = box['runoff']
+vhd = bmb['VHD_sector'].sum(dim='sector').to_dataframe(name='VHD').resample('YS').sum()
+
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+
+fig = plt.figure(1, figsize=(5,4)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+ax = fig.add_subplot(111)
+
+# ax.plot(np.sin(np.arange(0,2*pi,0.1)))
+
+# ru.plot(ax=ax)
+# vhd.plot(ax=ax)
+
+comp = pd.DataFrame(ru).merge(vhd, left_index=True, right_index=True)
+comp.head()
+# ax.scatter(comp['runoff']*0.034, comp['VHD'])
+# ax.set_xlabel('Runoff (3.4%)')
+# ax.set_ylabel('VHD')
+# plt.savefig('.png', transparent=True, bbox_inches='tight', dpi=300)
+#+END_SRC
+
+#+RESULTS:
+|                     | runoff |     VHD |
+|---------------------+--------+---------|
+| 1986-01-01 00:00:00 | 241.19 | 5.23124 |
+| 1987-01-01 00:00:00 | 294.23 | 7.90287 |
+| 1988-01-01 00:00:00 | 269.36 | 6.84413 |
+| 1989-01-01 00:00:00 |  221.4 | 7.11019 |
+| 1990-01-01 00:00:00 | 287.23 | 7.21645 |
+
+** VHD melting additional percent
+
+#+BEGIN_SRC jupyter-python
+from pint import UnitRegistry
+ureg = UnitRegistry()
+
+v = 1 * (ureg.m**3)
+rho = 1000 * (ureg.kg/ureg.m**3)
+g = (1 * ureg.gravity).to_base_units()
+L = (335 * ureg.kJ/ureg.kg)
+z = (1000 * ureg.m)
+
+m = v * rho
+e = (m * g * z).to(ureg.J)
+
+print(f'{e} ({e.to(ureg.MJ)})')
+
+melt_m = ((m*g*z)/L).to_base_units()
+melt_v = (melt_m/rho).to_base_units()
+melt_v_new_pct = melt_v / v * 100
+
+print(melt_v_new_pct)
+#+END_SRC
+
+#+RESULTS:
+: 9806650.0 joule (9.80665 megajoule)
+: 2.927358208955224 dimensionless
