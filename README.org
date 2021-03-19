@@ -1,12 +1,15 @@
+* Greenland ice sheet mass balance from 1840 through next week
 
-* Greenland Ice Sheet mass balance from 1986 through next week
-
-This is the source for "Greenland Ice Sheet mass balance from 1986 through next week" and previous and subsequent versions.
+This is the source for "Greenland ice sheet mass balance from 1840 through next week" and previous and subsequent versions.
 
 + Paper: In preparation
-+ Data: doi:10.2008/promice/mass_balance
++ Data: doi:10.22008/FK2/YG3IWC or https://doi.org/10.22008/FK2/YG3IWC
 + Code: https://github.com/GEUS-PROMICE/mass_balance
 
-* Early Access
 
-Contact kdm (at) geus (dot) dk if interested
+** Open Science
+
++ This work is open - every line of code needed to recreate it is include in this git repository.
++ This work is, unfortunately, not easily [[https://twitter.com/ecologyofgavin/status/1383055101728727050][reproducible]].
+
+[[./open.mp4]]
