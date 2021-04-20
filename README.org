@@ -3,13 +3,16 @@
 This is the source for "Greenland ice sheet mass balance from 1840 through next week" and previous and subsequent versions.
 
 + Paper: In preparation
-+ Data: doi:10.22008/FK2/YG3IWC or https://doi.org/10.22008/FK2/YG3IWC
++ Data: available at https://dataverse01.geus.dk/privateurl.xhtml?token=d09976c4-4f89-43ef-8f91-173d269806a4 while the paper is in review, and will be available at https://doi.org/10.22008/FK2/YG3IWC, with all daily historical versions archived, after review.
 + Code: https://github.com/GEUS-PROMICE/mass_balance
 
 
-** Open Science
+** Open science vs. reproducible science
 
-+ This work is open - every line of code needed to recreate it is include in this git repository.
-+ This work is, unfortunately, not easily [[https://twitter.com/ecologyofgavin/status/1383055101728727050][reproducible]].
++ This work is open - every line of code needed to recreate it is include in this git repository, although the ~300 GB of RCM inputs are not included.
++ We recognize that "open" is not necessarily "reproducible"
 
-[[./open.mp4]]
+#+BEGIN_html
+<p align="center"><img src="./open_v_reproducible.png"></p>
+#+END_html
+Source: https://github.com/karthik/rstudio2019
