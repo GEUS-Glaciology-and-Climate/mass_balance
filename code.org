@@ -3452,7 +3452,7 @@ for label in (axins.get_xticklabels() + axins.get_yticklabels()):
 
 
 # SLE (mm) = mass of ice (Gt) x (1 / 361.8)
-lims = np.array(ax.get_ylim()) * (1/361.8)
+lims = np.array(ax.get_ylim()) * (-1/361.8)
 ax2.set_ylim(lims)
 ax2.set_ylabel('Cumulative eustatic sea level change [mm]')
 
@@ -3466,9 +3466,9 @@ ax.set_xlabel("Time [Year]")
 # ax.grid(b=True, which='major', axis='y', alpha=0.33)
 
 color = [C_this, C_M2019, C_GMB, C_VC, C_IMBIE, C_PROMICE, 'cyan']
-label = ['This Study', 'M2019', 'GMB', 'VC', 'IMBIE', 'C2019', 'K2015']
+label = ['This Study', 'Mouginot 2019', 'GMB', 'VC', 'IMBIE', 'Colgan 2019', 'Kjeldsen 2015']
 lines = [Line2D([0], [0], color=c) for c in color]
-legend = plt.legend(lines, label, framealpha=1, loc='upper right', bbox_to_anchor=(0.95,1), ncol=1, facecolor='w')
+legend = plt.legend(lines, label, framealpha=1, loc='upper right', bbox_to_anchor=(0.95,1), ncol=1, facecolor='w', fontsize=10)
 
 
 # plt.legend()
@@ -3569,7 +3569,7 @@ s = my_plot(axMB, mb['mb'], mb['mb_err'], mouginot['MB'], mouginot['MB_err'])
 
 axSMB.text(0, 0.9, 'SMB', transform=axSMB.transAxes)
 axSMB.set_xticks([0,600])
-axSMB.set_ylabel('M2019\n[Gt yr$^{-1}$]', labelpad=-25)
+axSMB.set_ylabel('Mouginot 2019\n[Gt yr$^{-1}$]', labelpad=-25)
 
 axD.text(0, 0.9, 'MMB [+BMB]', transform=axD.transAxes)
 axD.set_xticks([375,600])
@@ -3712,7 +3712,7 @@ my_plot(axMB,  mb['mb']+mb['bmb'], mb['mb_err'], promice['MB'], promice['MB_err'
 
 axSMB.text(0, 0.9, 'SMB', transform=axSMB.transAxes)
 axSMB.set_xticks([0,600])
-axSMB.set_ylabel('C2019\n[Gt yr$^{-1}$]', labelpad=-25)
+axSMB.set_ylabel('Colgan 2019\n[Gt yr$^{-1}$]', labelpad=-25)
 axD.text(0, 0.9, 'MMB [+BMB]', transform=axD.transAxes)
 axD.set_xticks([300,600])
 axMB.text(0, 0.9, 'MB$^{*}$ [+BMB]', transform=axMB.transAxes)
@@ -3874,20 +3874,18 @@ this_mb = xr.open_dataset('./TMB/mb_sector.nc')\
             .sum()[['mb','mb_err']]
     
 
-if 'vc' not in locals():
-    <<load_VC>>
-    vc = vc.sum(dim='sector')\
-             .resample({'time':'YS'})\
-             .sum()
-    this_mb_vc = this_mb.sel({'time':slice(vc.time[0], vc.time[-1])})    
+<<load_VC>>
+vc = vc.sum(dim='sector')\
+       .resample({'time':'YS'})\
+       .sum()
+this_mb_vc = this_mb.sel({'time':slice(vc.time[0], vc.time[-1])})    
     
-if 'imbie' not in locals():
-    <<load_imbie>>
-    # imbie = imbie.resample('1D').mean().interpolate(method='time')
-    imbie = imbie.resample('YS').mean()
-    imbie = imbie[imbie.index.year > 1986]
-    imbie = imbie.dropna()
-    this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
+<<load_imbie>>
+# imbie = imbie.resample('1D').mean().interpolate(method='time')
+imbie = imbie.resample('YS').mean()
+imbie = imbie[imbie.index.year > 1986]
+imbie = imbie.dropna()
+this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
 
 
 
@@ -3897,8 +3895,8 @@ s = my_plot(axVC, this_mb_vc['mb'], this_mb_vc['mb_err'], vc['SEC'], vc['err'])
 s = my_plot(axIMBIE,  this_mb_imbie['mb'], this_mb_imbie['mb_err'], imbie['mb'], imbie['mb_err'])
 
 axGRACE.set_ylabel('GMB\n[Gt yr$^{-1}$]', labelpad=-25)
-axVC.set_ylabel('VC\n[Gt yr$^{-1}$]', labelpad=-25)
-axIMBIE.set_ylabel('IMBIE\n[Gt yr$^{-1}$]', labelpad=-25)
+axVC.set_ylabel('VC\n[Gt yr$^{-1}$]')
+axIMBIE.set_ylabel('IMBIE\n[Gt yr$^{-1}$]')
 axIMBIE.set_xlabel('This Study\n[Gt yr$^{-1}$]', labelpad=0)
 
 for ax in [axGRACE, axVC, axIMBIE]:
@@ -3906,6 +3904,8 @@ for ax in [axGRACE, axVC, axIMBIE]:
     ax.set_yticks(ax.get_xticks())
     ax.set_xlim(ax.get_xticks()[[0,-1]])
     ax.set_ylim(ax.get_xlim())
+    if ax != axGRACE: ax.set_yticklabels(['','',''])
+    if ax != axIMBIE: ax.set_xticklabels(['','',''])
     ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
     adj(ax, ['left','bottom'])
 

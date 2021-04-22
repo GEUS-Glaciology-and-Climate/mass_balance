@@ -378,7 +378,7 @@ BMB_{VHD} comes from the MAR ice domain runoff, but is generated on the BedMachi
 
 #+NAME: fig:mb_cumsum
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
-#+CAPTION: Comparison between This Study and other mass balance time series. M2019 is citet:mouginot_2019, C2019 is citet:colgan_2019, and K2015 is citet:kjeldsen_2015 unadjusted data. Note that various products do or do not include basal mass balance or peripheral glaciers (see Table \ref{tab:summary}). The annual-resolution data prior to 1986 is the citet:kjeldsen_2015 data adjusted as described in Sect. \ref{sec:methods:reconstructed_adjustment}. Sea level rise calculated as Gt/361.8. Inset highlights changes since 2010.
+#+CAPTION: Comparison between This Study and other mass balance time series. Note that various products do or do not include basal mass balance or peripheral glaciers (see Table \ref{tab:summary}). This Study annual-resolution data prior to 1986 is the citet:kjeldsen_2015 data adjusted as described in Sect. \ref{sec:methods:reconstructed_adjustment}. Sea level rise calculated as -Gt/361.8. Inset highlights changes since 2010.
 [[./fig/mb_cumsum_compare_manual.png]]
 
 We compare to six related data sets (see Sect \ref{sec:validation_products}): The most similar and recent IO product citep:mouginot_2019, the previous PROMICE assessment citep:colgan_2019, the two mostly independent methods (GMB citep:barletta_2013 and VC citep:simonsen_2021), IMBIE2 citep:the-imbie-team_2019, and the unadjusted reconstructed/recent overlap citep:kjeldsen_2015.
