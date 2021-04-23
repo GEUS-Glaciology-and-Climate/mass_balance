@@ -631,12 +631,13 @@ This work was performed using only open-source software, primarily =GRASS GIS= c
 
 * Misc journal sections                                   :ignore:
 
-\authorcontribution{}
-\begin{figure}[!h]
-\centering
-\includegraphics[width=0.6\textwidth]{./fig/credit.png}
-\caption{\label{fig:credit}Author contributions following the CRediT system \citep{allen_2014,brand_2015,allen_2019}}
-\end{figure}
+\authorcontribution{The following authors contributed in the following ways. Conceptualization: KDM, APA, and RSF. Curation: KDM, XF, PL, MS, KK, NBK, BN, MvdB, JB, and AS. Implementation: KDM, XF, PL, and KK. Funding: AS, APA, SBA, and RSF. SMB methods: XF, PL, BN, and MvdB. MMB methods: KDM, WC, AS, APA, and RSF. BMB methods: NBK and KDM. Validation (general): KDM. Validation GRACE: WC. Validation VC: WC and SS. Reconstruction methods: KK, JB, and KDM. Project admin: KDM, APA, SBA, and RSF. Resources: KDM, XF, PL, MS, KK, NBK, BN, MvdB, AS, and SBA. Software: KDM, XF, PL, and AS. Visualization: KDM. Writing: KDM, XF, PL, MS, KK, NBK, BN, MvdB, WC, SS, JB, APA, and RSF.}
+
+# \begin{figure}[!h]
+# \centering
+# \includegraphics[width=0.6\textwidth]{./fig/credit.png}
+# \caption{\label{fig:credit}Author contributions following the CRediT system \citep{allen_2014,brand_2015,allen_2019}}
+# \end{figure}
 
 \competinginterests{The authors declare that they have no conflict of interest.}
 
