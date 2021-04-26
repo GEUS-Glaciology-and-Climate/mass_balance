@@ -1,13 +1,76 @@
+
+* Table of Contents                               :toc_2:noexport:
+- [[#greenland-ice-sheet-mass-balance-from-1840-through-next-week][Greenland ice sheet mass balance from 1840 through next week]]
+- [[#related-work][Related Work]]
+- [[#citation][Citation]]
+  - [[#publication][Publication]]
+  - [[#data][Data]]
+- [[#open-science-vs-reproducible-science][Open science vs. reproducible science]]
+
 * Greenland ice sheet mass balance from 1840 through next week
 
 This is the source for "Greenland ice sheet mass balance from 1840 through next week" and previous and subsequent versions.
 
-+ Paper: In preparation
++ Paper [in review]: [[https://doi.org/10.5194/essd-2021-131][doi:10.5194/essd-2021-131]]
 + Data: available at https://dataverse01.geus.dk/privateurl.xhtml?token=d09976c4-4f89-43ef-8f91-173d269806a4 while the paper is in review, and will be available at https://doi.org/10.22008/FK2/YG3IWC, with all daily historical versions archived, after review.
 + Code: https://github.com/GEUS-PROMICE/mass_balance
+  + Issues: https://github.com/GEUS-PROMICE/mass_balance/issues
+  + This [[https://github.com/GEUS-PROMICE/mass_balance/compare/10.5194/essd-12-2811-2020...main][diff]] shows changes between the published version of the paper and the current (active) development version.
+  + Major changes post-publication are tagged [[https://github.com/GEUS-PROMICE/mass_balance/issues?q=label%3Amajor_change]["major_change"]].
 
+    
+* Related Work  
 
-** Open science vs. reproducible science
++ Companion paper: "Greenland Ice Sheet solid ice discharge from 1986 through March 2020"
+  + Publication: [[https://doi.org/10.5194/essd-12-1367-2020][doi:10.5194/essd-12-1367-2020]]
+  + Source: https://github.com/GEUS-PROMICE/ice_discharge/
+  + Data: [[https://doi.org/10.22008/promice/data/ice_discharge][doi:10.22008/promice/data/ice_discharge]]
+
++ Companion paper: "Greenland liquid water runoff from 1958 through 2019"
+  + Paper: [[https://doi.org/10.5194/essd-12-2811-2020][doi:10.5194/essd-12-2811-2020]]
+  + Source: https://github.com/GEUS-PROMICE/freshwater/
+  + Data: [[https://doi.org/10.22008/promice/freshwater][doi:10.22008/promice/freshwater]]
+
+* Citation
+
+** Publication
+
+#+BEGIN_EXAMPLE
+@article{mankoff_2021,
+  author    = {Mankoff, Kenneth D. and Fettweis, Xavier and Langen,
+               Peter L. and Stendel, Martin and Kjeldsen, Kristian K. and
+	       Karlsson, Nanna B. and Noël, Brice and {van den Broeke},
+	       Michiel R. and Colgan, Wiliam and Simonsen, Sebastian B.
+	       and Box, Jason E. and Solgaard, Anne and Ahlstrøm, Andreas P.
+	       and Andersen, Signe Bech and Fausto, Robert S.},
+  title     = {{G}reenland ice sheet mass balance from 1840 through next week},
+  journal   = {Earth System Science Data},
+  note      = {In review},
+  year 	    = 2021,
+  DOI 	    = {10.5194/essd-2021-131},
+  publisher = {Copernicus GmbH}}
+#+END_EXAMPLE
+
+** Data
+
++ Please contact kdm @ geus before using this data
++ The data is currently in draft form. The DOI is not active, and version number not updating.
++ The version number will change with each daily update.
+
+#+BEGIN_EXAMPLE
+@data{mankoff_2021_data,
+  author    = {Mankoff, Ken and Fettweis, Xavier and Solgaard, Anne and Langen, Peter and Stendel,
+                  Martin and Noël, Brice and van den Broeke, Michiel R. and Karlsson, Nanna and Box,
+                  Jason E. and Kjeldsen, Kristian},
+  publisher = {GEUS Dataverse},
+  title	    = {{G}reenland ice sheet mass balance from from 1840 through next week},
+  year	    = {2021},
+  note      = {In review},
+  edition   = {VERSION NUMBER},
+  doi	    = {10.22008/FK2/YG3IWC}}
+#+END_EXAMPLE
+    
+* Open science vs. reproducible science
 
 + This work is open - every line of code needed to recreate it is include in this git repository, although the ~300 GB of RCM inputs are not included.
 + We recognize that "open" is not necessarily "reproducible"
