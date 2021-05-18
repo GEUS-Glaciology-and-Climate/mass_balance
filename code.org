@@ -513,7 +513,7 @@ dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
 # for f in ${dir}/*.nc; do ## initial
-for f in $(ls ${dir}/*.nc | tail -n 5); do ## operational
+for f in $(ls ${dir}/*.nc | tail -n 30); do ## operational
   dates=$(python ./nc_dates.py ${f})
   band=0
   d=1985-09-01 # debug
@@ -782,13 +782,13 @@ def bsv2nc(smb, bsv, dim):
  
     if 'HIRHAM' in bsv:
         grid = 912 * 912
-        error = 0.07
+        error = 0.15
     if 'MAR' in bsv:
         grid = 1000 * 1000
         error = 0.15
     if 'RACMO' in bsv:
         grid = 1000 * 1000
-        error = 0.10
+        error = 0.15
         
     #       mm->m  grid  m^3->kg  kg->Gt
     CONV = 1E-3  * grid * 1E3    / 1E12
@@ -1245,6 +1245,23 @@ done
 
 
 
+*** INFO How much water lost at edge cells?
+
+#+BEGIN_SRC bash :tangle no
+grass ./G_MAR/VHD
+
+# unit_melt: Where (and how much) melting occurs from BedMachine
+# mask_ice: Where MAR mask is.
+
+r.mapcalc "mask_bedmachine = if(unit_melt)"
+
+r.report -i -h units=k map=mask_bedmachine
+r.report -i -h units=k map=mask_ice
+r.report -i --q -h units=k map=mask_bedmachine,mask_ice
+#+END_SRC
+
+
+
 ** Create data file
 *** Merge BSVs
 
@@ -1425,8 +1442,10 @@ df.round(3)*365
 
 
 * Reconstructed
-** Adjust SMB and D using 1986 through 2012 overlap
-*** Load
+
+Adjust SMB and D using 1986 through 2012 overlap
+
+** Load
 
 #+NAME: load_K2015_raw
 #+BEGIN_SRC jupyter-python
@@ -1464,7 +1483,7 @@ mmb = mmb[['mmb','mmb_err']].resample({'time':'YS'}).sum().sel({'time':slice('19
 k2015_overlap = k2015.loc['1986':'2012']
 #+END_SRC
 
-*** Adjust
+** Adjust
 #+NAME: load_k2015
 #+BEGIN_SRC jupyter-python
 <<k2015_adj_prep>>
@@ -1486,7 +1505,7 @@ k2015['mmb'] = (k2015['mmb_orig'] - intercept)/slope
 
 #+RESULTS: load_k2015
 
-*** Plot overlap
+** Plot overlap
 
 #+BEGIN_SRC jupyter-python
 <<k2015_adj_prep>>
@@ -1501,7 +1520,7 @@ from matplotlib import rc
 rc('font', size=12)
 rc('text', usetex=False)
 
-fig = plt.figure(1, figsize=(3.26,7.25)) # w,h
+fig = plt.figure(1, figsize=(3.26,7.1)) # w,h
 fig.clf()
 fig.set_tight_layout(True)
 axSMB = fig.add_subplot(311)
@@ -1600,15 +1619,15 @@ for i,s in enumerate(y2str):
 
   
 axSMB.set_xticks([0,750])
-axSMB.set_ylabel('SMB\n[Gt yr$^{-1}$]', labelpad=-25)
+axSMB.set_ylabel('SMB [Gt yr$^{-1}]$', labelpad=-20)
 
 axD.set_xticks([375,600])
-axD.set_ylabel('MMB\n[Gt yr$^{-1}$]', labelpad=-25)
+axD.set_ylabel('MMB', labelpad=-20)
 
 # axMB.text(0, 0.9, '+BMB', transform=axMB.transAxes)
 axMB.set_xticks([-450, 0, 300])
-axMB.set_ylabel('MB$^{*}$\n[Gt yr$^{-1}$]', labelpad=-25)
-axMB.set_xlabel('This Study (recent)\n[Gt yr$^{-1}$]')
+axMB.set_ylabel('MB$^{*}$', labelpad=-25)
+axMB.set_xlabel('This Study', labelpad=-11)
 
 for ax in [axSMB,axD,axMB]:    
   ax.set_yticks(ax.get_xticks())
@@ -1617,7 +1636,8 @@ for ax in [axSMB,axD,axMB]:
   ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
   adj(ax, ['left','bottom'])
 
-axMB.set_yticklabels([str(ax.get_xticks()[0]), '', str(ax.get_xticks()[-1])])
+axMB.set_yticklabels([str(ax.get_yticks()[0]), '', str(ax.get_yticks()[-1])])
+axMB.set_xticklabels([str(ax.get_xticks()[0]), '', str(ax.get_xticks()[-1])])
 
 
 # https://stackoverflow.com/questions/17478165/
@@ -1639,20 +1659,20 @@ def add_sub_axes(axis, rect):
   
 s = axSMB.scatter(smb['smb'], k2015['smb'], alpha=0, c=color, cmap=cmap)
 # axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
-axCB = add_sub_axes(axMB, [0.0, -0.65, 1, 0.075])
+axCB = add_sub_axes(axMB, [0.0, -0.50, 1, 0.075])
 cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
 cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
 cb.draw_all()
 cb.ax.xaxis.set_ticks_position('top')
 cb.ax.xaxis.set_label_position('top')
-# cb.set_label("Time [year]", labelpad=-20)
+cb.set_label('Time [year]', labelpad=-10)
 axCB.set_xticklabels(k2015.index.year[[0,-1]].values)
 
 plt.savefig('fig/K2015_adjusted.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-7-e356df1c5520>:328: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-125-0393593e2bbb>:329: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/K2015_adjusted.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -2741,6 +2761,368 @@ df.describe()
 | max   |    1.83584 |  0.265888 |   1.33605 |  0.143178 |     72.8747 |     10.9267 |
 
 
+** Zwally & Mouginot overlap w/ RACMO                     :review:
+:PROPERTIES:
+:ID:       20210525T143510.416178
+:END:
+
+What % of RACMO is not covered by Zwally & Mouginot?
+
+#+BEGIN_SRC bash
+# grass -c ./G_RACMO/domain_overlap
+grass ./G_RACMO/domain_overlap
+g.region raster=mask
+
+r.in.gdal -o input="NetCDF:${DATADIR}/RACMO/Icemask_Topo_Iceclasses_lon_lat_average_1km.nc:Promicemask" output=promicemask
+
+g.list type=raster mapset=* -m
+g.list type=vector mapset=* -m
+
+d.mon wx0
+# g.gui.mapswipe first=mask_ice@PERMANENT second=mask_ice_shrink@ROI
+d.rast mask_ice@PERMANENT
+d.vect basins@Mouginot_2019 fillcolor=none # basins is also a raster
+
+r.mapcalc "mouginot = if(basins@Mouginot_2019)"
+r.mapcalc "mouginot_e = if(basins_e@Mouginot_2019)"
+r.mapcalc "zwally = if(sectors@Zwally_2012)"
+r.mapcalc "zwally_e = if(sectors_e@Zwally_2012)"
+r.mapcalc "RACMO = if(mask_ice@PERMANENT)"
+
+r.category map=mouginot separator=":" rules=- << EOF
+1:M2019
+EOF
+r.category map=zwally separator=":" rules=- << EOF
+1:Z2012
+EOF
+r.category map=RACMO separator=":" rules=- << EOF
+1:RACMO
+EOF
+
+r.report
+#+END_SRC
+
+#+BEGIN_SRC bash :session *total_mass_balance-shell* :cache yes :results verbatim
+# r.report -hi units=k map=mouginot,RACMO
+r.report -hi units=k map=RACMO,mouginot --q
+echo ""
+r.report -hi units=k map=RACMO,zwally --q
+#+END_SRC
+
+#+RESULTS[(2021-05-25 14:36:43) d2d0666b0232e30b709e147825c7b2c5546415b2]:
+#+begin_example
+
++-----------------------------------------------------------------------------+
+|                      Category Information                        |  square  |
+|description                                                     |kilometers|
+|-----------------------------------------------------------------------------|
+|1|RACMO                                                           | 1,718,959|
+| |----------------------------------------------------------------|----------|
+| |1|M2019. . . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,696,419|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|    22,540|
+|------------------------------------------------------------------|----------|
+|*|no data                                                         | 2,320,241|
+| |----------------------------------------------------------------|----------|
+| |1|M2019. . . . . . . . . . . . . . . . . . . . . . . . . . . . .|    20,685|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,299,556|
+|-----------------------------------------------------------------------------|
+|TOTAL                                                             | 4,039,200|
++-----------------------------------------------------------------------------+
+
++-----------------------------------------------------------------------------+
+|                      Category Information                        |  square  |
+|description                                                     |kilometers|
+|-----------------------------------------------------------------------------|
+|1|RACMO                                                           | 1,718,959|
+| |----------------------------------------------------------------|----------|
+| |1|Z2012. . . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,678,864|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|    40,095|
+|------------------------------------------------------------------|----------|
+|*|no data                                                         | 2,320,241|
+| |----------------------------------------------------------------|----------|
+| |1|Z2012. . . . . . . . . . . . . . . . . . . . . . . . . . . . .|    24,475|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,295,766|
+|-----------------------------------------------------------------------------|
+|TOTAL                                                             | 4,039,200|
++-----------------------------------------------------------------------------+
+#+end_example
+
+What % of SMB changes occur in the uncovered regions?
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+ds = xr.open_mfdataset('/home/kdm/data/RACMO/daily/smb_rec.201*.nc', combine='by_coords')
+ds = ds.resample({'time':'YS'}).sum()
+ds.to_netcdf('./tmp/RACMO_2010s.nc')
+
+ds = xr.open_mfdataset('/home/kdm/data/RACMO/daily/smb_rec.2020*.nc', combine='by_coords')
+ds = ds.sum(dim='time')
+ds.to_netcdf('./tmp/RACMO_2020.nc')
+#+END_SRC
+
+2020
+
+#+BEGIN_SRC bash
+r.in.gdal -o input="NetCDF:./tmp/RACMO_2020.nc:smb_rec" output=smb_2020 --o  --q
+r.region map=smb_2020 region=RCM
+r.univar -g map=smb_2020 zones=RACMO | grep sum # 318648388
+r.univar -g map=smb_2020 zones=mouginot | grep sum # 338377530
+r.univar -g map=smb_2020 zones=zwally | grep sum # 351498574
+#+END_SRC
+
+| Domain  | Mass gain [Gt] |
+|---------+----------------|
+| RACMO   |            319 |
+| RACMO M |            338 |
+| RACMO Z |            351 |
+
+2010s
+
+#+NAME: RMZ
+#+BEGIN_SRC bash :session *total_mass_balance-shell* :cache yes
+echo "Year R M Z"
+for i in $(seq 10); do
+  r.in.gdal -o input="NetCDF:./tmp/RACMO_2010s.nc:smb_rec" band=${i} output=smb --o  --q 2>/dev/null
+  r.region map=smb region=RCM --q
+  eval $(r.univar -g map=smb zones=RACMO | grep sum | sed 's/sum/R/')
+  eval $(r.univar -g map=smb zones=mouginot | grep sum | sed 's/sum/M/')
+  eval $(r.univar -g map=smb zones=zwally | grep sum | sed 's/sum/Z/')
+  echo $(( 2010 + $(( ${i}-1)) )) ${R} ${M} ${Z}
+done
+#+END_SRC
+
+#+RESULTS[(2021-05-25 07:06:25) 94149b25234cb30a98a20a07c6ca2a0a88b0343e]: RMZ
+| Year |                R |                M |                Z |
+| 2010 | 138865169.863205 | 164141022.770475 | 188693278.633955 |
+| 2011 | 162135323.732203 | 183110164.892631 | 192990105.059272 |
+| 2012 | 119050877.731281 | 145874329.623628 | 164998233.714134 |
+| 2013 | 392202448.814299 |   405757511.6404 |  408685069.94199 |
+| 2014 |  304046429.91578 | 322362180.505164 | 327710495.051068 |
+| 2015 | 294980810.845057 | 311374539.451985 | 319797206.757863 |
+| 2016 | 233733244.138948 | 257247406.928596 | 266283590.975364 |
+| 2017 | 399613619.668526 | 415379433.607018 | 425252437.272332 |
+| 2018 |  420151685.34887 | 429386998.485341 | 429046485.925065 |
+| 2019 | 45504675.1813576 | 76604095.5701525 | 84186156.4168217 |
+
+#+BEGIN_SRC python :var tab=RMZ :results table output
+import pandas as pd
+df = pd.DataFrame(tab[:][1:], columns=tab[:][0])
+df = df.set_index('Year')
+df = df / 1E6
+
+df['M%'] = df['M'] / df['R'] * 100 - 100
+df['Z%'] = df['Z'] / df['R'] * 100 - 100
+
+print(df)
+print(df.describe())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+R           M           Z         M%         Z%
+Year                                                          
+2010  138.865170  164.141023  188.693279  18.201723  35.882366
+2011  162.135324  183.110165  192.990105  12.936626  19.030265
+2012  119.050878  145.874330  164.998234  22.531083  38.594723
+2013  392.202449  405.757512  408.685070   3.456139   4.202580
+2014  304.046430  322.362181  327.710495   6.023998   7.783043
+2015  294.980811  311.374539  319.797207   5.557558   8.412885
+2016  233.733244  257.247407  266.283591  10.060256  13.926280
+2017  399.613620  415.379434  425.252437   3.945264   6.415902
+2018  420.151685  429.386998  429.046486   2.198090   2.117045
+2019   45.504675   76.604096   84.186156  68.343352  85.005510
+                R           M           Z         M%         Z%
+count   10.000000   10.000000   10.000000  10.000000  10.000000
+mean   251.028429  271.123768  280.764306  15.325409  22.137060
+std    131.568677  125.227913  120.826545  19.802262  25.502269
+min     45.504675   76.604096   84.186156   2.198090   2.117045
+25%    144.682708  168.883308  189.767485   4.348338   6.757687
+50%    264.357027  284.310973  293.040399   8.042127  11.169583
+75%    370.163444  384.908679  388.441426  16.885449  31.669341
+max    420.151685  429.386998  429.046486  68.343352  85.005510
+#+end_example
+
+
+** Lost BMB_VHD (MAR vs. BedMachine)                      :review:
+:PROPERTIES:
+:ID:       20210526T104310.630293
+:END:
+
+What % of MAR is not covered by BedMachine?
+
+#+BEGIN_SRC bash
+# grass -c ./G_MAR/BedMachine_overlap
+grass ./G_MAR/BedMachine_overlap
+g.region raster=mask
+
+g.list type=raster mapset=* -m
+g.list type=vector mapset=* -m
+
+d.mon wx0
+# g.gui.mapswipe first=mask_ice@PERMANENT second=mask_ice_shrink@ROI
+d.rast mask_ice@PERMANENT
+d.rast mask_bedmachine@VHD
+
+r.mapcalc "MAR = if(mask_ice@PERMANENT, 1, null())" --o
+r.mapcalc "BedMachine = if(mask_bedmachine@VHD, 1, null())" --o
+
+r.category map=MAR separator=":" rules=- << EOF
+1:MAR
+EOF
+r.category map=BedMachine separator=":" rules=- << EOF
+1:BedMachine
+EOF
+#+END_SRC
+
+#+BEGIN_SRC bash :session *total_mass_balance-shell* :cache yes :results verbatim
+r.report -hi units=k map=MAR,BedMachine --q
+echo ""
+echo ""
+r.report -hi units=k map=BedMachine,MAR --q
+#+END_SRC
+
+#+RESULTS[(2021-05-27 04:38:13) 2c555bc62cbe34c18ac9d67f625bb17cd01633b1]:
+#+begin_example
++-----------------------------------------------------------------------------+
+|                      Category Information                        |  square  |
+|description                                                     |kilometers|
+|-----------------------------------------------------------------------------|
+|1|MAR                                                             | 1,772,000|
+| |----------------------------------------------------------------|----------|
+| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,723,600|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|    48,400|
+|------------------------------------------------------------------|----------|
+|*|no data                                                         | 2,170,000|
+| |----------------------------------------------------------------|----------|
+| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .|   117,600|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,052,400|
+|-----------------------------------------------------------------------------|
+|TOTAL                                                             | 3,942,000|
++-----------------------------------------------------------------------------+
+
+
++-----------------------------------------------------------------------------+
+|                      Category Information                        |  square  |
+|description                                                     |kilometers|
+|-----------------------------------------------------------------------------|
+|1|BedMachine                                                      | 1,841,200|
+| |----------------------------------------------------------------|----------|
+| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,723,600|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|   117,600|
+|------------------------------------------------------------------|----------|
+|*|no data                                                         | 2,100,800|
+| |----------------------------------------------------------------|----------|
+| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|    48,400|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,052,400|
+|-----------------------------------------------------------------------------|
+|TOTAL                                                             | 3,942,000|
++-----------------------------------------------------------------------------+
+#+end_example
+
+What % of MAR runoff occurs in the uncovered regions?
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+ds = xr.open_mfdataset('/home/kdm/data/MAR/daily/MARv3.11-20km-daily-NCEP-NCARv1-201*.nc', combine='by_coords')['RU']
+ds = ds.sum(dim='SECTOR1_1').resample({'TIME':'YS'}).mean()
+ds = ds.where(~np.isinf(ds), 0)
+ds.to_netcdf('./tmp/MAR_2010s.nc')
+
+ds = xr.open_mfdataset('/home/kdm/data/MAR/daily/MARv3.11-20km-daily-NCEP-NCARv1-2020.nc', combine='by_coords')['RU']
+ds = ds.sum(dim='TIME').sel({'SECTOR':2})
+ds.to_netcdf('./tmp/MAR_2020.nc')
+#+END_SRC
+
+#+RESULTS:
+: /home/kdm/local/miniconda3/envs/TMB/lib/python3.8/site-packages/numpy/core/fromnumeric.py:87: RuntimeWarning: overflow encountered in reduce
+:   return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
+: /home/kdm/local/miniconda3/envs/TMB/lib/python3.8/site-packages/numpy/core/fromnumeric.py:87: RuntimeWarning: overflow encountered in reduce
+:   return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
+
+
+2020
+
+#+BEGIN_SRC bash
+r.in.gdal -o input="NetCDF:./tmp/MAR_2020.nc:RU" output=RU_2020 --o  --q
+r.region map=RU_2020 region=RCM
+r.mapcalc "RU_2020 = RU_2020 * MAR"
+r.univar -g map=RU_2020 zones=MAR | grep sum # 539321
+r.univar -g map=RU_2020 zones=BedMachine | grep sum # 478416
+#+END_SRC
+
+| Domain     | Mass gain [units?] |
+|------------+--------------------|
+| MAR        |             539321 |
+| BedMachine |             478416 |
+
+2010s
+
+#+NAME: MAR_BedMachine
+#+BEGIN_SRC bash :session *total_mass_balance-shell* :cache yes
+echo "Year MAR BedMachine"
+for i in $(seq 10); do
+  r.in.gdal -o input="NetCDF:./tmp/MAR_2010s.nc:RU" band=${i} output=RU --o  --q 2>/dev/null
+  r.region map=RU region=RCM --q
+  r.mapcalc "RU = RU * MAR" --o --q
+  eval $(r.univar -g map=RU zones=MAR | grep sum | sed 's/sum/MAR/')
+  eval $(r.univar -g map=RU zones=BedMachine | grep sum | sed 's/sum/BedMachine/')
+  echo $(( 2010 + $(( ${i}-1)) )) ${MAR} ${BedMachine}
+done
+#+END_SRC
+
+#+RESULTS[(2021-05-27 04:39:41) 582ecf315976fb0981778805d0d172daa8183e72]: MAR_BedMachine
+| Year |              MAR |       BedMachine |
+| 2010 | 4671.72245677283 | 4217.46030554164 |
+| 2011 | 3684.62115642264 | 3263.59674952809 |
+| 2012 | 5024.48523542532 | 4532.47945061865 |
+| 2013 | 2522.37950328075 | 2226.40345651662 |
+| 2014 | 3527.07356598433 | 3153.85518864405 |
+| 2015 | 2881.97949254046 | 2548.91549099767 |
+| 2016 | 4188.74849520601 | 3766.81325704927 |
+| 2017 | 3032.28267450767 |  2712.3884185616 |
+| 2018 | 2304.26129122923 | 2052.37000715341 |
+| 2019 | 4718.84854605142 | 4209.34167498529 |
+
+#+BEGIN_SRC python :var tab=MAR_BedMachine :results table output
+import pandas as pd
+df = pd.DataFrame(tab[:][1:], columns=tab[:][0])
+df = df.set_index('Year')
+df = df / 1E6
+
+df['BM%'] = df['BedMachine'] / df['MAR'] * 100 - 100
+df['MAR%'] = df['MAR'] / df['BedMachine'] * 100
+
+print(df)
+print(df.describe())
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+            MAR  BedMachine        BM%        MAR%
+Year                                             
+2010  0.004672    0.004217  -9.723655  110.770988
+2011  0.003685    0.003264 -11.426532  112.900626
+2012  0.005024    0.004532  -9.792163  110.855113
+2013  0.002522    0.002226 -11.734001  113.293909
+2014  0.003527    0.003154 -10.581531  111.833720
+2015  0.002882    0.002549 -11.556779  113.066891
+2016  0.004189    0.003767 -10.073062  111.201385
+2017  0.003032    0.002712 -10.549619  111.793822
+2018  0.002304    0.002052 -10.931542  112.273191
+2019  0.004719    0.004209 -10.797271  112.104194
+             MAR  BedMachine        BM%        MAR%
+count  10.000000   10.000000  10.000000   10.000000
+mean    0.003656    0.003268 -10.716615  112.009384
+std     0.000968    0.000884   0.714805    0.896746
+min     0.002304    0.002052 -11.734001  110.770988
+25%     0.002920    0.002590 -11.302784  111.349494
+50%     0.003606    0.003209 -10.689401  111.968957
+75%     0.004551    0.004099 -10.192201  112.743767
+max     0.005024    0.004532  -9.723655  113.293909
+#+end_example
+
+
+
 * Figures
 ** Notes
 
@@ -3148,7 +3530,7 @@ mb['mb'].rename(index='MB').plot(color='k', linestyle='-', legend=True, **kw)
 #                  color='k', alpha=0.5,
 #                  step='post')
 
-ax2.set_xlabel("Time [Year]")
+ax2.set_xlabel("Time [Month; Year]")
 ax2.set_ylabel("Mass gain [Gt d$^{-1}$]")
 ax2.xaxis.set_minor_locator(plt.NullLocator())
 
@@ -3301,6 +3683,15 @@ C_VC = '#045a8d' # '1f78b4'
 C_IMBIE = '#74a9cf'
 C_PROMICE = '#fdbf6f'
 
+OFFSET = 400         # where to put 0 for This Study
+ADJ = 2200
+OFFSET_M2019 = 2800 + ADJ
+OFFSET_GRACE = ADJ
+OFFSET_VC = 2900 + ADJ
+OFFSET_IMBIE = 2900 + ADJ
+OFFSET_C2019 = 2100 + ADJ
+OFFSET_K2015 = 1900 + ADJ
+
 # plt.close(1)
 fig = plt.figure(1, figsize=(8,6)) # w,h
 # get_current_fig_manager().window.move(0,0)
@@ -3325,9 +3716,7 @@ this = mb['mb'].to_dataframe(name='mb').resample('1D').ffill().cumsum()
 this['err'] = mb['mmb_err'].to_dataframe(name='err')[::-1].cumsum()[::-1]
 this.loc[:'1985'] = this.loc[:'1985'].resample('Y').mean().resample('1D').bfill()
 
-# OFFSET = this['mb'].resample('YS').mean().max()
-OFFSET = -400
-this['mb'] = this['mb'] - OFFSET
+this['mb'] = this['mb'] + OFFSET
 
 tt = (this.index.max() - this.index) / (this.index.max() - pd.Timestamp('2000-01-01'))
 tt = tt.where(tt <= 1, 1)
@@ -3346,7 +3735,7 @@ for a in [ax,axins]:
 if 'mouginot' not in locals():
     <<load_mouginot>>
 M2019 = mouginot['MB'].sum(dim='region').to_dataframe('M2019').cumsum()
-M2019 = M2019 - np.min(M2019) - 5100
+M2019 = M2019 - np.min(M2019) - OFFSET_M2019
 M2019_err = mouginot['D_err'].sum(dim='region').to_dataframe('M2019')[::-1].cumsum()[::-1]
 M2019 = M2019[M2019.index.year >= 1971]
 M2019_err = M2019_err[M2019_err.index.year >= 1971]
@@ -3359,8 +3748,8 @@ for a in [ax,axins]:
 
 # GRACE
 <<load_grace>>
-grace_scale, grace_offset = 1, -2300
-grace['plot'] = grace_scale * grace['mass']+grace_offset
+grace_scale = 1 
+grace['plot'] = grace_scale * grace['mass'] - OFFSET_GRACE
 grace['plot_err'] = grace_scale * grace['err']
 for a in [ax,axins]:
     p_gmb = grace['plot'].plot(ax=a, label='GMB', color=C_GMB, **kw)
@@ -3382,7 +3771,7 @@ for a in [ax,axins]:
 # VC
 <<load_vc>>
 vc_sum = vc['SEC'].sum(dim='sector').to_dataframe(name='VC').cumsum()
-vc_sum = vc_sum - np.min(vc_sum) + -5200
+vc_sum = vc_sum - np.min(vc_sum) - OFFSET_VC
 vc_err = vc['err'].sum(dim='sector').to_dataframe(name='VC')[::-1].cumsum()[::-1]
 for a in [ax,axins]:
     p_VC = vc_sum.plot(ax=a, label='VC', color=C_VC, **kw)
@@ -3395,7 +3784,7 @@ for a in [ax,axins]:
 # IMBIE
 <<load_imbie>>
 imbie = imbie[['mb_cum','mb_cum_err']].dropna()
-imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum'])  - 5200
+imbie['mb_cum'] = imbie['mb_cum'] - np.min(imbie['mb_cum'])  - OFFSET_IMBIE
 for a in [ax,axins]:
     lw = kw['linewidth']; kw['linewidth']=3
     p_IMBIE = imbie['mb_cum'].plot(ax=a, label='IMBIE', color=C_IMBIE, **kw)
@@ -3410,7 +3799,7 @@ for a in [ax,axins]:
 # PROMICE MB (Colgan 2019)
 <<load_PROMICE_MB>>
 P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
-P = P - np.min(P) - 4400
+P = P - np.min(P) - OFFSET_C2019
 P_err = ((promice['MB_err'].sum(dim="sector")) * 0 + 50).to_dataframe('C2019')[::-1].cumsum()[::-1]
 for a in [ax,axins]:
     p_PROMICE = P.plot(ax=a, label='C2019', color=C_PROMICE, **kw)
@@ -3419,10 +3808,11 @@ for a in [ax,axins]:
 
 
 <<load_K2015>>
+k2015.loc[k2015.index[-1] + datetime.timedelta(days=365)] = k2015.iloc[-1] # replicate last row for plotting
 k2015['mb'] = k2015['smb_orig'] - k2015['mmb_orig']
 k2015['mb_err'] = (k2015['smb_err']**2 + k2015['mmb_err']**2)**0.5
 K = k2015['mb'].cumsum().loc['1971':]
-K = K - np.min(K) - 3850
+K = K - np.min(K) - OFFSET_K2015
 K_err = (k2015['mb_err']*0 + 5)[::-1].cumsum()[::-1].loc['1971':]
 for a in [ax,axins]:
     p_k2015 = K.plot(ax=a, label='K2015', color='cyan', drawstyle='steps-post', **kw)
@@ -3576,7 +3966,9 @@ axD.set_xticks([375,600])
 
 axMB.text(0, 0.9, 'MB$^{*}$ [+BMB]', transform=axMB.transAxes)
 axMB.set_xticks([-450, 0, 150])
-axMB.set_xlabel('This Study\n[Gt yr$^{-1}$]')
+axMB.set_xlabel('This Study', labelpad=-12)
+
+axMB.set_xticklabels([str(axMB.get_xticks()[0]), '', str(axMB.get_xticks()[-1])])
 
 for ax in [axSMB,axD,axMB]:
     ax.set_yticks(ax.get_xticks())
@@ -3603,20 +3995,20 @@ def add_sub_axes(axis, rect):
     return fig.add_axes([figleft, figbottom, figwidth, figheight])
 
 # axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
-axCB = add_sub_axes(axMB, [0.0, -0.75, 1, 0.075])
+axCB = add_sub_axes(axMB, [0.0, -0.50, 1, 0.075])
 cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
 cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
 cb.draw_all()
 cb.ax.xaxis.set_ticks_position('top')
 cb.ax.xaxis.set_label_position('top')
-# cb.set_label("Time [year]", labelpad=-20)
+cb.set_label('Time [year]', labelpad=-10)
 axCB.set_xticklabels(mouginot['time'].dt.year[[0,-1]].values)
 
 plt.savefig('fig/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-132-b7430c004235>:172: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-119-b687a3dfe3f7>:156: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -3717,8 +4109,9 @@ axD.text(0, 0.9, 'MMB [+BMB]', transform=axD.transAxes)
 axD.set_xticks([300,600])
 axMB.text(0, 0.9, 'MB$^{*}$ [+BMB]', transform=axMB.transAxes)
 axMB.set_xticks([-450, 0, 150])
-axMB.set_xlabel('This Study\n[Gt yr$^{-1}$]')
+axMB.set_xlabel('This Study', labelpad=-12)
 
+axMB.set_xticklabels([str(axMB.get_xticks()[0]), '', str(axMB.get_xticks()[-1])])
 
 for ax in [axSMB,axD,axMB]:
     ax.set_yticks(ax.get_xticks())
@@ -3744,20 +4137,20 @@ def add_sub_axes(axis, rect):
     return fig.add_axes([figleft, figbottom, figwidth, figheight])
 
 # axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
-axCB = add_sub_axes(axMB, [0.0, -0.70, 1, 0.075])
+axCB = add_sub_axes(axMB, [0.0, -0.50, 1, 0.075])
 cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
 cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
 cb.draw_all()
 cb.ax.xaxis.set_ticks_position('top')
 cb.ax.xaxis.set_label_position('top')
-# cb.set_label("Time [year]", labelpad=-20)
+cb.set_label('Time [year]', labelpad=-10)
 axCB.set_xticklabels(promice['time'].dt.year[[0,-1]].values)
 
 plt.savefig('fig/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-35-e48d76cbd9de>:164: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-121-7a4eca31aa42>:165: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -3887,17 +4280,8 @@ imbie = imbie[imbie.index.year > 1986]
 imbie = imbie.dropna()
 this_mb_imbie = this_mb.sel({'time':slice(imbie.index[0], imbie.index[-1])})
 
-
-
-
-    
 s = my_plot(axVC, this_mb_vc['mb'], this_mb_vc['mb_err'], vc['SEC'], vc['err'])
 s = my_plot(axIMBIE,  this_mb_imbie['mb'], this_mb_imbie['mb_err'], imbie['mb'], imbie['mb_err'])
-
-axGRACE.set_ylabel('GMB\n[Gt yr$^{-1}$]', labelpad=-25)
-axVC.set_ylabel('VC\n[Gt yr$^{-1}$]')
-axIMBIE.set_ylabel('IMBIE\n[Gt yr$^{-1}$]')
-axIMBIE.set_xlabel('This Study\n[Gt yr$^{-1}$]', labelpad=0)
 
 for ax in [axGRACE, axVC, axIMBIE]:
     ax.set_xticks([-550, 0, 200])
@@ -3909,6 +4293,13 @@ for ax in [axGRACE, axVC, axIMBIE]:
     ax.plot(ax.get_xlim(), ax.get_ylim(), color='k', alpha=0.25, linestyle='--')
     adj(ax, ['left','bottom'])
 
+
+axGRACE.set_ylabel('GMB', labelpad=-25)
+axVC.set_ylabel('VC')
+axIMBIE.set_ylabel('IMBIE [Gt yr$^{-1}$]')
+axIMBIE.set_xlabel('This Study', labelpad=-12)
+
+axIMBIE.set_xticklabels([str(axIMBIE.get_xticks()[0]), '', str(axIMBIE.get_xticks()[-1])])
     
 plt.savefig('fig/this_v_grace_vc_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 #+END_SRC
@@ -3920,7 +4311,7 @@ plt.savefig('fig/this_v_grace_vc_imbie.png', transparent=False, bbox_inches='tig
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
-: <ipython-input-2-e13bd9bca3cc>:209: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-117-7ff428f41b1a>:207: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/this_v_grace_vc_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 
 [[./tmp/this_v_grace_vc_imbie.png]]
@@ -4023,7 +4414,7 @@ import scipy.stats as sps
 rc('font', size=9)
 rc('text', usetex=False)
 
-fig = plt.figure(1, figsize=((12/2.54),(22/2.54)*(7/8))) # w,h
+fig = plt.figure(1, figsize=((12/2.54),(23/2.54))) # w,h
 fig.clf()
 fig.set_tight_layout(True)
 gs = gridspec.GridSpec(ncols=3, nrows=7, figure=fig) #w,h
@@ -4033,9 +4424,8 @@ gs.update(wspace=1, hspace=1)
 
 # this
 ds = xr.open_dataset('./TMB/mb_region.nc')\
-       .resample({'time':'YS'})\
-       .sum()\
-       .reindex(time=mouginot['time'])
+       .resample({'time':'A-JUN'})\
+       .sum()
 
 mb = ds['mb_ROI']
 smb = ds['smb_ROI']
@@ -4129,7 +4519,7 @@ def add_sub_axes(axis, rect):
     figwidth, figheight = trans([width,height]) - trans([0,0])
     return fig.add_axes([figleft, figbottom, figwidth, figheight])
 
-axCB = add_sub_axes(axD, [0, -1.1, 1, 0.1])
+axCB = add_sub_axes(axD, [0, -0.85, 1, 0.1])
 cb = plt.colorbar(s, cax=axCB, orientation='horizontal', ticks=[0,1])
 cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
 cb.draw_all()
@@ -4356,14 +4746,14 @@ for i,s in enumerate(y2str):
     slope, intercept, r_value, p_value, std_err = sps.linregress(x.values, y.values)
     bias = np.mean(x.values - y.values)
     RMSE = np.sqrt(np.mean((x.values - y.values)**2))
-    ax.text(1.0, -0.03, "r$^2$: %.2f\nslope: %.2f"
+    ax.text(1.0, 0.0, "r$^2$: %.2f\nslope: %.2f"
             % (round(r_value**2,2), round(slope,2)),
             transform=ax.transAxes,
             horizontalalignment='right',
             fontsize=9)
 
-ax.set_xlabel('Runoff\n[Gt yr$^{-1}$]', labelpad=-8)
-ax.set_ylabel('BMB$_{\mathrm{VHD}}$\n[Gt yr$^{-1}$]', labelpad=-15)
+ax.set_xlabel('Runoff', labelpad=-12)
+ax.set_ylabel('BMB$_{\mathrm{VHD}}$ [Gt yr$^{-1}$]', labelpad=-15)
 
 ax.set_xticks(ax.get_xticks()[[0,-1]])
 ax.set_xlim(ax.get_xticks()[[0,-1]])
@@ -4389,13 +4779,13 @@ def add_sub_axes(axis, rect):
     return fig.add_axes([figleft, figbottom, figwidth, figheight])
 
 # axCB = add_sub_axes(axMB, [1.1, 0.0, 0.075, 1])
-axCB = add_sub_axes(ax, [0.0, -0.43, 1, 0.075])
+axCB = add_sub_axes(ax, [0.0, -0.40, 1, 0.075])
 cb = plt.colorbar(scatter, cax=axCB, orientation='horizontal', ticks=[0,1])
 cb.set_alpha(1) # https://stackoverflow.com/questions/4478725/
 cb.draw_all()
 cb.ax.xaxis.set_ticks_position('top')
 cb.ax.xaxis.set_label_position('top')
-# cb.set_label("Time [year]", labelpad=-20)
+cb.set_label('Time [year]', labelpad=-10)
 axCB.set_xticklabels(x.index.year[[0,-1]].values)
 
 plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tight', dpi=300)
@@ -5336,8 +5726,11 @@ BMB: FORCE
 	./bmb_merge.sh
 	python ./bmb_bsv2nc.py
 
-
 update: FORCE
+	# remove previously forecasted MAR 
+	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/basin_$${d}.bsv; done
+	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/sector_$${d}.bsv; done
+	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./MAR/region_$${d}.bsv; done
 	#SMB
 	make SMB
 	# BMB
