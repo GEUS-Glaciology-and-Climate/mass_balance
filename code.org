@@ -1495,11 +1495,13 @@ slope, intercept, r_value, p_value, std_err = sps.linregress(smb['smb'].values,
                                                              k2015_overlap['smb'].values)
 k2015 = k2015.rename(columns={'smb':'smb_orig'})
 k2015['smb'] = (k2015['smb_orig'] - intercept)/slope
+k2015['smb_err'] = (k2015['smb_err'] + smb['smb_err'].mean())
 
 slope, intercept, r_value, p_value, std_err = sps.linregress(mmb['mmb'].values,
                                                              k2015_overlap['mmb'].values)
 k2015 = k2015.rename(columns={'mmb':'mmb_orig'})
 k2015['mmb'] = (k2015['mmb_orig'] - intercept)/slope
+k2015['mmb_err'] = (k2015['mmb_err'] + mmb['mmb_err'].mean())
 
 #+END_SRC
 
@@ -1602,7 +1604,8 @@ for i,s in enumerate(y2str):
 mb = smb['smb'] - mmb['mmb']
 k2015['mb_orig'] = k2015['smb_orig'] - k2015['mmb_orig']
 k2015['mb'] = k2015['smb'] - k2015['mmb']
-e = axMB.errorbar(mb, k2015['mb_orig'], xerr=mmb['mmb_err'], yerr=k2015['mmb_err'], **kw_errbar)
+k2015['mb_err'] = (k2015['smb_err']**2 + k2015['mmb_err']**2)**0.5
+e = axMB.errorbar(mb, k2015['mb_orig'], xerr=mmb['mmb_err'], yerr=k2015['mb_err'], **kw_errbar)
 
 for i,s in enumerate(y2str):
   axMB.text(mb.values[i], k2015['mb_orig'].values[i], s, c=cmap(color)[i], **kw_nums)

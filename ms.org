@@ -391,6 +391,8 @@ We use the reconstructed and recent surface (SMB) and marine (MMB) mass balance 
 
 We adjust the reconstructed data until the reconstructed vs. recent slope is 1 and intercept is 0 Gt yr^{-1} for each of the surface and marine mass balance comparisons (Fig. \ref{fig:reconstructed_adj}). We then derive the BMB_{VHD} term for reconstructed basal mass balance (Sect. \ref{sec:methods:VHD} and Appendix \ref{apdx:reconstructed_runoff}), bring in the other BMB terms (Sect. \ref{sec:methods:VHD}), and use Eq. \ref{eq:MB} to compute the adjusted reconstructed mass balance.
 
+For reconstructed SMB and MMB, the mean of the recent uncertainty is added to the reconstructed uncertainty during the adjustment. Reconstructed MB uncertainty is then re-calculated as the square root of the sum of the squares of the reconstructed SMB and MMB uncertainty.
+
 For surface mass balance, the adjustment is effectively a rotation around the mean values, with years with low SMB decreasing and years with high SMB increasing after the adjustment. For marine mass balance, years with low MMB are slightly reduced, and years with high MMB have a higher reduction to better match the overlapping estimates.
 
 The adjustment described above treats all biases in the reconstructed data. The primary assumption of our adjustment is that the bias contributions do not change in proportion to each other over time. We attribute the disagreement and need for the adjustment to the demonstrated too-high biases in accumulation and ablation estimates in the 1840-2012 reconstructed SMB field citep:fettweis_2020, an offset resulting from differences in ice masks citep:kjeldsen_2015, other accumulation rate inaccuracies citep:lewis_2017,lewis_2019, and other unknowns.
