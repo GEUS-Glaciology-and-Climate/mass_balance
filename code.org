@@ -1746,6 +1746,202 @@ mmb['region'] = mmb['region'].astype(str)
 #+END_SRC
 
 #+RESULTS: load_mmb
+*** Forecast MMB for sectors and regions
+
+#+NAME: forecast_mmb
+#+BEGIN_SRC jupyter-python
+<<load_mmb>>
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+import scipy as sp
+import scipy.stats
+import scipy.signal
+
+time_first_obs = mmb['time'][0].values
+time_last_obs = mmb['time'][-1].values
+# time_last_obs_str = np.datetime_as_string(time_last_obs).split('T')[0]
+time_end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 7)
+time_start = '1986-01-01'
+time_all = pd.date_range(start=time_start, end=time_end, freq='D')
+
+df = mmb[['mmb','mmb_err']].to_dataframe()
+
+# select last 3 years for linear trend
+df3 = df[-365*3:]
+
+# short term variations
+df3['seasonal'] = sp.signal.detrend(df3['mmb'].values)
+# trend is computed by subracting the short-term seasonal variations and computing the mean daily change of the long-term signal
+trend = (df3['mmb'] - df3['seasonal']).diff().mean()
+
+forecast = pd.DataFrame(index = pd.date_range(start=time_last_obs, end=time_end, freq='D'))
+forecast['flat'] = df3.iloc[-1]['mmb']
+forecast['trend'] = forecast['flat'] + trend * np.arange(forecast.index.size)
+
+df3['idx'] = np.arange(df3.index.size) % 365 + 1
+forecast['seasonal'] = df3['seasonal'].groupby(df3['idx']).mean().values[0:forecast.index.size]
+forecast['seasonal'] = forecast['seasonal'] - forecast['seasonal'][0]
+forecast['best'] = forecast['trend'] + forecast['seasonal']
+
+# Uncertainty
+# 1. Assume that discharge n days in the future may increase by the largest change over n days historically
+# 1. Add that to the baseline uncertainty.
+forecast['err'] = np.nan
+for i in np.arange(forecast.index.size):
+    forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).apply(lambda x: x.max()-x.min()).bfill().iloc[i]
+    # forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).mean().max()
+# forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err'].cumsum()
+forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err']
+
+df = df.reindex(time_all).bfill()
+df.loc[time_last_obs:, 'mmb'] = forecast[time_last_obs:]['best']
+df.loc[time_last_obs:, 'mmb_err'] = forecast[time_last_obs:]['mmb_err']
+#+END_SRC
+
+*** INPROGRESS Forecast MMB for GIS: xarray
+
+#+NAME: forecast_mmb
+#+BEGIN_SRC jupyter-python
+<<load_mmb>>
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+import scipy as sp
+import scipy.stats
+import scipy.signal
+
+time_start = '1986-01-01'
+time_first_obs = mmb['time'][0].values
+time_last_obs = mmb['time'][-1].values
+time_forecast_start = pd.Timestamp(time_last_obs) + datetime.timedelta(days=1)
+time_forecast_end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 7)
+
+time_index_all = pd.date_range(start=time_start, end=time_forecast_end, freq='D')
+time_index_last3 = pd.date_range(start = pd.Timestamp(time_last_obs) - datetime.timedelta(days=365*3), end=time_last_obs, freq='D')
+
+# forecast including the last observed day - allows ffill(), etc.
+time_index_forecast0 = pd.date_range(start = time_last_obs, end=time_forecast_end, freq='D')
+# forecast only.
+time_index_forecast = pd.date_range(start = time_forecast_start, end=time_forecast_end, freq='D')
+
+# https://gist.github.com/rabernat/1ea82bb067c3273a6166d1b1f77d490f
+def detrend_dim(da, dim, deg=1):
+    # detrend along a single dimension
+    p = da.polyfit(dim=dim, deg=deg)
+    fit = xr.polyval(da[dim], p.polyfit_coefficients)
+    return fit
+
+
+mmb_forecast = mmb.reindex({'time':time_index_forecast0})
+mmb_all = mmb.reindex({'time':time_index_all})
+
+# select last 3 years for linear trend
+# mmb3 = mmb.sel({'time':slice(time_index_last3[0], time_index_last3[-1])})
+
+
+# short term variations
+# df3['seasonal'] = sp.signal.detrend(df3['mmb'].values)
+for v in ['mmb','mmb_region','mmb_sector']:
+    last3 = mmb[v].sel({'time':slice(time_index_last3[0],time_index_last3[-1])})
+
+    trend = detrend_dim(last3, 'time')
+
+    seasonal = last3 - trend
+    seasonal['doy'] = seasonal['time'].to_series().dt.day_of_year
+    seasonal = seasonal.groupby('doy', squeeze=False, restore_coord_dims=True).mean()
+    seasonal = seasonal.roll(shifts={'doy': -1 * pd.Timestamp(time_last_obs).day_of_year}, roll_coords=True)
+    
+    trend -= trend.isel(time=0)
+    seasonal -= seasonal.isel(doy=0)
+    
+    shape = mmb_forecast[v].shape
+    trend = trend.values[0:shape[0], 0:shape[1]] if size(shape) == 2 else trend.values[0:shape[0]]
+    seasonal = seasonal.values[0:shape[0], 0:shape[1]] if size(shape) == 2 else seasonal.values[0:shape[0]]
+
+    mmb_forecast[v] = mmb_forecast[v].ffill(dim='time') + trend + seasonal
+    mmb_all[v] = xr.concat([mmb[v],mmb_forecast[v].reindex({'time':time_index_forecast})], dim='time', combine_attrs='override')
+
+mmb_all = mmb_all.bfill(dim='time')    
+mmb_all['mmb'].plot()
+
+    # # Uncertainty
+    # # 1. Assume that discharge n days in the future may increase by the largest change over n days historically
+    # # 1. Add that to the baseline uncertainty.
+    # forecast['err'] = np.nan
+    # for i in np.arange(forecast.index.size):
+    #     forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).apply(lambda x: x.max()-x.min()).bfill().iloc[i]
+    #     # forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).mean().max()
+    # # forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err'].cumsum()
+    # forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err']
+
+    # df = df.reindex(time_index_all).bfill()
+    # df.loc[time_last_obs:, 'mmb'] = forecast[time_last_obs:]['best']
+    # df.loc[time_last_obs:, 'mmb_err'] = forecast[time_last_obs:]['mmb_err']
+
+#+END_SRC
+
+#+RESULTS: forecast_mmb
+| <matplotlib.lines.Line2D | at | 0x7f178166b580> |
+
+
+
+
+*** DONE Forecast MMB for GIS: Pandas
+
+#+NAME: forecast_mmb
+#+BEGIN_SRC jupyter-python
+<<load_mmb>>
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+import scipy as sp
+import scipy.stats
+import scipy.signal
+
+time_first_obs = mmb['time'][0].values
+time_last_obs = mmb['time'][-1].values
+# time_last_obs_str = np.datetime_as_string(time_last_obs).split('T')[0]
+time_end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 7)
+time_start = '1986-01-01'
+time_all = pd.date_range(start=time_start, end=time_end, freq='D')
+
+df = mmb[['mmb','mmb_err']].to_dataframe()
+
+# select last 3 years for linear trend
+df3 = df[-365*3:]
+
+# short term variations
+df3['seasonal'] = sp.signal.detrend(df3['mmb'].values)
+# trend is computed by subracting the short-term seasonal variations and computing the mean daily change of the long-term signal
+trend = (df3['mmb'] - df3['seasonal']).diff().mean()
+
+forecast = pd.DataFrame(index = pd.date_range(start=time_last_obs, end=time_end, freq='D'))
+forecast['flat'] = df3.iloc[-1]['mmb']
+forecast['trend'] = forecast['flat'] + trend * np.arange(forecast.index.size)
+
+df3['idx'] = np.arange(df3.index.size) % 365 + 1
+forecast['seasonal'] = df3['seasonal'].groupby(df3['idx']).mean().values[0:forecast.index.size]
+forecast['seasonal'] = forecast['seasonal'] - forecast['seasonal'][0]
+forecast['best'] = forecast['trend'] + forecast['seasonal']
+
+# Uncertainty
+# 1. Assume that discharge n days in the future may increase by the largest change over n days historically
+# 1. Add that to the baseline uncertainty.
+forecast['err'] = np.nan
+for i in np.arange(forecast.index.size):
+    forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).apply(lambda x: x.max()-x.min()).bfill().iloc[i]
+    # forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).mean().max()
+# forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err'].cumsum()
+forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err']
+
+df = df.reindex(time_all).bfill()
+df.loc[time_last_obs:, 'mmb'] = forecast[time_last_obs:]['best']
+df.loc[time_last_obs:, 'mmb_err'] = forecast[time_last_obs:]['mmb_err']
+#+END_SRC
 
 ** Load BMB (Karlsson 2021)
 
