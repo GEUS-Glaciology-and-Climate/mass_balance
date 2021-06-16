@@ -1207,7 +1207,7 @@ for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ### operational
   for d in ${dates}; do
     band=$(( ${band} + 1 ))
 
-    log_info "MAR BMB: ${d}"
+    log_info "MAR BMB: ${d} (band: ${band})"
 
     if [[ -e ./tmp/BMB/sector_${d}.bsv ]]; then continue; fi
 
@@ -1483,7 +1483,6 @@ mmb = mmb[['mmb','mmb_err']].resample({'time':'YS'}).sum().sel({'time':slice('19
 k2015_overlap = k2015.loc['1986':'2012']
 #+END_SRC
 
-** Adjust
 #+NAME: load_k2015
 #+BEGIN_SRC jupyter-python
 <<k2015_adj_prep>>
@@ -1510,7 +1509,6 @@ k2015['mmb_err'] = (k2015['mmb_err'] + mmb['mmb_err'].mean())
 ** Plot overlap
 
 #+BEGIN_SRC jupyter-python
-<<k2015_adj_prep>>
 <<load_K2015>>
 k2015 = k2015.loc['1986':'2012']
 
@@ -3706,17 +3704,34 @@ fig.set_tight_layout(True)
 ax = fig.add_subplot(111)
 
 
-axins = ax.inset_axes([0.15, 0.08, 0.7, 0.42])
+axins = ax.inset_axes([0.15, 0.08, 0.7, 0.38])
 
 
 kw = {'clip_on':True, 'linewidth':1, 'legend':False}
 kw_err = {'clip_on':True, 'linewidth':1, 'alpha':0.1}
 
 # MB (this)
-mb = xr.open_dataset("./TMB/mb_sector.nc")
+mb = xr.open_dataset('./TMB/mb_sector.nc')
 mb = mb.sel({'time':slice('1971','2100')})
+
+bmb = xr.open_dataset('./tmp/bmb.nc').sum(dim='region').sel({'time':slice('1971','2100')})
+# remove un-used sector-level data
+bmb = bmb.drop_vars([_ for _ in bmb.keys() if 'sector' in _])\
+         .drop_vars(['GF_region','vel_region','VHD_region','sector'])
+bmb = bmb.rename_vars({'GF_region_err':'GF_err', 'vel_region_err':'vel_err', 'VHD_region_err':'VHD_err'})
+
 this = mb['mb'].to_dataframe(name='mb').resample('1D').ffill().cumsum()
-this['err'] = mb['mmb_err'].to_dataframe(name='err')[::-1].cumsum()[::-1]
+
+# this['err'] = mb['mmb_err'].to_dataframe(name='err')[::-1].cumsum()[::-1]
+
+mmb_err = mb['mmb_err'].to_dataframe(name='err')
+smb_err = 0
+bmb_err_recent = bmb['GF_err'].values + bmb['VHD_err'].rename('err').to_dataframe(name='err')
+bmb_err_reconstruct = mb['bmb_err'].sel(time=slice('1971','1985')).to_dataframe(name='err')
+bmb_err = (bmb_err_reconstruct*365).append(bmb_err_recent)
+this_err = (mmb_err**2 + smb_err**2 + bmb_err**2)**0.5
+this['err'] = this_err[::-1].cumsum()[::-1]
+
 this.loc[:'1985'] = this.loc[:'1985'].resample('Y').mean().resample('1D').bfill()
 
 this['mb'] = this['mb'] + OFFSET
