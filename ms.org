@@ -36,6 +36,7 @@
 \Author[6]{Sebastian B.}{Simonsen}
 \Author[1]{Jason E.}{Box}
 \Author[1]{Anne}{Solgaard}
+\Author[7]{Michalea D.}{King}
 \Author[1]{Andreas P.}{Ahlstrøm}
 \Author[1]{Signe Bech}{Andersen}
 \Author[1]{Robert S.}{Fausto}
@@ -46,6 +47,7 @@
 \affil[4]{Department of Climate and Arctic, Danish Meteorological Institute (DMI), Copenhagen, Denmark}
 \affil[5]{Institute for Marine and Atmospheric Research, Utrecht University, The Netherlands}
 \affil[6]{Geodesy and Earth Observation, DTU Space, Technical University of Denmark, Lyngby, Denmark}
+\affil[7]{Polar Science Center, University of Washington, Seattle, WA, United States}
 \correspondence{Ken Mankoff (kdm@geus.dk)}
 \runningtitle{Greenland mass balance 1840 thru next week}
 \runningauthor{K. D. Mankoff \textit{et al.}}
@@ -81,7 +83,7 @@ The mass of the Greenland ice sheet is declining as mass gain from snowfall is e
   - [[#products-used-for-validation][Products used for validation]]
 - [[#methods][Methods]]
   - [[#surface-mass-balance-1][Surface mass balance]]
-  - [[#marine-mass-balance-1][Marine mass balance]]
+  - [[#forecasted-marine-mass-balance][Forecasted marine mass balance]]
   - [[#basal-mass-balance-1][Basal mass balance]]
   - [[#reconstructed-adjustment][Reconstructed adjustment]]
   - [[#domains-boundaries-and-regions-of-interest][Domains, boundaries, and regions of interest]]
@@ -92,7 +94,7 @@ The mass of the Greenland ice sheet is declining as mass gain from snowfall is e
   - [[#volume-change][Volume change]]
   - [[#imbie][IMBIE]]
 - [[#uncertainty][Uncertainty]]
-  - [[#marine-mass-balance-2][Marine mass balance]]
+  - [[#marine-mass-balance-1][Marine mass balance]]
   - [[#regions-of-interest-roi][Regions of interest (ROI)]]
   - [[#accumulating-uncertainties][Accumulating uncertainties]]
   - [[#peripheral-ice-masses][Peripheral ice masses]]

@@ -1802,6 +1802,18 @@ df.loc[time_last_obs:, 'mmb_err'] = forecast[time_last_obs:]['mmb_err']
 
 *** INPROGRESS Forecast MMB for GIS: xarray
 
++ MMB:
+  + Estimate +7d MMB from long term trend + seasonal trend
+  + pchip interpolate from last observed to +7d value
+  + This means no discontinuity from last observed to last obs + 1d
++ MMB err:
+  + Take last observed to now+7d window (for ex 25 days)
+  + Take that window last 3 years (ex: 75 days)
+  + Diff -> abs -> rank
+  + Obs+1 err is largest of ranked from past window (75 days)
+  + Obs+2 err is largest + 2nd largest of ranked
+  + +7d err is (in this case) cumsum of 25 largest.
+
 #+NAME: forecast_mmb
 #+BEGIN_SRC jupyter-python
 <<load_mmb>>
@@ -1814,18 +1826,19 @@ import scipy.stats
 import scipy.signal
 
 time_start = '1986-01-01'
-time_first_obs = mmb['time'][0].values
+# time_first_obs = mmb['time'][0].values
 time_last_obs = mmb['time'][-1].values
 time_forecast_start = pd.Timestamp(time_last_obs) + datetime.timedelta(days=1)
 time_forecast_end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 7)
 
 time_index_all = pd.date_range(start=time_start, end=time_forecast_end, freq='D')
-time_index_last3 = pd.date_range(start = pd.Timestamp(time_last_obs) - datetime.timedelta(days=365*3), end=time_last_obs, freq='D')
-
-# forecast including the last observed day - allows ffill(), etc.
-time_index_forecast0 = pd.date_range(start = time_last_obs, end=time_forecast_end, freq='D')
-# forecast only.
+time_index_last3y = pd.date_range(start = pd.Timestamp(time_last_obs) - datetime.timedelta(days=365*3), end=time_last_obs, freq='D')
 time_index_forecast = pd.date_range(start = time_forecast_start, end=time_forecast_end, freq='D')
+# time_index_hindcast = np.concatenate([time_index_forecast - datetime.timedelta(days=365*3),
+#                                       time_index_forecast - datetime.timedelta(days=365*2),
+#                                       time_index_forecast - datetime.timedelta(days=365*1)])
+
+mmb_all = mmb.reindex({'time':time_index_all})
 
 # https://gist.github.com/rabernat/1ea82bb067c3273a6166d1b1f77d490f
 def detrend_dim(da, dim, deg=1):
@@ -1834,57 +1847,70 @@ def detrend_dim(da, dim, deg=1):
     fit = xr.polyval(da[dim], p.polyfit_coefficients)
     return fit
 
-
-mmb_forecast = mmb.reindex({'time':time_index_forecast0})
-mmb_all = mmb.reindex({'time':time_index_all})
-
-# select last 3 years for linear trend
-# mmb3 = mmb.sel({'time':slice(time_index_last3[0], time_index_last3[-1])})
-
-
-# short term variations
-# df3['seasonal'] = sp.signal.detrend(df3['mmb'].values)
 for v in ['mmb','mmb_region','mmb_sector']:
-    last3 = mmb[v].sel({'time':slice(time_index_last3[0],time_index_last3[-1])})
+    # trend is linear long term trend of last 3 years of observations.
+    last3_plus_forecast = mmb_all[v].sel({'time':slice(time_index_last3y[0],time_forecast_end)})
+    trend = detrend_dim(last3_plus_forecast, 'time')
 
-    trend = detrend_dim(last3, 'time')
+    # season is the detrended values of forecasted calendar dates for the past 3 years
+    season = (last3_plus_forecast - trend).reindex({'time':time_index_hindcast})
 
-    seasonal = last3 - trend
-    seasonal['doy'] = seasonal['time'].to_series().dt.day_of_year
-    seasonal = seasonal.groupby('doy', squeeze=False, restore_coord_dims=True).mean()
-    seasonal = seasonal.roll(shifts={'doy': -1 * pd.Timestamp(time_last_obs).day_of_year}, roll_coords=True)
+    # forecast is the long term trend adjusted to start from the last observed,
+    # then cropped to the last timestamp, then seasonality added, then gap-filled
+    # with bilinear interpolation for smoothness
+
+    forecast = trend.reindex({'time':time_index_forecast})
+    forecast = forecast - forecast.isel(time=0) + mmb[v].isel({'time':-1}) + forecast.diff(dim='time').isel({'time':-1})
+    forecast = forecast + season.mean(dim='time').values
+    forecast = forecast.where(forecast['time'] == forecast['time'][-1]).dropna(dim='time')
+    mmb_all[v] = xr.concat([mmb[v],forecast], dim='time').interp(time=time_index_all)
     
-    trend -= trend.isel(time=0)
-    seasonal -= seasonal.isel(doy=0)
-    
-    shape = mmb_forecast[v].shape
-    trend = trend.values[0:shape[0], 0:shape[1]] if size(shape) == 2 else trend.values[0:shape[0]]
-    seasonal = seasonal.values[0:shape[0], 0:shape[1]] if size(shape) == 2 else seasonal.values[0:shape[0]]
+for v in ['mmb_err','err_region','err_sector']:
+    last3_hindcast = mmb_all[v].sel({'time':time_index_hindcast})
+    diff = np.abs(last3_hindcast.reindex({'time':time_index_last3y}).diff(dim='time').dropna(dim='time'))
 
-    mmb_forecast[v] = mmb_forecast[v].ffill(dim='time') + trend + seasonal
-    mmb_all[v] = xr.concat([mmb[v],mmb_forecast[v].reindex({'time':time_index_forecast})], dim='time', combine_attrs='override')
+    if size(diff.dims) == 1:
+        err = diff.sortby(diff, ascending=False).values[0:time_index_forecast.size].cumsum()
+        e = xr.DataArray(data=err, dims=['time'], coords={'time':time_index_forecast})
+    else:
+        rank = diff.to_dataframe().unstack()[v]
+        err = pd.DataFrame(columns=rank.columns, index=time_index_forecast)
+        err.index.name = 'time'
+        for c in rank.columns: err[c] = rank[c].sort_values(ascending=False).values[0:time_index_forecast.size]
+        e = xr.DataArray(err).squeeze().reindex({'time':time_index_all})
+        
+    mmb_all[v] = mmb_all[v].ffill(dim='time') + e.cumsum().reindex({'time':time_index_all}).fillna(0)
 
-mmb_all = mmb_all.bfill(dim='time')    
-mmb_all['mmb'].plot()
+mmb_all = mmb_all.bfill(dim='time')
 
-    # # Uncertainty
-    # # 1. Assume that discharge n days in the future may increase by the largest change over n days historically
-    # # 1. Add that to the baseline uncertainty.
-    # forecast['err'] = np.nan
-    # for i in np.arange(forecast.index.size):
-    #     forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).apply(lambda x: x.max()-x.min()).bfill().iloc[i]
-    #     # forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).mean().max()
-    # # forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err'].cumsum()
-    # forecast['mmb_err'] = df3.iloc[-1]['mmb_err'] + forecast['err']
+from matplotlib import rc
+rc('font', size=12)
+rc('text', usetex=False)
+# matplotlib.pyplot.xkcd()
 
-    # df = df.reindex(time_index_all).bfill()
-    # df.loc[time_last_obs:, 'mmb'] = forecast[time_last_obs:]['best']
-    # df.loc[time_last_obs:, 'mmb_err'] = forecast[time_last_obs:]['mmb_err']
+fig = plt.figure(1, figsize=(5,4)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+ax = fig.add_subplot(111)
+
+# mmb_all['mmb'].plot(ax=ax)
+# ax.fill_between(mmb_all['time'],
+#                 mmb_all['mmb']-mmb_all['mmb_err'],
+#                 mmb_all['mmb']+mmb_all['mmb_err'],
+#                 color='gray', alpha=0.25)
+
+r = 'SE'
+mmb_all['mmb_region'].sel({'region':r}).plot(ax=ax)
+ax.fill_between(mmb_all['time'],
+                mmb_all['mmb_region'].sel({'region':r}) - mmb_all['err_region'].sel({'region':r}),
+                mmb_all['mmb_region'].sel({'region':r}) + mmb_all['err_region'].sel({'region':r}),
+                color='gray', alpha=0.25)
 
 #+END_SRC
 
 #+RESULTS: forecast_mmb
-| <matplotlib.lines.Line2D | at | 0x7f178166b580> |
+: <matplotlib.collections.PolyCollection at 0x7f8acd4d9d90>
+
 
 
 
@@ -5018,26 +5044,28 @@ plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tigh
 
 
 #+NAME: tbl_credit
-| Task                   | KDM | XF | PL | MS | KK | NBK | BN | MvdB | WC | SS | JB | AS | APA | SBA | RSF |
-| Conceptualization      |   2 |    |    |    |    |     |    |      |    |    |    |    |   2 |     |   2 |
-| Data curation          |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |  2 |  3 |     |     |     |
-| Implementation         |   3 |  2 |  2 |    |  1 |     |    |      |    |    |    |    |     |     |     |
-| Funding                |     |    |    |    |    |     |    |      |    |    |    |  3 |   3 |   2 |   3 |
-| Methodology: SMB       |     |  3 |  3 |    |    |     |  3 |    1 |    |    |    |    |     |     |     |
-| Methodology: MMB       |   3 |    |    |    |    |     |    |      |  1 |    |    |  1 |   1 |     |   1 |
-| Methodology: BMB       |   1 |    |    |    |    |   3 |    |      |    |    |    |    |     |     |     |
-| Validation             |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |
-| Validation: GRACE      |     |    |    |    |    |     |    |      |  3 |    |    |    |     |     |     |
-| Validation: VC         |     |    |    |    |    |     |    |      |  1 |  3 |    |    |     |     |     |
-| Methods: Reconstructed |     |    |    |    |  2 |     |    |      |    |    |  2 |    |     |     |     |
-| Project administration |   3 |    |    |    |    |     |    |      |    |    |    |    |   1 |   1 |   1 |
-| Resources              |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |    |  3 |     |   2 |     |
-| Software               |   3 |  3 |  3 |    |    |     |    |      |    |    |    |  3 |     |     |     |
-| Visualization          |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |
-| Writing (First draft)  |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |  3 |  3 |  3 |    |   1 |     |   1 |
-| Writing (Editing)      |   3 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |  2 |  2 |  3 |    |     |     |   2 |
-|------------------------+-----+----+----+----+----+-----+----+------+----+----+----+----+-----+-----+-----|
-| #ERROR                 |  33 | 19 | 19 | 11 | 14 |  14 | 14 |   12 | 10 |  8 | 10 | 13 |   8 |   5 |  10 |
+| Task                      | KDM | XF | PL | MS | KK | NBK | BN | MvdB | WC | SS | JB | AS | MDK | APA | SBA | RSF |
+| Conceptualization         |   2 |    |    |    |    |     |    |      |    |    |    |    |     |   2 |     |   2 |
+| Data curation             |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |  2 |  3 |     |     |     |     |
+| Implementation            |   3 |  2 |  2 |    |  1 |     |    |      |    |    |    |    |   1 |     |     |     |
+| Funding                   |     |    |    |    |    |     |    |      |    |    |    |  3 |     |   3 |   2 |   3 |
+| Methodology: SMB          |     |  3 |  3 |    |    |     |  3 |    1 |    |    |    |    |     |     |     |     |
+| Methodology: MMB          |   3 |    |    |    |    |     |    |      |  1 |    |    |  1 |     |   1 |     |   1 |
+| Methodology: MMB forecast |   2 |    |    |    |    |     |    |      |    |    |    |    |   2 |     |     |     |
+| Methodology: BMB          |   1 |    |    |    |    |   3 |    |      |    |    |    |    |     |     |     |     |
+| Validation                |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
+| Validation: GRACE         |     |    |    |    |    |     |    |      |  3 |    |    |    |     |     |     |     |
+| Validation: VC            |     |    |    |    |    |     |    |      |  1 |  3 |    |    |     |     |     |     |
+| Methods: Reconstructed    |     |    |    |    |  2 |     |    |      |    |    |  2 |    |     |     |     |     |
+| Methods: MMB forecast     |   3 |    |    |    |    |     |    |      |    |    |    |    |   1 |     |     |     |
+| Project administration    |   3 |    |    |    |    |     |    |      |    |    |    |    |     |   1 |   1 |   1 |
+| Resources                 |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |    |  3 |     |     |   2 |     |
+| Software                  |   3 |  3 |  3 |    |    |     |    |      |    |    |    |  3 |   2 |     |     |     |
+| Visualization             |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
+| Writing (First draft)     |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |  3 |  3 |  3 |    |     |   1 |     |   1 |
+| Writing (Editing)         |   3 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |  2 |  2 |  3 |    |   1 |     |     |   2 |
+|---------------------------+-----+----+----+----+----+-----+----+------+----+----+----+----+-----+-----+-----+-----|
+| #ERROR                    |  33 | 19 | 19 | 11 | 14 |  14 | 14 |   12 | 10 |  8 | 10 | 13 |   7 |   8 |   5 |  10 |
 #+TBLFM: @>=vsum(@2..@-1)
 
 #+BEGIN_SRC python :var tbl=tbl_credit :session :exports none
