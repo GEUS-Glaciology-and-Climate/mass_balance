@@ -322,42 +322,64 @@ d.rast regions_e@Mouginot_2019
 <<init_grass>>
 #+END_SRC
 
-** INFO MAR projection
-
-From XF:
-
-#+BEGIN_QUOTE
-These outputs are on the MAR native grid using a Stereographic Oblique Projection with 70.5°N, 40°W as center.
-#+END_QUOTE
-
-Find domain boundary
-
-#+BEGIN_QUOTE
-Y21_155 and X12_84 are the X/Y axis from MAR after a selection by NOAA FERRET of a smaller domain covering Greenland only within the MAR initial integration domain. The centre of the projection in the reduced grid corresponds to the pixel (39,60).
-
-The dimension of the original grid is 95 x 165 and the centre of the projection is the pixel (50,80). I'm not a specialist of the projections and I can't help to resolve your problem. But as it comes from a old Fortran code into, it is likely that there are some errors explaining the differences you have.
-#+END_QUOTE
 
 ** Set up GRASS location
 
-#+BEGIN_SRC bash
-# update region from XY to the following proj4 string
-g.proj -c proj4="+proj=sterea +lat_0=90 +lat_ts=70.5 +lon_0=-40 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
-1
-C=$(m.proj -i coordinates=-40,70.5) # center of center grid cell
-echo "${C}" ## 0.00|-2198452.92|0.00
-# The following numbers come from $c(y) and the X12_84 and Y21_155 arrays in the MAR NetCDF files
-g.region e=680000 w=-760000 s=$(( -1180000 - 2198452 )) n=$(( 1500000 - 2198452 )) rows=134 cols=72 -pl
-g.region e=e+10000 w=w-10000 s=s-10000 n=n+10000 -pl # adjust from cell center to edges
-g.region save=RCM
+#+BEGIN_SRC bash :tangle no :results verbatim
+cdo sinfov ${DATADIR}/MAR/3.12/MAR-2000.nc | head -n20
+#+END_SRC
 
+#+RESULTS:
+#+begin_example
+Warning (cdfInqContents): Coordinates variable time can't be assigned!
+Warning (cdfInqContents): Coordinates variable y can't be assigned!
+Warning (cdfInqContents): Coordinates variable x can't be assigned!
+Warning (cdfInqContents): Coordinates variable time can't be assigned!
+Warning (cdfInqContents): Coordinates variable y can't be assigned!
+Warning (cdfInqContents): Coordinates variable x can't be assigned!
+Warning (cdfInqContents): Coordinates variable y can't be assigned!
+Warning (cdfInqContents): Coordinates variable x can't be assigned!
+Warning (cdfInqContents): Coordinates variable y can't be assigned!
+Warning (cdfInqContents): Coordinates variable x can't be assigned!
+Warning (cdfInqContents): Coordinates variable y can't be assigned!
+Warning (cdfInqContents): Coordinates variable x can't be assigned!
+Warning (cdfInqContents): Coordinates variable y can't be assigned!
+Warning (cdfInqContents): Coordinates variable x can't be assigned!
+Warning (cdfInqContents): Coordinates variable y can't be assigned!
+Warning (cdfInqContents): Coordinates variable x can't be assigned!
+   File format : NetCDF4 classic zip
+    -1 : Institut Source   T Steptype Levels Num    Points Num Dtype : Parameter name
+     1 : unknown  unknown  v instant       2   1     10336   1  F32z : smb           
+     2 : unknown  unknown  v instant       2   1     10336   1  F32z : ru            
+     3 : unknown  unknown  c instant       1   2     10336   1  F32z : lon           
+     4 : unknown  unknown  c instant       1   2     10336   1  F32z : lat           
+     5 : unknown  unknown  c instant       1   2     10336   1  F32z : sh            
+     6 : unknown  unknown  c instant       1   2     10336   1  F32z : msk           
+     7 : unknown  unknown  c instant       1   2     10336   1  F32z : srf           
+   Grid coordinates :
+     1 : projection               : points=10336 (76x136)
+                          mapping : polar_stereographic
+                                x : -640 to 860 by 20 km
+                                y : -3347.928 to -647.9277 by 20 km
+   Vertical coordinates :
+     1 : generic                  : levels=2
+                           sector : 1 to 2 level
+     2 : surface                  : levels=1
+   Time coordinate :  366 steps
+     RefTime =  1993-09-01 00:00:00  Units = days  Calendar = standard
+#+end_example
+
+#+BEGIN_SRC bash
+g.region w=-640000 e=860000 s=-3347928 n=-647928 res=20000 -p
+g.region w=w-10000 e=e+10000 s=s-10000 n=n+10000 res=20000 -p # adjust from cell center to edges
+g.region save=RCM
 g.region res=1000 -p
 g.region save=sectors
 #+END_SRC
 
 ** Ice mask
 #+BEGIN_SRC bash
-r.external -o source=NetCDF:${DATADIR}/MAR/daily/MARv3.11-20km-daily-NCEP-NCARv1-2000.nc:MSK output=mask
+r.external -o source=NetCDF:${DATADIR}/MAR/3.12/MAR-2000.nc:msk output=mask
 r.region map=mask region=RCM
 r.colors map=mask color=haxby
 
@@ -415,11 +437,25 @@ d.rast regions_e@Mouginot_2019
 <<init_grass>>
 #+END_SRC
 
-#+BEGIN_SRC bash :tangle no
-cdo -sinfo ${DATADIR}/RACMO/daily/smb_rec.2020_JAS.BN_RACMO2.3p2_ERA5_3h_FGRN055.1km.DD.nc
+#+BEGIN_SRC bash :tangle no :results verbatim
+cdo -sinfo ${DATADIR}/RACMO/daily/smb_rec.2020_JAS.BN_RACMO2.3p2_ERA5_3h_FGRN055.1km.DD.nc | head -n 9
 # x : -638956 to 856044 by 1000 km
 # y : -3354596 to -655596 by 1000 km
 #+END_SRC
+
+#+RESULTS:
+#+begin_example
+cdo    sinfo: Processed 3 variables over 92 timesteps [0.00s 50MB].
+   File format : NetCDF
+    -1 : Institut Source   T Steptype Levels Num    Points Num Dtype : Parameter ID
+     1 : unknown  unknown  c instant       1   1   4039200   1  F32  : -1            
+     2 : unknown  unknown  c instant       1   1   4039200   1  F32  : -2            
+     3 : unknown  unknown  v instant       1   1   4039200   1  F32  : -3            
+   Grid coordinates :
+     1 : generic                  : points=4039200 (1496x2700)
+                                x : -638956 to 856044 by 1000 km
+                                y : -3354596 to -655596 by 1000 km
+#+end_example
 
 #+BEGIN_SRC bash
 g.region w=-638956 e=856044 s=-3354596 n=-655596 res=1000 -p
@@ -551,27 +587,27 @@ for f in $(ls ${dir}/*.nc | tail -n 30); do ## operational
   done
 done
 
-log_info "HIRHAM ROI areas"
-r.in.gdal -ol input="NetCDF:${DATADIR}/HIRHAM/ZwallyMasks_all_SD.nc:cellarea" output=area
-r.region map=area region=RCM
+# log_info "HIRHAM ROI areas"
+# r.in.gdal -ol input="NetCDF:${DATADIR}/HIRHAM/ZwallyMasks_all_SD.nc:cellarea" output=area
+# r.region map=area region=RCM
 
-r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
-| cut -d"|" -f1,13 \
-| datamash -t"|" transpose \
-| sed s/^sum/${d}/ \
-> ./tmp/HIRHAM_sector_area.bsv
+# r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
+# | cut -d"|" -f1,13 \
+# | datamash -t"|" transpose \
+# | sed s/^sum/${d}/ \
+# > ./tmp/HIRHAM_sector_area.bsv
 
-r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
-| cut -d"|" -f1,13 \
-| datamash -t"|" transpose \
-| sed s/^sum/${d}/ \
-> ./tmp/HIRHAM_basin_area.bsv
+# r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
+# | cut -d"|" -f1,13 \
+# | datamash -t"|" transpose \
+# | sed s/^sum/${d}/ \
+# > ./tmp/HIRHAM_basin_area.bsv
 
-r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
-| cut -d"|" -f1,13 \
-| datamash -t"|" transpose \
-| sed s/^sum/${d}/ \
-> ./tmp/HIRHAM_region_area.bsv
+# r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
+# | cut -d"|" -f1,13 \
+# | datamash -t"|" transpose \
+# | sed s/^sum/${d}/ \
+# > ./tmp/HIRHAM_region_area.bsv
 #+END_SRC
 
 ** MAR
@@ -582,22 +618,32 @@ r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
 RCM=MAR
 mkdir -p tmp/${RCM}
 
-dir=${DATADIR}/MAR/daily
-f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
+dir=${DATADIR}/MAR/3.12
+f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-# for f in ${dir}/MARv3.11*.nc; do ## initial
-for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ## operational
+# for f in ${dir}/MAR-????*.nc; do ## initial
+for f in $(ls ${dir}/MAR-????.nc | tail -n2); do ## operational
   dates=$(python ./nc_dates.py ${f})
-  band=0
+
+  ###
+  ### "band = -1" and "band = band + 2"
+  ### This code is necessary because the smb raster in the NetCDF files
+  ### has dimensions (time, sector, y, x) where sector, per Xavier, is:
+  ### "k=1 permanent ice, k=2 tundra". GRASS exposes these dimensions as
+  ### even and odd band numbers, so 1 is Jan 1 ice, and 2 is jan 1 tundra
+  ### and 3 is Jan 2 ice, etc.
+  ###
+  
+  band=-1  
   d=1986-01-01 # debug
   for d in ${dates}; do
-    band=$(( ${band} + 1 ))
+    band=$(( ${band} + 2 ))
 
     log_info "${RCM}: ${d}"
 
     if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
 
-    r.in.gdal -o input="NetCDF:${f}:SMB" band=${band} output=smb_raw --o --q
+    r.in.gdal -o input="NetCDF:${f}:smb" band=${band} output=smb_raw --o --q
     r.region map=smb_raw region=RCM
     r.mapcalc "smb = if(mask > 50, smb_raw * (mask/100), null())" --o
 
@@ -622,28 +668,27 @@ for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ## operational
   done
 done
 
+# log_info "${RCM} ROI areas"
+# r.in.gdal -o input="NetCDF:${DATADIR}/MAR/3.12/MAR_basins.nc:AREA" output=area
+# r.region map=area region=RCM
 
-log_info "${RCM} ROI areas"
-r.in.gdal -o input="NetCDF:${DATADIR}/MAR/daily/MAR_basins.nc:AREA" output=area
-r.region map=area region=RCM
+# r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
+# | cut -d"|" -f1,13 \
+# | datamash -t"|" transpose \
+# | sed s/^sum/${d}/ \
+# > ./tmp/${RCM}_sector_area.bsv
 
-r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
-| cut -d"|" -f1,13 \
-| datamash -t"|" transpose \
-| sed s/^sum/${d}/ \
-> ./tmp/${RCM}_sector_area.bsv
+# r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
+# | cut -d"|" -f1,13 \
+# | datamash -t"|" transpose \
+# | sed s/^sum/${d}/ \
+# > ./tmp/${RCM}_basin_area.bsv
 
-r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
-| cut -d"|" -f1,13 \
-| datamash -t"|" transpose \
-| sed s/^sum/${d}/ \
-> ./tmp/${RCM}_basin_area.bsv
-
-r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
-| cut -d"|" -f1,13 \
-| datamash -t"|" transpose \
-| sed s/^sum/${d}/ \
-> ./tmp/${RCM}_region_area.bsv
+# r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
+# | cut -d"|" -f1,13 \
+# | datamash -t"|" transpose \
+# | sed s/^sum/${d}/ \
+# > ./tmp/${RCM}_region_area.bsv
 
 #+END_SRC
 
@@ -879,36 +924,14 @@ Already done in each of the MMB products
 <<init_grass>>
 #+END_SRC
 
-** ROIs
-
-Import ROIs to this location
-
-#+BEGIN_SRC bash
-g.mapset -c Mouginot_2019
-r.proj -pgl location=G_RACMO mapset=Mouginot_2019
-r.proj -pg location=G_RACMO mapset=Mouginot_2019 input=basins_e
-eval $(r.proj -pg location=G_RACMO mapset=Mouginot_2019 input=basins_e)
-g.region e=$e w=$w n=$n s=$s rows=$rows cols=$cols -p
-r.proj location=G_RACMO mapset=Mouginot_2019 input=basins_e
-r.proj location=G_RACMO mapset=Mouginot_2019 input=regions_e
-
-g.mapset -c Zwally_2012
-r.proj -pgl location=G_RACMO mapset=Zwally_2012
-r.proj -pg location=G_RACMO mapset=Zwally_2012 input=sectors_e
-eval $(r.proj -pg location=G_RACMO mapset=Zwally_2012 input=sectors_e)
-g.region e=$e w=$w n=$n s=$s rows=$rows cols=$cols -p
-r.proj location=G_RACMO mapset=Zwally_2012 input=sectors_e
-#+END_SRC
-
-
 ** GF
 *** Import 
 #+BEGIN_SRC bash
 g.mapset -c GF
 
-r.external source=${DATADIR}/Karlsson_2021/GF.tif output=GF_ann
+r.external -o source=NetCDF:${DATADIR}/Karlsson_2021/basalmelt.nc:gfmelt output=GF_ann
 g.region raster=GF_ann
-g.region res=1000 -pa
+
 r.mapcalc "GF = GF_ann / 365"
 #+END_SRC
 *** Apply
@@ -1177,42 +1200,30 @@ d.vect outlets_uniq color=cyan
 <<init_grass>>
 #+END_SRC
 
-**** Reproject BedMachine derived change in pressure to MAR projection
-
-#+BEGIN_SRC bash
-g.mapset -c VHD
-r.proj -pg location=G_BMB mapset=VHD input=unit_melt
-eval $(r.proj -pg location=G_BMB mapset=VHD input=unit_melt)
-g.region e=$e w=$w n=$n s=$s rows=$rows cols=$cols -p
-g.region save=BedMachine
-r.proj location=G_BMB mapset=VHD input=unit_melt output=unit_melt_res
-g.region res=1000 -pa
-r.mapcalc "unit_melt = unit_melt_res" # resample to regular grid
-#+END_SRC
-
 **** MAR daily partitioned to ROI
 
 #+BEGIN_SRC bash :results verbatim
+g.mapset -c VHD
 
 RCM=MAR
 mkdir -p tmp/BMB
 
-dir=${DATADIR}/${RCM}/daily
-f=$(ls ${dir}/MARv3.11*.nc|head -n1) # debug
+dir=${DATADIR}/${RCM}/3.12
+f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-# for f in ${dir}/MARv3.11*.nc; do ### initial
-for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ### operational
+# for f in ${dir}/MAR-????*.nc; do ### initial
+for f in $(ls ${dir}/MAR-????*.nc | tail -n2); do ## operational
   dates=$(python ./nc_dates.py ${f})
-  band=0
+  band=1
   d=1986-01-01 # debug
   for d in ${dates}; do
-    band=$(( ${band} + 1 ))
+    band=$(( ${band} + 2 ))
 
     log_info "MAR BMB: ${d} (band: ${band})"
 
     if [[ -e ./tmp/BMB/sector_${d}.bsv ]]; then continue; fi
 
-    r.in.gdal -o input="NetCDF:${f}:RU" band=${band} output=ru_raw --o --q
+    r.in.gdal -o input="NetCDF:${f}:ru" band=${band} output=ru_raw --o --q
     r.region map=ru_raw region=RCM
 
     # ru_raw in mm w eq runoff
@@ -1242,9 +1253,6 @@ for f in $(ls ${dir}/MARv3.11*.nc | tail -n2); do ### operational
   done
 done
 #+END_SRC
-
-
-
 
 *** INFO How much water lost at edge cells?
 
@@ -1373,24 +1381,24 @@ print(bmb)
 #+RESULTS:
 #+begin_example
 <xarray.Dataset>
-Dimensions:         (region: 7, sector: 19, time: 12842)
+Dimensions:         (region: 7, sector: 19, time: 13002)
 Coordinates:
-  ,* time            (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-02-27
+  ,* time            (time) datetime64[ns] 1986-01-01 1986-01-02 ... 2021-08-06
   ,* sector          (sector) int64 11 12 13 14 21 22 31 ... 50 61 62 71 72 81 82
   ,* region          (region) <U2 'NE' 'CE' 'SE' 'SW' 'CW' 'NW' 'NO'
 Data variables:
-    GF_sector       (sector) float64 0.000863 0.0002914 ... 0.001457 0.0001964
-    vel_sector      (sector) float64 0.00149 0.0002846 ... 0.005806 0.0002424
-    VHD_sector      (time, sector) float64 0.0 0.0 0.0 0.0 ... nan nan nan nan
-    GF_region       (region) float64 0.003862 0.001717 ... 0.001706 0.001373
-    vel_region      (region) float64 0.003037 0.003699 ... 0.006114 0.001899
-    VHD_region      (time, region) float64 0.0 2.633e-05 3.896e-05 ... nan nan
-    GF_sector_err   (sector) float64 0.0004315 0.0001457 ... 0.0007284 9.82e-05
-    vel_sector_err  (sector) float64 0.0004962 9.478e-05 ... 0.001933 8.071e-05
-    VHD_sector_err  (time, sector) float64 0.0 0.0 0.0 0.0 ... nan nan nan nan
-    GF_region_err   (region) float64 0.001931 0.0008587 ... 0.0008528 0.0006863
-    vel_region_err  (region) float64 0.001011 0.001232 ... 0.002036 0.0006324
-    VHD_region_err  (time, region) float64 0.0 3.949e-06 5.845e-06 ... nan nan
+    GF_sector       (sector) float64 0.0008361 0.0002763 ... 0.00142 0.0001805
+    vel_sector      (sector) float64 0.001486 0.0002814 ... 0.005776 0.0002316
+    VHD_sector      (time, sector) float64 4.462e-17 2.422e-17 ... nan nan
+    GF_region       (region) float64 0.003765 0.001524 ... 0.001649 0.001317
+    vel_region      (region) float64 0.003019 0.003583 ... 0.006068 0.00189
+    VHD_region      (time, region) float64 1.771e-16 6.183e-08 ... nan nan
+    GF_sector_err   (sector) float64 0.000418 0.0001381 ... 0.0007099 9.023e-05
+    vel_sector_err  (sector) float64 0.0004948 9.372e-05 ... 0.001923 7.714e-05
+    VHD_sector_err  (time, sector) float64 6.693e-18 3.633e-18 ... nan nan
+    GF_region_err   (region) float64 0.001882 0.0007622 ... 0.0008245 0.0006583
+    vel_region_err  (region) float64 0.001005 0.001193 ... 0.002021 0.0006293
+    VHD_region_err  (time, region) float64 2.656e-17 9.275e-09 ... nan nan
 #+end_example
 
 
@@ -1835,9 +1843,9 @@ time_forecast_end = datetime.datetime.utcnow().date() + datetime.timedelta(days 
 time_index_all = pd.date_range(start=time_start, end=time_forecast_end, freq='D')
 time_index_last3y = pd.date_range(start = pd.Timestamp(time_last_obs) - datetime.timedelta(days=365*3), end=time_last_obs, freq='D')
 time_index_forecast = pd.date_range(start = time_forecast_start, end=time_forecast_end, freq='D')
-# time_index_hindcast = np.concatenate([time_index_forecast - datetime.timedelta(days=365*3),
-#                                       time_index_forecast - datetime.timedelta(days=365*2),
-#                                       time_index_forecast - datetime.timedelta(days=365*1)])
+time_index_hindcast = np.concatenate([time_index_forecast - datetime.timedelta(days=365*3),
+                                      time_index_forecast - datetime.timedelta(days=365*2),
+                                      time_index_forecast - datetime.timedelta(days=365*1)])
 
 mmb_all = mmb.reindex({'time':time_index_all})
 
@@ -3247,13 +3255,13 @@ What % of MAR runoff occurs in the uncovered regions?
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
-ds = xr.open_mfdataset('/home/kdm/data/MAR/daily/MARv3.11-20km-daily-NCEP-NCARv1-201*.nc', combine='by_coords')['RU']
-ds = ds.sum(dim='SECTOR1_1').resample({'TIME':'YS'}).mean()
+ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR.nc', combine='by_coords')['ru']
+ds = ds.sel({'sector':1}).sum(dim='sector').resample({'time':'YS'}).mean()
 ds = ds.where(~np.isinf(ds), 0)
 ds.to_netcdf('./tmp/MAR_2010s.nc')
 
-ds = xr.open_mfdataset('/home/kdm/data/MAR/daily/MARv3.11-20km-daily-NCEP-NCARv1-2020.nc', combine='by_coords')['RU']
-ds = ds.sum(dim='TIME').sel({'SECTOR':2})
+ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
+ds = ds.sum(dim='time').sel({'sector':1})
 ds.to_netcdf('./tmp/MAR_2020.nc')
 #+END_SRC
 
@@ -3285,7 +3293,7 @@ r.univar -g map=RU_2020 zones=BedMachine | grep sum # 478416
 #+BEGIN_SRC bash :session *total_mass_balance-shell* :cache yes
 echo "Year MAR BedMachine"
 for i in $(seq 10); do
-  r.in.gdal -o input="NetCDF:./tmp/MAR_2010s.nc:RU" band=${i} output=RU --o  --q 2>/dev/null
+  r.in.gdal -o input="NetCDF:./tmp/MAR_2010s.nc:ru" band=${i} output=RU --o  --q 2>/dev/null
   r.region map=RU region=RCM --q
   r.mapcalc "RU = RU * MAR" --o --q
   eval $(r.univar -g map=RU zones=MAR | grep sum | sed 's/sum/MAR/')
@@ -5033,40 +5041,39 @@ plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tigh
 #+END_SRC
 
 #+RESULTS:
-: slope:  0.0432215562085079
-: intercept:  -4.910958249349447
-: r^2:  0.7883317314056919
-: p:  6.557623130167223e-10
-: std_err : 0.004479234197443158
-: <ipython-input-83-2d63c9b10367>:259: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: slope:  0.029557388940898793
+: intercept:  -3.4633056369036304
+: r^2:  0.7469795590445695
+: p:  6.253448888175992e-09
+: std_err : 0.003440483722315962
+: <ipython-input-43-94d2e58012ef>:261: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tight', dpi=300)
 
 ** CRediT
 
 
 #+NAME: tbl_credit
-| Task                      | KDM | XF | PL | MS | KK | NBK | BN | MvdB | WC | SS | JB | AS | MDK | APA | SBA | RSF |
-| Conceptualization         |   2 |    |    |    |    |     |    |      |    |    |    |    |     |   2 |     |   2 |
-| Data curation             |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |  2 |  3 |     |     |     |     |
-| Implementation            |   3 |  2 |  2 |    |  1 |     |    |      |    |    |    |    |   1 |     |     |     |
-| Funding                   |     |    |    |    |    |     |    |      |    |    |    |  3 |     |   3 |   2 |   3 |
-| Methodology: SMB          |     |  3 |  3 |    |    |     |  3 |    1 |    |    |    |    |     |     |     |     |
-| Methodology: MMB          |   3 |    |    |    |    |     |    |      |  1 |    |    |  1 |     |   1 |     |   1 |
-| Methodology: MMB forecast |   2 |    |    |    |    |     |    |      |    |    |    |    |   2 |     |     |     |
-| Methodology: BMB          |   1 |    |    |    |    |   3 |    |      |    |    |    |    |     |     |     |     |
-| Validation                |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
-| Validation: GRACE         |     |    |    |    |    |     |    |      |  3 |    |    |    |     |     |     |     |
-| Validation: VC            |     |    |    |    |    |     |    |      |  1 |  3 |    |    |     |     |     |     |
-| Methods: Reconstructed    |     |    |    |    |  2 |     |    |      |    |    |  2 |    |     |     |     |     |
-| Methods: MMB forecast     |   3 |    |    |    |    |     |    |      |    |    |    |    |   1 |     |     |     |
-| Project administration    |   3 |    |    |    |    |     |    |      |    |    |    |    |     |   1 |   1 |   1 |
-| Resources                 |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |    |  3 |     |     |   2 |     |
-| Software                  |   3 |  3 |  3 |    |    |     |    |      |    |    |    |  3 |   2 |     |     |     |
-| Visualization             |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
-| Writing (First draft)     |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |  3 |  3 |  3 |    |     |   1 |     |   1 |
-| Writing (Editing)         |   3 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |  2 |  2 |  3 |    |   1 |     |     |   2 |
-|---------------------------+-----+----+----+----+----+-----+----+------+----+----+----+----+-----+-----+-----+-----|
-| #ERROR                    |  33 | 19 | 19 | 11 | 14 |  14 | 14 |   12 | 10 |  8 | 10 | 13 |   7 |   8 |   5 |  10 |
+| Task                   | KDM | XF | PL | MS | KK | NBK | BN | MvdB | WC | SS | JB | AS | MDK | APA | SBA | RSF |
+| Conceptualization      |   2 |    |    |    |    |     |    |      |    |    |    |    |     |   2 |     |   2 |
+| Data curation          |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |  2 |  3 |     |     |     |     |
+| Implementation         |   3 |  2 |  2 |    |  1 |     |    |      |    |    |    |    |   1 |     |     |     |
+| Funding                |     |    |    |    |    |     |    |      |    |    |    |  3 |     |   3 |   2 |   3 |
+| Methods: SMB           |     |  3 |  3 |    |    |     |  3 |    1 |    |    |    |    |     |     |     |     |
+| Methods: MMB           |   3 |    |    |    |    |     |    |      |  1 |    |    |  1 |     |   1 |     |   1 |
+| Methods: MMB forecast  |   2 |    |    |    |    |     |    |      |    |    |    |    |   2 |     |     |     |
+| Methods: BMB           |   1 |    |    |    |    |   3 |    |      |    |    |    |    |     |     |     |     |
+| Methods: Reconstructed |     |    |    |    |  2 |     |    |      |    |    |  2 |    |     |     |     |     |
+| Validation             |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
+| Validation: GRACE      |     |    |    |    |    |     |    |      |  3 |    |    |    |     |     |     |     |
+| Validation: VC         |     |    |    |    |    |     |    |      |  1 |  3 |    |    |     |     |     |     |
+| Project administration |   3 |    |    |    |    |     |    |      |    |    |    |    |     |   1 |   1 |   1 |
+| Resources              |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |    |  3 |     |     |   2 |     |
+| Software               |   3 |  3 |  3 |    |    |     |    |      |    |    |    |  3 |   2 |     |     |     |
+| Visualization          |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
+| Writing (First draft)  |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |  3 |  3 |  3 |    |     |   1 |     |   1 |
+| Writing (Editing)      |   3 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |  2 |  2 |  3 |    |     |     |     |   2 |
+|------------------------+-----+----+----+----+----+-----+----+------+----+----+----+----+-----+-----+-----+-----|
+| #ERROR                 |  33 | 19 | 19 | 11 | 14 |  14 | 14 |   12 | 10 |  8 | 10 | 13 |   7 |   8 |   5 |  10 |
 #+TBLFM: @>=vsum(@2..@-1)
 
 #+BEGIN_SRC python :var tbl=tbl_credit :session :exports none
@@ -5252,9 +5259,12 @@ Run with =0 5 * * * ~/bin/MAR_daily.sh=
 #+BEGIN_SRC bash 
 #!/bin/bash
 
-cd ~/data/MAR/
-wget -a ~/data/MAR/wget.log -np -nc ftp://ftp.climato.be/fettweis/MARv3.11/Greenland/NCEP1_1948-2020_20km/MARv3.11-20km-daily-NCEP-NCARv1-2021.nc
-mv MARv3.11-20km-daily-NCEP-NCARv1-2021.nc daily
+mkdir -p ~/data/MAR/daily
+cd ~/data/MAR/daily
+
+# TODO: This script fails starting in 2030.
+wget -a ~/data/MAR/wget.log -np -nc ftp://ftp.climato.be/fettweis/tmp/ken/MAR-202*.nc
+mv MAR-202*.nc ../3.12
 #+END_SRC
 
 
@@ -5945,7 +5955,8 @@ all: FORCE
 	grass -e -c EPSG:4326 G_HIRHAM
 	grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
 	
-	grass -c ./G_MAR --exec ./MAR.sh
+	grass -e -c EPSG:3413 G_MAR
+	grass ./G_MAR/PERMANENT --exec ./MAR.sh
 
 	grass -e -c EPSG:3413 G_RACMO
 	grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
@@ -5963,8 +5974,7 @@ SMB: FORCE
 	python ./smb_bsv2nc.py
 
 BMB: FORCE
-	grass -e -c EPSG:3413 ./G_BMB
-	grass ./G_BMB/PERMANENT --exec ./BMB.sh
+	grass ./G_MAR/PERMANENT --exec ./BMB.sh
 	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
 	./bmb_merge.sh
 	python ./bmb_bsv2nc.py
@@ -5995,7 +6005,7 @@ dist: FORCE
 FORCE: # dummy target
 
 clean_all:
-	rm -fR G G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB G_BMB
+	rm -fR G G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB
 
 clean_SMB:
 	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
