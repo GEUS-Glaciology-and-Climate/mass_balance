@@ -66,7 +66,7 @@
 #+END_EXPORT
 
 #+BEGIN_abstract
-The mass of the Greenland ice sheet is declining as mass gain from snowfall is exceeded by mass loss from surface meltwater runoff, marine-terminating glacier calving and submarine melting, and basal melting. Here we use the input/output (IO) method to estimate mass change from 1840 through next week. Surface mass balance (SMB) gains and losses come from a semi-empirical SMB model from 1840 through 1985, and three regional climate models (RCMs; HIRHAM/HARMONIE, MAR, and RACMO) from 1986 through next week. Additional non-SMB losses come from a marine terminating glacier ice discharge product and a basal mass balance model. From these products we provide an annual estimate of Greenland ice sheet mass balance from 1840 through 1985 and a daily estimate at sector and region scale from 1986 through next week. This product updates daily and is the first IO product to include the basal mass balance which is a source of an additional ~8 % mass loss. Our results demonstrate an accelerating ice-sheet-scale mass loss and general agreement (r^{2} ranges from 0.64 to 0.96) among six other products, including gravitational, volume, and other IO mass balance estimates. Results from this study are available at https://dataverse01.geus.dk/privateurl.xhtml?token=d09976c4-4f89-43ef-8f91-173d269806a4 \citep{this_study_data}.
+The mass of the Greenland ice sheet is declining as mass gain from snowfall is exceeded by mass loss from surface meltwater runoff, marine-terminating glacier calving and submarine melting, and basal melting. Here we use the input/output (IO) method to estimate mass change from 1840 through next week. Surface mass balance (SMB) gains and losses come from a semi-empirical SMB model from 1840 through 1985, and three regional climate models (RCMs; HIRHAM/HARMONIE, MAR, and RACMO) from 1986 through next week. Additional non-SMB losses come from a marine terminating glacier ice discharge product and a basal mass balance model. From these products we provide an annual estimate of Greenland ice sheet mass balance from 1840 through 1985 and a daily estimate at sector and region scale from 1986 through next week. This product updates daily and is the first IO product to include the basal mass balance which is a source of an additional ~8 % mass loss. Our results demonstrate an accelerating ice-sheet-scale mass loss and general agreement (r^{2} ranges from 0.62 to 0.94) among six other products, including gravitational, volume, and other IO mass balance estimates. Results from this study are available at https://dataverse01.geus.dk/privateurl.xhtml?token=d09976c4-4f89-43ef-8f91-173d269806a4 \citep{this_study_data}.
 #+END_abstract
 
 * Table of contents                               :toc_2:noexport:
@@ -384,7 +384,9 @@ b_m = E_{\mathrm{VHD}} \, \rho_i^{-1} \, L^{-1}.
 
 Because results are presented per ROI and to reduce the computational load of this daily estimate, we only calculate the integrated energy released between the RCM runoff source cell and the outlet cell, and then assign that to the ROI containing the runoff source cell.
 
-To estimate reconstructed basal mass balance, we treat BMB_{GF} and BMB_{friction} as steady state as described at the start of this section. For BMB_{VHD} we use the fact that VHD comes from runoff by definition, and from this, reconstructed BMB_{VHD} is calculated using scaled runoff as a proxy. VHD theory suggests that a unit volume of runoff that experiences a 1000 m elevation drop will release enough heat to melt an additional 3 % citep:liestol_1956. To estimate the scale factor we use the 1986 through 2012 overlap between citet:kjeldsen_2015 runoff and This Study recent BMB_{VHD} from MAR runoff described above. The correlation between the two has an r^2 value of 0.78, slope of 0.043, and an intercept of -5 Gt yr^{-1} (Appendix \ref{apdx:reconstructed_runoff}). From this, we scale the citet:kjeldsen_2015 reconstructed runoff by 4.3 % to estimate reconstructed BMB_{VHD}.
+To estimate reconstructed basal mass balance, we treat BMB_{GF} and BMB_{friction} as steady state as described at the start of this section. For BMB_{VHD} we use the fact that VHD comes from runoff by definition, and from this, reconstructed BMB_{VHD} is calculated using scaled runoff as a proxy. VHD theory suggests that a unit volume of runoff that experiences a 1000 m elevation drop will release enough heat to melt an additional 3 % citep:liestol_1956. To estimate the scale factor we use the 1986 through 2012 overlap between citet:kjeldsen_2015 runoff and This Study recent BMB_{VHD} from MAR runoff described above. The correlation between the two has an r^2 value of 0.75, slope of 0.03 matching the theoretical estimate, and an intercept of -3 Gt yr^{-1} (Appendix \ref{apdx:reconstructed_runoff}). From this, we scale the citet:kjeldsen_2015 reconstructed runoff by 3 % to estimate reconstructed BMB_{VHD}.
+
+# See [[id:20210730T084938.500158][Create TMB output]]
 
 ** Reconstructed adjustment
 :PROPERTIES:
@@ -404,7 +406,7 @@ For reconstructed SMB and MMB, the mean of the recent uncertainty is added to th
 
 For surface mass balance, the adjustment is effectively a rotation around the mean values, with years with low SMB decreasing and years with high SMB increasing after the adjustment. For marine mass balance, years with low MMB are slightly reduced, and years with high MMB have a higher reduction to better match the overlapping estimates.
 
-The adjustment described above treats all biases in the reconstructed data. The primary assumption of our adjustment is that the bias contributions do not change in proportion to each other over time. We attribute the disagreement and need for the adjustment to the demonstrated too-high biases in accumulation and ablation estimates in the 1840-2012 reconstructed SMB field citep:fettweis_2020, an offset resulting from differences in ice masks citep:kjeldsen_2015, other accumulation rate inaccuracies citep:lewis_2017,lewis_2019, and other unknowns.
+The adjustment described above treats all biases in the reconstructed data. The primary assumption of our adjustment is that the bias contributions do not change in proportion to each other over time. We attribute the disagreement and need for the adjustment to the demonstrated too-high biases in accumulation and ablation estimates in the 1840-2012 reconstructed SMB field citep:fettweis_2020, an offset resulting from differences in ice masks citep:kjeldsen_2015, the inclusion of peripheral glaciers citep:kjeldsen:2015, other accumulation rate inaccuracies citep:lewis_2017,lewis_2019, and other unknowns.
 
 ** Domains, boundaries, and regions of interest
 
@@ -509,7 +511,7 @@ The most widely cited estimate of Greenland mass balance today is the Ice-Sheet 
 
 IMBIE2 uses a mixture of methods, some including BMB and some not. Prior to the altimetry record, IMBIE2 is derived using only the IO method (MB is actually MB^{*}), while after 2003, it uses equal weighting across all present methods citep:R2.
 
-In comparison to mass balance assessed by IMBIE2, This Study has a small bias of ~ -10 Gt yr$^{-1}$ over the 26 calendar year comparison period. This apparent agreement may be attributed to the compensating effects of IMBIE2 effectively sampling peripheral ice masses and ignoring BMB, while This Study does the opposite and ignores peripheral ice masses but samples BMB, equal to ~25 Gt yr^{-1}. Over the entire 26-year comparison period, the RMSE with IMBIE2 is ~44 Gt yr$^{-1}$ and the correlation is 0.89. This relatively high correlation highlights good agreement in interannual variability between studies, and the RMSE suggests that formal stated uncertainties of each study (c. \pm30 to \pm63 Gt yr$^{-1}$ for IMBIE2 and mean of 88 Gt yr$^{-1}$ for This Study) are indeed good estimates of the true uncertainty, as assessed by inter-study discrepancies.
+In comparison to mass balance assessed by IMBIE2, This Study has a small bias of ~ -10 Gt yr$^{-1}$ over the 26 calendar year comparison period. This apparent agreement may be attributed to the compensating effects of IMBIE2 effectively sampling peripheral ice masses and ignoring BMB, while This Study does the opposite and ignores peripheral ice masses but samples BMB, equal to ~25 Gt yr^{-1}. Over the entire 26-year comparison period, the RMSE with IMBIE2 is ~44 Gt yr$^{-1}$ and the correlation is 0.89. This relatively high correlation highlights good agreement in interannual variability between studies, and the RMSE suggests that formal stated uncertainties of each study (c. \pm30 to \pm63 Gt yr$^{-1}$ for IMBIE2 and mean of 86 Gt yr$^{-1}$ for This Study) are indeed good estimates of the true uncertainty, as assessed by inter-study discrepancies.
 
 * Uncertainty
 :PROPERTIES:
@@ -531,12 +533,12 @@ MAR SMB & 15 \% & \citet{fettweis_2020}. The mean bias between the model and the
 RACMO SMB & 15 \% & \citet{noel_2019}. Average 5\% runoff bias compared to annual cumulative discharge from the Watson River. Increases to a maximum of 20 \% for extreme runoff years. \\
 This Study SMB & 9 \% & Average of 15 \% SMB uncertainties above, assuming uncorrelated. \\
 Reconstructed SMB & $\sim20$ \% & From \citet{kjeldsen_2015} Table 1. \\
-Recent MMB & $\sim45$ Gt yr$^{-1}$ & \(\sim9\) \%. \citet{mankoff_2020_solid} updated at \citet{mankoff_2020_ice_github}. \\
+Recent MMB & $\sim45$ Gt yr$^{-1}$ & \(\sim9\) \%. \citet{mankoff_2020_solid} updated \citep{mankoff_2020_ice_github}. \\
 Reconstructed MMB & \(\sim10\) \% & From \citet{kjeldsen_2015} Table 1. \\
 BMB_{\mathrm{GF}} & 50 \% & 5.3 +4/-1.4 Gt yr$^{-1}$ from \citet{karlsson_2021} Table 1, using the average of the three available methods. \\
 BMB_{\mathrm{friction}} & 20 \% & 11.8 $\pm$3.4 Gt yr$^{-1}$ from \citet{karlsson_2021} Table 1.\\
 BMB_{\mathrm{VHD}} & 15 \% & MAR runoff uncertainty.\\
-This Study MB & $\sim88$ Gt yr$^{-1}$ & Eq \ref{eq:MB}, assuming all uncertainty is uncorrelated.
+This Study MB & $\sim86$ Gt yr$^{-1}$ & Eq \ref{eq:MB}, assuming all uncertainty is uncorrelated.
 \end{tabular}
 \caption{Summary of uncertainty estimates for products used in This Study. This is an approximate and simplified representation -- RCM uncertainties are calculated separately for gain and loss terms, because SMB near 0 does not mean uncertainty is near 0. This is also why the final This Study uncertainty is presented with units [Gt yr^{-1}].}
 \label{tab:uncertainty}
@@ -548,6 +550,8 @@ This Study MB & $\sim88$ Gt yr$^{-1}$ & Eq \ref{eq:MB}, assuming all uncertainty
 :END:
 
 The MMB uncertainty is discussed in detail in citet:mankoff_2020_solid, but the main uncertainties come from unknown ice thickness, the assumption of plug-flow at fast-flowing marine-terminating outlet glaciers, and ice density of 917 kg m^{-3}. Regional ice density can be significantly reduced by crevasses. For example, citet:mankoff_2020_A380 identified a snow-covered crevasse field with 20 % crevasse density, meaning at that location regional firn density should be reduced by 20 %.
+
+Temporally, MMB at daily resolution comes from ~12 day observations up-sampled to daily, and that ~12 day resolution data comes from longer time period observations citep:solgaard_2021. Because the velocity method using feature tracking, it is correct on average but necessarily misses variability within each sample period (e.g., citet:greene_2020).
 
 Spatially, MMB discharge is estimated ~5 km upstream from the grounding lines for ice velocities as low as 100 m yr^{-1}. That ice accelerates toward the margin, but even ice flowing steady at 1 km yr^{-1} would take 5 years before that mass is lost. However, at any given point in time, ice that had previously crossed the flux gate is calving or melting into the fjord. The discrepancy here between the flux gate estimated mass loss and the actual mass lost at the downstream terminus is only significant for glaciers that have had large velocity changes at some point in the recent past, large changes in ice thickness, or large changes in the location (retreat or advance) of the terminus. We do not consider SMB changes downstream of the flux gate (neither does citet:mankoff_2020_solid), because the gates are temporally near the terminus for most of the ice that is fast-flowing, and the largest SMB uncertainty is at the ice sheet margin where there are both mask issues and high topographic variability.
 
@@ -562,7 +566,7 @@ Domain and ice mask alignment issues are non-trivial. In general, we work on the
 
 ** Accumulating uncertainties
 
-When accumulating errors as in Fig. \ref{fig:mb_cumsum}, we use only the MMB uncertainty. This is because the MMB uncertainty is primarily due to unknown ice thickness and is invariant in time, and for temporal accumulation, we treat the BMB and SMB uncertainties as random in time. There may be time-invariant biases in the BMB and SMB fields, treating all uncertainties as biases is incorrect - evidence for that comes from the six other MB estimates. This distinction between bias and random uncertainty is only done for Fig. \ref{fig:mb_cumsum} where errors accumulate in time. The provided data product contains one uncertainty field and does not distinguish between systematic and random uncertainty.
+When accumulating errors as in Fig. \ref{fig:mb_cumsum}, we use only the MMB uncertainty. This is because the MMB uncertainty is primarily due to unknown ice thickness and is invariant in time, and for temporal accumulation, we treat the BMB and SMB uncertainties as random in time. There may be time-invariant biases in the BMB and SMB fields, but treating all uncertainties as biases is incorrect - evidence for that comes from the six other MB estimates. This distinction between bias and random uncertainty is only done for Fig. \ref{fig:mb_cumsum} where errors accumulate in time. The provided data product contains one uncertainty field and does not distinguish between systematic and random uncertainty.
 
 The shaded region in Fig. \ref{fig:mb_cumsum} representing the uncertainty for This Study is computed as a 365 day rolling smooth from 1840 through 1999 of the above-described uncertainty,  1/365th of the annual error at now + 7 days, and a linear blend, from 2000 to now + 7 days, between the smoothed reconstructed uncertainty and the present and future more variable uncertainty. 
 
@@ -582,17 +586,15 @@ When the IO estimate can be applied to these peripheral glaciers and ice caps (i
 
 * Results
 
-From the 181 years of data, the mean mass balance is -90 \pm120 Gt yr$^{-1}$, with a minimum of -434 Gt in 2012 (SMB of 96 \pm9 Gt, MMB of 496 \pm51 Gt, BMB of 34 \pm7 Gt) and a maximum of 152 Gt in 1985 (SMB of 609 \pm74 Gt, MMB of 433 \pm34 Gt, BMB of 24 \pm12 Gt).
+From the 181 years of data, the mean mass balance is -87 \pm127 Gt yr^{-1}, with a minimum of -429 \pm109 Gt in 2012 (SMB of 85 \pm8 Gt, MMB of 485 \pm46 Gt, BMB of 30 \pm7 Gt) and a maximum of 13f \pm83 Gt yr^{-1} Gt in 1996 (SMB of 578 \pm52 Gt, MMB of 420 \pm39 Gt, BMB of 20 \pm5 Gt).
 
-# Year-on-year MB variability has a maximum increase of 348 Gt from 1995 (-208 Gt) to 1996 (140 Gt), and a maximum decrease of -361 Gt from 2018 (-71 Gt) to 2019 (-431 Gt). Interannual variability is driven almost entirely by SMB changes (see all figures above), with absolute MMB changes of < 3 Gt between these extreme years. However, these outliers are just that -- outlying years from high variability from one year to the next. The mean difference between years is 0 +- 100 Gt, with 25th and 75th percentile year-on-year change of negative and positive ~65 Gt yr^{-1}, respectively.
+At the decadal average, the following trends are apparent. Surface mass balance has decreased from a high of ~450 Gt yr^{-1} in the 1860s to low of ~260 Gt yr^{-1} in the 2010s. SMB variability has also increased during this time. Marine mass balance has increased slightly from a low of ~375 Gt yr^{-1} in the 1860s to a high of ~490 Gt yr^{-1} in the 2010s. Basal mass balance, a proxy for runoff, had a high of 26 \pm16 Gt yr^{-1} in the 1930s and a low of 21 \pm5 Gt yr^{-1} in the 1990s, but as with runoff, is increasing in recent decades.
 
-At the decadal average, the following trends are apparent. Surface mass balance has decreased from a high of ~450 Gt yr^{-1} in the 1860s to low of ~260 Gt yr^{-1} in the 2010s. SMB variability has also increased during this time. Marine mass balance has increased slightly from a low of ~330 Gt yr^{-1} in the 1860s to a high of ~500 Gt yr^{-1} in the 2010s. Basal mass balance has increased by ~15 % from a low of 24 Gt yr^{-1} in the 1860s to a high of ~28 Gt yr^{-1} in the 2010s.
-
-The total mass balance decadal trend from 1840 through 2020 is one of general mass decrease and increased inter-decadal variability. The record begins in the 1840s with ~-20 Gt yr^{-1}, has only one (of 19) decades with a mass gain of ~40 Gt yr^{-1} in the 1860s, and a record low of ~-270 Gt yr^{-1} in the 2010s.
+The total mass balance decadal trend from the 1840s through the 2010s is one of general mass decrease and increased intra-decadal variability. The record begins in the 1840s with ~-10 Gt yr^{-1}, has only one (of 19) decades with a mass gain (~50 Gt yr^{-1} in the 1860s), and a record low of ~-250 Gt yr^{-1} in the 2010s.
 
 * Data availability
 
-The RCM surface mass balance, the marine mass balance, and the VHD basal mass balance components are updated daily, and used to produce the final daily-updating product. The data area available at https://dataverse01.geus.dk/privateurl.xhtml?token=d09976c4-4f89-43ef-8f91-173d269806a4 while the paper is in review, and will be available at https://doi.org/10.22008/FK2/YG3IWC citep:this_study_data, with all historical versions archived, after review.
+The RCM surface mass balance, the marine mass balance, and the VHD basal mass balance components are updated daily, and used to produce the final daily-updating product. The data area available at https://doi.org/10.22008/FK2/YG3IWC citep:this_study_data, with all historical (daily updated) versions archived.
 
 As part of our commitment to make continual and improving updates to the data product, we introduce a GitHub database (https://github.com/GEUS-Glaciology-and-Climate/mass_balance/issues/; last visited \today) where users can track progress, make suggestions, discuss, and report and respond to issues that arise during use of this product. 
 
