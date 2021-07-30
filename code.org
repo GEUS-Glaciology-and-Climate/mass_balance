@@ -961,9 +961,9 @@ r.univar -t --q map=GF zones=regions_e@Mouginot_2019 \
 #+BEGIN_SRC bash
 g.mapset -c vel
 
-r.external source=${DATADIR}/Karlsson_2021/vel.tif output=vel_ann
+r.external -o source=NetCDF:${DATADIR}/Karlsson_2021/basalmelt.nc:fricmelt output=vel_ann
 g.region raster=vel_ann
-g.region res=1000 -pa
+
 r.mapcalc "vel = vel_ann / 365"
 #+END_SRC
 
@@ -1879,7 +1879,7 @@ for v in ['mmb_err','err_region','err_sector']:
     diff = np.abs(last3_hindcast.reindex({'time':time_index_last3y}).diff(dim='time').dropna(dim='time'))
 
     if size(diff.dims) == 1:
-        err = diff.sortby(diff, ascending=False).values[0:time_index_forecast.size].cumsum()
+        err = diff.sortby(diff, ascending=False).values[0:time_index_forecast.size] # .cumsum()
         e = xr.DataArray(data=err, dims=['time'], coords={'time':time_index_forecast})
     else:
         rank = diff.to_dataframe().unstack()[v]
@@ -1908,7 +1908,7 @@ ax = fig.add_subplot(111)
 #                 mmb_all['mmb']+mmb_all['mmb_err'],
 #                 color='gray', alpha=0.25)
 
-r = 'SE'
+r = 'NO'
 mmb_all['mmb_region'].sel({'region':r}).plot(ax=ax)
 ax.fill_between(mmb_all['time'],
                 mmb_all['mmb_region'].sel({'region':r}) - mmb_all['err_region'].sel({'region':r}),
@@ -2711,13 +2711,13 @@ df_yr.describe()
 |       |       mb |  mb_err |     smb | smb_err |     mmb | mmb_err |     bmb | bmb_err |
 |-------+----------+---------+---------+---------+---------+---------+---------+---------|
 | count |      182 |     182 |     182 |     182 |     182 |     182 |     182 |     182 |
-| mean  | -89.7414 | 87.7965 | 369.549 | 66.9366 | 431.726 | 41.1345 | 27.5644 |  14.643 |
-| std   |  120.139 | 9.38029 | 100.781 | 20.3209 | 37.9979 | 5.67947 | 2.82872 | 4.57302 |
-| min   | -434.602 | 26.0781 | 95.5001 | 8.59501 | 159.836 | 16.8029 | 5.31973 | 1.54436 |
-| 25%   | -170.586 | 81.4338 | 303.319 | 64.7006 | 409.021 | 37.2432 |  26.123 | 15.0577 |
-| 50%   |  -73.622 | 88.4677 | 378.104 | 74.3557 | 430.602 | 40.6933 | 27.8016 | 16.4186 |
-| 75%   | -6.62335 | 93.7924 | 436.524 | 79.7856 | 452.055 | 44.6182 | 29.0129 | 17.3025 |
-| max   |  152.369 | 112.682 | 609.319 | 93.0328 |  504.44 |  52.343 | 34.0366 | 20.0621 |
+| mean  | -87.3525 | 127.982 | 367.107 |  90.783 | 430.229 | 78.6821 | 24.2307 | 13.0278 |
+| std   |  117.116 | 21.1847 | 99.7624 | 31.7356 | 32.4704 | 16.2356 | 1.69217 | 3.82393 |
+| min   | -436.092 | 53.8557 | 85.7866 |  7.7208 | 301.549 | 32.1532 | 15.3884 | 3.44985 |
+| 25%   |  -168.08 |  125.41 | 301.155 | 94.5937 | 407.617 | 79.4034 | 23.2301 | 13.9843 |
+| 50%   |  -74.916 | 136.026 | 376.011 | 104.156 | 428.706 | 85.2135 | 24.2423 | 14.6838 |
+| 75%   | -4.73222 | 140.923 | 432.959 | 109.691 | 449.048 | 88.1928 | 25.1732 | 15.1436 |
+| max   |  130.697 | 155.513 | 578.715 | 123.009 | 501.049 | 99.0497 | 30.1038 | 16.6656 |
 
 Years with min & max mb
 
@@ -2730,25 +2730,25 @@ print("")
 
 #+RESULTS:
 #+begin_example
-mb        -434.602037
-mb_err     112.682278
-smb         95.646046
-smb_err      8.608144
-mmb        496.211501
-mmb_err     51.345162
-bmb         34.036582
-bmb_err      6.831743
+mb        -436.091576
+mb_err     112.043117
+smb         85.786621
+smb_err      7.720796
+mmb        491.774390
+mmb_err     50.890402
+bmb         30.103807
+bmb_err      6.324098
 Name: 2012-01-01 00:00:00, dtype: float64
 
-mb         152.369238
-mb_err      82.720229
-smb        609.319029
-smb_err     74.064251
-mmb        432.770215
-mmb_err     34.190000
-bmb         24.179576
-bmb_err     11.777614
-Name: 1985-01-01 00:00:00, dtype: float64
+mb         130.697379
+mb_err     136.210786
+smb        544.866801
+smb_err    105.065956
+mmb        392.374161
+mmb_err     85.565203
+bmb         21.795260
+bmb_err     13.771214
+Name: 1846-01-01 00:00:00, dtype: float64
 #+end_example
 
 Largest change
@@ -2759,16 +2759,16 @@ df_yr_diff.describe()
 #+END_SRC
 
 #+RESULTS:
-|       |        mb |     mb_err |      smb |   smb_err |      mmb |   mmb_err |        bmb |     bmb_err |
-|-------+-----------+------------+----------+-----------+----------+-----------+------------+-------------|
-| count |       181 |        181 |      181 |       181 |      181 |       181 |        181 |         181 |
-| mean  | -0.371732 |  -0.335711 | -1.73808 | -0.324757 | -1.25987 | -0.109764 |   -0.10648 |  -0.0739009 |
-| std   |    100.59 |    7.31997 |  96.7695 |   7.23731 |  26.5443 |   3.06846 |    2.39838 |    0.978128 |
-| min   |  -360.915 |   -51.1172 | -350.869 |  -31.5782 | -346.006 |  -35.6899 |   -15.9439 |    -6.22185 |
-| 25%   |  -62.9803 |   -3.05458 | -58.9223 |  -3.35965 | -3.37423 | -0.924105 |   -1.02823 |   -0.424349 |
-| 50%   |  -8.57628 | -0.0986187 | -6.44858 | -0.126352 | 0.844019 |  0.134652 | -0.0121199 | -0.00647888 |
-| 75%   |    65.549 |     3.0278 |  58.6273 |   3.09637 |  4.49966 |  0.932234 |   0.910387 |     0.42807 |
-| max   |    347.72 |    19.3735 |  342.639 |   30.8375 |  21.3907 |   10.8596 |     7.9449 |     1.78975 |
+|       |       mb |     mb_err |      smb |   smb_err |       mmb |   mmb_err |        bmb |     bmb_err |
+|-------+----------+------------+----------+-----------+-----------+-----------+------------+-------------|
+| count |      181 |        181 |      181 |       181 |       181 |       181 |        181 |         181 |
+| mean  | -1.49682 |  -0.456367 | -2.00035 | -0.515628 | -0.466029 | -0.282566 | -0.0374954 |   -0.057849 |
+| std   |  97.4918 |    6.63317 |  96.4435 |   7.66439 |    15.995 |   2.68875 |    1.55361 |    0.665697 |
+| min   | -340.548 |   -37.2035 | -338.518 |  -39.7246 |  -197.651 |  -22.7762 |   -8.83719 |    -5.09502 |
+| 25%   | -59.7093 |   -3.15345 | -58.4066 |  -3.63217 |  -3.25074 | -0.953041 |  -0.674775 |    -0.23635 |
+| 50%   | -8.02914 | -0.0462173 | -6.39214 | -0.143827 |  0.709816 | 0.0644973 | 0.00336225 | -0.00328227 |
+| 75%   |   60.848 |    2.82951 |  58.1801 |   3.09637 |   4.34169 |  0.932861 |   0.622575 |    0.231408 |
+| max   |  347.018 |    17.8351 |   342.25 |   30.8025 |   19.9101 |   3.76593 |    5.85415 |    0.952317 |
 
 Years with min & max change in mb
 
@@ -2785,26 +2785,26 @@ print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmax()-1])
 
 #+RESULTS:
 #+begin_example
-mb       -360.914901
-mb_err     17.432120
-mmb         2.852205
+mb       -340.548337
+mb_err     16.508040
+mmb        -3.130517
 Name: 2019-01-01 00:00:00, dtype: float64
-mb       -431.520349
-mb_err    103.036940
+mb       -420.891392
+mb_err    100.958338
 Name: 2019-01-01 00:00:00, dtype: float64
-mb       -70.605448
-mb_err    85.604820
+mb       -80.343055
+mb_err    84.450298
 Name: 2018-01-01 00:00:00, dtype: float64
 
-mb        347.720065
-mb_err      8.148134
-mmb        -3.063021
+mb        347.017644
+mb_err      7.268914
+mmb        -2.892569
 Name: 1996-01-01 00:00:00, dtype: float64
-mb        139.772202
-mb_err     87.003404
+mb        129.744472
+mb_err     86.182182
 Name: 1996-01-01 00:00:00, dtype: float64
-mb       -207.947863
-mb_err     78.855270
+mb       -217.273172
+mb_err     78.913268
 Name: 1995-01-01 00:00:00, dtype: float64
 #+end_example
 
@@ -2822,9 +2822,9 @@ mb = xr.open_dataset('./TMB/mb_region.nc')\
        .resample({'time':'10AS'})\
        .mean()
 
-mb['mb_std'] = mb_std['mb']
+# mb['mb_std'] = mb_std['mb']
 
-df_yr = mb[['mb','mb_err','mb_std','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe()
+df_yr = mb[['mb','mb_err','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe()
 
 print(df_yr['mb'])
 df_yr.describe()
@@ -2834,37 +2834,37 @@ df_yr.describe()
 :RESULTS:
 #+begin_example
 time
-1840-01-01    -19.263806
-1850-01-01    -40.230578
-1860-01-01     43.277096
-1870-01-01    -22.209249
-1880-01-01    -12.906023
-1890-01-01    -19.969040
-1900-01-01   -132.528293
-1910-01-01    -44.679448
-1920-01-01   -139.908043
-1930-01-01   -217.558758
-1940-01-01    -99.205105
-1950-01-01   -146.917088
-1960-01-01   -182.022483
-1970-01-01    -17.576742
-1980-01-01    -36.203007
-1990-01-01    -72.595612
-2000-01-01   -192.753685
-2010-01-01   -268.286278
-2020-01-01    -74.096591
+1840-01-01    -17.722289
+1850-01-01    -37.550131
+1860-01-01     43.444240
+1870-01-01    -20.059455
+1880-01-01    -11.082348
+1890-01-01    -17.447604
+1900-01-01   -128.324427
+1910-01-01    -41.767090
+1920-01-01   -135.526880
+1930-01-01   -210.524530
+1940-01-01    -94.380772
+1950-01-01   -141.587325
+1960-01-01   -176.679917
+1970-01-01    -14.565464
+1980-01-01    -39.354854
+1990-01-01    -72.056727
+2000-01-01   -182.398597
+2010-01-01   -257.496914
+2020-01-01   -173.670187
 Freq: 10AS-JAN, Name: mb, dtype: float64
 #+end_example
-|       |        mb |   mb_err |   mb_std |      smb |   smb_err |      mmb |   mmb_err |      bmb |   bmb_err |
-|-------+-----------+----------+----------+----------+-----------+----------+-----------+----------+-----------|
-| count |   19      |  19      |  19      |  19      |   19      |  19      |  19       | 19       |  19       |
-| mean  |  -89.2438 |  86.2601 |  83.5526 | 365.215  |   65.1286 | 427.496  |  40.8543  | 26.9634  |  14.1729  |
-| std   |   83.71   |  10.5105 |  27.6843 |  61.2414 |   21.1797 |  38.0221 |   4.90434 |  3.71613 |   4.93028 |
-| min   | -268.286  |  51.4922 |  42.7777 | 258.144  |   23.233  | 331.437  |  33.0764  | 13.2917  |   3.47936 |
-| 25%   | -143.413  |  82.3135 |  69.1254 | 313.225  |   60.228  | 409.131  |  38.7216  | 26.5521  |  13.5217  |
-| 50%   |  -72.5956 |  88.7435 |  76.0318 | 389.711  |   73.854  | 425.72   |  39.5526  | 27.5385  |  16.4243  |
-| 75%   |  -21.0891 |  91.2314 | 106.84   | 412.26   |   78.8509 | 449.163  |  42.8586  | 28.8845  |  17.2731  |
-| max   |   43.2771 |  98.5878 | 129.553  | 447.644  |   85.995  | 497.704  |  51.0402  | 30.9562  |  18.713   |
+|       |        mb |   mb_err |      smb |   smb_err |      mmb |   mmb_err |      bmb |   bmb_err |
+|-------+-----------+----------+----------+-----------+----------+-----------+----------+-----------|
+| count |   19      |  19      |  19      |   19      |  19      |   19      | 19       |  19       |
+| mean  |  -90.9869 | 125.644  | 362.029  |   87.8947 | 428.972  |   77.1284 | 24.0444  |  12.6705  |
+| std   |   83.302  |  23.1444 |  61.9468 |   33.7014 |  29.8369 |   17.3885 |  1.55013 |   4.06309 |
+| min   | -257.497  |  72.4574 | 246.511  |   22.186  | 379.117  |   41.7827 | 19.807   |   4.544   |
+| 25%   | -157.629  | 117.791  | 313.756  |   83.0851 | 407.702  |   74.0688 | 23.4152  |  12.3504  |
+| 50%   |  -72.0567 | 136.212  | 385.63   |  103.765  | 423.683  |   85.4904 | 24.178   |  14.6821  |
+| 75%   |  -18.8909 | 140.625  | 409.869  |  108.762  | 446.272  |   87.3668 | 25.0474  |  15.1326  |
+| max   |   43.4442 | 149.124  | 444.943  |  115.906  | 493.614  |   96.3241 | 26.5152  |  15.9145  |
 :END:
 
 Years with min & max mb
@@ -2878,25 +2878,25 @@ print("")
 
 #+RESULTS:
 #+begin_example
-mb        -434.602037
-mb_err     112.682278
-smb         95.646046
-smb_err      8.608144
-mmb        496.211501
-mmb_err     51.345162
-bmb         34.036582
-bmb_err      6.831743
-Name: 2012-01-01 00:00:00, dtype: float64
+mb        -257.496914
+mb_err      97.079928
+smb        260.996807
+smb_err     23.489713
+mmb        493.614310
+mmb_err     50.487002
+bmb         24.879411
+bmb_err      5.691443
+Name: 2010-01-01 00:00:00, dtype: float64
 
-mb         152.369238
-mb_err      82.720229
-smb        609.319029
-smb_err     74.064251
-mmb        432.770215
-mmb_err     34.190000
-bmb         24.179576
-bmb_err     11.777614
-Name: 1985-01-01 00:00:00, dtype: float64
+mb          43.444240
+mb_err     130.051921
+smb        444.943400
+smb_err    101.686285
+mmb        379.117048
+mmb_err     79.764213
+bmb         22.382112
+bmb_err     14.001501
+Name: 1860-01-01 00:00:00, dtype: float64
 #+end_example
 
 Largest change
@@ -2907,16 +2907,16 @@ df_yr_diff.describe()
 #+END_SRC
 
 #+RESULTS:
-|       |        mb |     mb_err |      smb |   smb_err |      mmb |   mmb_err |        bmb |     bmb_err |
-|-------+-----------+------------+----------+-----------+----------+-----------+------------+-------------|
-| count |       181 |        181 |      181 |       181 |      181 |       181 |        181 |         181 |
-| mean  | -0.371732 |  -0.335711 | -1.73808 | -0.324757 | -1.25987 | -0.109764 |   -0.10648 |  -0.0739009 |
-| std   |    100.59 |    7.31997 |  96.7695 |   7.23731 |  26.5443 |   3.06846 |    2.39838 |    0.978128 |
-| min   |  -360.915 |   -51.1172 | -350.869 |  -31.5782 | -346.006 |  -35.6899 |   -15.9439 |    -6.22185 |
-| 25%   |  -62.9803 |   -3.05458 | -58.9223 |  -3.35965 | -3.37423 | -0.924105 |   -1.02823 |   -0.424349 |
-| 50%   |  -8.57628 | -0.0986187 | -6.44858 | -0.126352 | 0.844019 |  0.134652 | -0.0121199 | -0.00647888 |
-| 75%   |    65.549 |     3.0278 |  58.6273 |   3.09637 |  4.49966 |  0.932234 |   0.910387 |     0.42807 |
-| max   |    347.72 |    19.3735 |  342.639 |   30.8375 |  21.3907 |   10.8596 |     7.9449 |     1.78975 |
+|       |       mb |   mb_err |      smb |  smb_err |      mmb |  mmb_err |       bmb |    bmb_err |
+|-------+----------+----------+----------+----------+----------+----------+-----------+------------|
+| count |       18 |       18 |       18 |       18 |       18 |       18 |        18 |         18 |
+| mean  | -8.66377 | -3.80581 |  -8.4197 | -4.94533 | 0.441826 | -2.41849 | -0.197753 |  -0.547601 |
+| std   |  81.7866 |   11.315 |  62.7867 |  10.9933 |  31.4979 |  7.96314 |   1.64388 |    1.61918 |
+| min   | -110.877 |  -25.305 |  -96.722 |  -35.208 | -93.2402 |  -23.754 |  -5.07242 |   -5.30889 |
+| 25%   | -72.1242 | -8.00574 | -43.0389 | -6.03996 | -5.11118 |  -6.8941 | -0.859563 |  -0.464366 |
+| 50%   | -28.7456 | -3.95416 | -19.3401 | -4.27893 |  2.85679 | -1.01463 | -0.192557 | -0.0769732 |
+| 75%   |  62.9901 |  5.68186 |  6.55863 |  2.18054 |   18.627 |  2.73194 |    1.0935 |   0.304105 |
+| max   |  162.114 |  10.7223 |  139.224 |     9.12 |  49.6158 |  10.3371 |   1.70366 |   0.636216 |
 
 Years with min & max change in mb
 
@@ -2933,27 +2933,27 @@ print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmax()-1])
 
 #+RESULTS:
 #+begin_example
-mb       -360.914901
-mb_err     17.432120
-mmb         2.852205
-Name: 2019-01-01 00:00:00, dtype: float64
-mb       -431.520349
-mb_err    103.036940
-Name: 2019-01-01 00:00:00, dtype: float64
-mb       -70.605448
-mb_err    85.604820
-Name: 2018-01-01 00:00:00, dtype: float64
+mb       -110.876824
+mb_err      0.927624
+mmb        13.469473
+Name: 1900-01-01 00:00:00, dtype: float64
+mb       -128.324427
+mb_err    140.960801
+Name: 1900-01-01 00:00:00, dtype: float64
+mb        -17.447604
+mb_err    140.033177
+Name: 1890-01-01 00:00:00, dtype: float64
 
-mb        347.720065
-mb_err      8.148134
-mmb        -3.063021
-Name: 1996-01-01 00:00:00, dtype: float64
-mb        139.772202
-mb_err     87.003404
-Name: 1996-01-01 00:00:00, dtype: float64
-mb       -207.947863
-mb_err     78.855270
-Name: 1995-01-01 00:00:00, dtype: float64
+mb        162.114452
+mb_err     -4.576005
+mmb       -22.329491
+Name: 1970-01-01 00:00:00, dtype: float64
+mb        -14.565464
+mb_err    126.472437
+Name: 1970-01-01 00:00:00, dtype: float64
+mb       -176.679917
+mb_err    131.048442
+Name: 1960-01-01 00:00:00, dtype: float64
 #+end_example
 
 
@@ -2984,13 +2984,13 @@ df.describe()
 |       |        smb |   smb_err |       mmb |   mmb_err | smb_err_pct | mmb_err_pct |
 |-------+------------+-----------+-----------+-----------+-------------+-------------|
 | count |        146 |       146 |       146 |       146 |         146 |         146 |
-| mean  |    1.03698 |  0.208585 |    1.1618 |   0.10877 |     19.0333 |     9.34859 |
-| std   |   0.327141 | 0.0235757 | 0.0742906 | 0.0129634 |     44.3731 |    0.784125 |
-| min   | -0.0516066 |  0.153387 |  0.987316 | 0.0766027 |      -498.9 |     7.71678 |
-| 25%   |   0.817808 |  0.191492 |   1.11496 |  0.100014 |     15.7521 |     8.83039 |
-| 50%   |      1.053 |  0.207116 |   1.15215 |  0.108041 |     19.4107 |     9.45149 |
-| 75%   |    1.23587 |   0.22233 |   1.20719 |  0.116699 |      25.277 |     9.88597 |
-| max   |    1.83584 |  0.265888 |   1.33605 |  0.143178 |     72.8747 |     10.9267 |
+| mean  |    1.03124 |  0.290488 |   1.15637 |  0.236577 |     26.5062 |     20.4862 |
+| std   |   0.324278 | 0.0235757 | 0.0715717 | 0.0129634 |     62.9035 |    0.884237 |
+| min   | -0.0478229 |  0.235289 |  0.988269 |  0.204409 |    -709.634 |      18.703 |
+| 25%   |   0.813983 |  0.273394 |   1.11124 |   0.22782 |     22.5413 |      19.799 |
+| 50%   |    1.04712 |  0.289019 |   1.14707 |  0.235848 |     27.7321 |     20.5599 |
+| 75%   |    1.22838 |  0.304232 |    1.2001 |  0.244505 |     35.0467 |     21.1155 |
+| max   |    1.82311 |  0.347791 |   1.32424 |  0.270985 |     99.1524 |     22.0924 |
 
 
 ** Zwally & Mouginot overlap w/ RACMO                     :review:
@@ -3041,7 +3041,7 @@ echo ""
 r.report -hi units=k map=RACMO,zwally --q
 #+END_SRC
 
-#+RESULTS[(2021-05-25 14:36:43) d2d0666b0232e30b709e147825c7b2c5546415b2]:
+#+RESULTS[(2021-07-30 08:33:59) d2d0666b0232e30b709e147825c7b2c5546415b2]:
 #+begin_example
 
 +-----------------------------------------------------------------------------+
@@ -3092,6 +3092,8 @@ ds = ds.sum(dim='time')
 ds.to_netcdf('./tmp/RACMO_2020.nc')
 #+END_SRC
 
+#+RESULTS:
+
 2020
 
 #+BEGIN_SRC bash
@@ -3123,7 +3125,7 @@ for i in $(seq 10); do
 done
 #+END_SRC
 
-#+RESULTS[(2021-05-25 07:06:25) 94149b25234cb30a98a20a07c6ca2a0a88b0343e]: RMZ
+#+RESULTS[(2021-07-30 08:34:18) e0760b49600c22820b5ff97f5cfcc4a62ccbf7e4]: RMZ
 | Year |                R |                M |                Z |
 | 2010 | 138865169.863205 | 164141022.770475 | 188693278.633955 |
 | 2011 | 162135323.732203 | 183110164.892631 | 192990105.059272 |
@@ -3196,7 +3198,7 @@ d.rast mask_ice@PERMANENT
 d.rast mask_bedmachine@VHD
 
 r.mapcalc "MAR = if(mask_ice@PERMANENT, 1, null())" --o
-r.mapcalc "BedMachine = if(mask_bedmachine@VHD, 1, null())" --o
+r.mapcalc "BedMachine = if(mask@VHD, 1, null())" --o
 
 r.category map=MAR separator=":" rules=- << EOF
 1:MAR
@@ -3213,41 +3215,41 @@ echo ""
 r.report -hi units=k map=BedMachine,MAR --q
 #+END_SRC
 
-#+RESULTS[(2021-05-27 04:38:13) 2c555bc62cbe34c18ac9d67f625bb17cd01633b1]:
+#+RESULTS[(2021-07-30 08:23:56) fd0bc7d2d15eb3b0eef2fbdb6e1db6b319506fea]:
 #+begin_example
 +-----------------------------------------------------------------------------+
 |                      Category Information                        |  square  |
 |description                                                     |kilometers|
 |-----------------------------------------------------------------------------|
-|1|MAR                                                             | 1,772,000|
+|1|MAR                                                             | 1,756,400|
 | |----------------------------------------------------------------|----------|
-| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,723,600|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|    48,400|
+| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,754,000|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|      2400|
 |------------------------------------------------------------------|----------|
-|*|no data                                                         | 2,170,000|
+|*|no data                                                         | 2,378,000|
 | |----------------------------------------------------------------|----------|
-| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .|   117,600|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,052,400|
+| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .|   499,600|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,878,400|
 |-----------------------------------------------------------------------------|
-|TOTAL                                                             | 3,942,000|
+|TOTAL                                                             | 4,134,400|
 +-----------------------------------------------------------------------------+
 
 
-+-----------------------------------------------------------------------------+
+GRASS 7.8.2 (G_MAR):~/projects/total_mass_balance > +-----------------------------------------------------------------------------+
 |                      Category Information                        |  square  |
 |description                                                     |kilometers|
 |-----------------------------------------------------------------------------|
-|1|BedMachine                                                      | 1,841,200|
+|1|BedMachine                                                      | 2,253,600|
 | |----------------------------------------------------------------|----------|
-| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,723,600|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|   117,600|
+| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,754,000|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|   499,600|
 |------------------------------------------------------------------|----------|
-|*|no data                                                         | 2,100,800|
+|*|no data                                                         | 1,880,800|
 | |----------------------------------------------------------------|----------|
-| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|    48,400|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,052,400|
+| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|      2400|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,878,400|
 |-----------------------------------------------------------------------------|
-|TOTAL                                                             | 3,942,000|
+|TOTAL                                                             | 4,134,400|
 +-----------------------------------------------------------------------------+
 #+end_example
 
@@ -3255,37 +3257,27 @@ What % of MAR runoff occurs in the uncovered regions?
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
-ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR.nc', combine='by_coords')['ru']
-ds = ds.sel({'sector':1}).sum(dim='sector').resample({'time':'YS'}).mean()
+ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
+ds = ds.sel({'sector':1}).resample({'time':'YS'}).mean()
 ds = ds.where(~np.isinf(ds), 0)
 ds.to_netcdf('./tmp/MAR_2010s.nc')
 
 ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
-ds = ds.sum(dim='time').sel({'sector':1})
+ds = ds.sel({'sector':1}).sum(dim='time')
 ds.to_netcdf('./tmp/MAR_2020.nc')
 #+END_SRC
 
 #+RESULTS:
-: /home/kdm/local/miniconda3/envs/TMB/lib/python3.8/site-packages/numpy/core/fromnumeric.py:87: RuntimeWarning: overflow encountered in reduce
-:   return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
-: /home/kdm/local/miniconda3/envs/TMB/lib/python3.8/site-packages/numpy/core/fromnumeric.py:87: RuntimeWarning: overflow encountered in reduce
-:   return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
-
 
 2020
 
 #+BEGIN_SRC bash
-r.in.gdal -o input="NetCDF:./tmp/MAR_2020.nc:RU" output=RU_2020 --o  --q
+r.in.gdal -o input="NetCDF:./tmp/MAR_2020.nc:ru" output=RU_2020 --o  --q
 r.region map=RU_2020 region=RCM
 r.mapcalc "RU_2020 = RU_2020 * MAR"
-r.univar -g map=RU_2020 zones=MAR | grep sum # 539321
-r.univar -g map=RU_2020 zones=BedMachine | grep sum # 478416
+r.univar -g map=RU_2020 zones=MAR | grep sum # 1114065
+r.univar -g map=RU_2020 zones=BedMachine | grep sum # 1099213
 #+END_SRC
-
-| Domain     | Mass gain [units?] |
-|------------+--------------------|
-| MAR        |             539321 |
-| BedMachine |             478416 |
 
 2010s
 
@@ -3302,18 +3294,18 @@ for i in $(seq 10); do
 done
 #+END_SRC
 
-#+RESULTS[(2021-05-27 04:39:41) 582ecf315976fb0981778805d0d172daa8183e72]: MAR_BedMachine
+#+RESULTS[(2021-07-30 08:29:05) f4030c2ff71f4076318c6c2b9e23f344733420d7]: MAR_BedMachine
 | Year |              MAR |       BedMachine |
-| 2010 | 4671.72245677283 | 4217.46030554164 |
-| 2011 | 3684.62115642264 | 3263.59674952809 |
-| 2012 | 5024.48523542532 | 4532.47945061865 |
-| 2013 | 2522.37950328075 | 2226.40345651662 |
-| 2014 | 3527.07356598433 | 3153.85518864405 |
-| 2015 | 2881.97949254046 | 2548.91549099767 |
-| 2016 | 4188.74849520601 | 3766.81325704927 |
-| 2017 | 3032.28267450767 |  2712.3884185616 |
-| 2018 | 2304.26129122923 | 2052.37000715341 |
-| 2019 | 4718.84854605142 | 4209.34167498529 |
+| 2010 | 4109.90460243548 | 4059.44226327265 |
+| 2011 | 3114.77885228729 | 3075.31025487518 |
+| 2012 | 4875.94117719235 | 4827.41576367917 |
+| 2013 | 2277.12132363507 | 2247.17856579014 |
+| 2014 | 3057.85905723095 | 3016.70468859196 |
+| 2015 | 2757.52450856081 | 2721.84771331659 |
+| 2016 | 3603.89943862867 | 3562.28780771207 |
+| 2017 |  2590.9033618991 | 2550.35681257888 |
+| 2018 | 2163.02035407689 | 2132.39001183179 |
+| 2019 | 4312.17310972402 | 4265.50459928701 |
 
 #+BEGIN_SRC python :var tab=MAR_BedMachine :results table output
 import pandas as pd
@@ -3330,28 +3322,29 @@ print(df.describe())
 
 #+RESULTS:
 #+begin_example
-            MAR  BedMachine        BM%        MAR%
-Year                                             
-2010  0.004672    0.004217  -9.723655  110.770988
-2011  0.003685    0.003264 -11.426532  112.900626
-2012  0.005024    0.004532  -9.792163  110.855113
-2013  0.002522    0.002226 -11.734001  113.293909
-2014  0.003527    0.003154 -10.581531  111.833720
-2015  0.002882    0.002549 -11.556779  113.066891
-2016  0.004189    0.003767 -10.073062  111.201385
-2017  0.003032    0.002712 -10.549619  111.793822
-2018  0.002304    0.002052 -10.931542  112.273191
-2019  0.004719    0.004209 -10.797271  112.104194
+MAR  BedMachine       BM%        MAR%
+Year                                            
+2010  0.004110    0.004059 -1.227823  101.243086
+2011  0.003115    0.003075 -1.267140  101.283402
+2012  0.004876    0.004827 -0.995201  101.005205
+2013  0.002277    0.002247 -1.314939  101.332460
+2014  0.003058    0.003017 -1.345856  101.364216
+2015  0.002758    0.002722 -1.293798  101.310756
+2016  0.003604    0.003562 -1.154628  101.168115
+2017  0.002591    0.002550 -1.564958  101.589838
+2018  0.002163    0.002132 -1.416091  101.436432
+2019  0.004312    0.004266 -1.082250  101.094091
              MAR  BedMachine        BM%        MAR%
 count  10.000000   10.000000  10.000000   10.000000
-mean    0.003656    0.003268 -10.716615  112.009384
-std     0.000968    0.000884   0.714805    0.896746
-min     0.002304    0.002052 -11.734001  110.770988
-25%     0.002920    0.002590 -11.302784  111.349494
-50%     0.003606    0.003209 -10.689401  111.968957
-75%     0.004551    0.004099 -10.192201  112.743767
-max     0.005024    0.004532  -9.723655  113.293909
+mean    0.003286    0.003246  -1.266268  101.282760
+std     0.000912    0.000906   0.164116    0.168375
+min     0.002163    0.002132  -1.564958  101.005205
+25%     0.002633    0.002593  -1.338126  101.186858
+50%     0.003086    0.003046  -1.280469  101.297079
+75%     0.003983    0.003935  -1.172927  101.356277
+max     0.004876    0.004827  -0.995201  101.589838
 #+end_example
+
 
 
 
@@ -3781,9 +3774,14 @@ plt.savefig('fig/mb_ts.png', transparent=False, bbox_inches='tight', dpi=300)
 
 Improve the figure generated below with an Inkscape overlay
 
-#+BEGIN_SRC bash
+#+BEGIN_SRC bash :results verbatim
 inkscape -z ./fig/overview.svg -e ./fig/overview_w_plots.png
 #+END_SRC
+
+#+RESULTS:
+: Background RRGGBBAA: ffffff00
+: Area 0:0:771.735:862.218 exported to 772 x 862 pixels (96 dpi)
+: Bitmap saved as: ./fig/overview_w_plots.png
 
 
 #+BEGIN_SRC jupyter-python
@@ -3876,9 +3874,14 @@ for r in mb['region'].values:
 
 Improve the figure generated below with an Inkscape overlay
 
-#+BEGIN_SRC bash
+#+BEGIN_SRC bash :results verbatim
 inkscape -z ./fig/mb_cumsum_compare_manual.svg -e ./fig/mb_cumsum_compare_manual.png
 #+END_SRC
+
+#+RESULTS:
+: Background RRGGBBAA: ffffff00
+: Area 0:0:752.64:560.32 exported to 753 x 560 pixels (96 dpi)
+: Bitmap saved as: ./fig/mb_cumsum_compare_manual.png
 
 
 #+BEGIN_SRC jupyter-python
@@ -3915,7 +3918,7 @@ C_VC = '#045a8d' # '1f78b4'
 C_IMBIE = '#74a9cf'
 C_PROMICE = '#fdbf6f'
 
-OFFSET = 400         # where to put 0 for This Study
+OFFSET = 00         # where to put 0 for This Study
 ADJ = 2200
 OFFSET_M2019 = 2800 + ADJ
 OFFSET_GRACE = ADJ
@@ -4399,7 +4402,7 @@ plt.savefig('fig/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=3
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-121-7a4eca31aa42>:165: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-35-170754f9ea16>:165: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=300)
 
 
@@ -4560,7 +4563,7 @@ plt.savefig('fig/this_v_grace_vc_imbie.png', transparent=False, bbox_inches='tig
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018 2019]
 : [1992 1993 1994 1995 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005
 :  2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 2018]
-: <ipython-input-117-7ff428f41b1a>:207: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-37-1f91dffbff96>:207: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/this_v_grace_vc_imbie.png', transparent=False, bbox_inches='tight', dpi=300)
 
 [[./tmp/this_v_grace_vc_imbie.png]]
@@ -4779,7 +4782,7 @@ plt.savefig('fig/mouginot_2019_regions.png', transparent=False, bbox_inches='tig
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-24-cbb6bf5f540c>:163: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-41-321251559297>:162: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/mouginot_2019_regions.png', transparent=False, bbox_inches='tight', dpi=150)
 
 [[./tmp/colgan_2019_sectors.png]]
@@ -4937,7 +4940,7 @@ plt.savefig('fig/colgan_2019_sectors.png', transparent=False, bbox_inches='tight
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-26-9dfb1a196fdc>:192: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: <ipython-input-42-9dfb1a196fdc>:192: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/colgan_2019_sectors.png', transparent=False, bbox_inches='tight', dpi=150)
 
 [[./tmp/colgan_2019_sectors.png]]
@@ -5937,6 +5940,26 @@ bibexport ms > library.bib
 
 Then switch from system to local library.bib in ms.org
 
+** Copernicus LaTeX setup
+#+NAME: copernicus-latex-setup
+#+BEGIN_SRC emacs-lisp :results none :eval no-export
+(add-to-list 'org-latex-classes
+               `("copernicus"
+                 "\\documentclass{copernicus}
+               [NO-DEFAULT-PACKAGES]
+               [NO-PACKAGES]
+               [EXTRA]"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))
+               )
+
+(setq-local org-latex-title-command "")
+#+END_SRC
+
+
 * Makefile
 :PROPERTIES:
 :CUSTOM_ID: sec:makefile
@@ -6000,7 +6023,7 @@ validate: FORCE
 dist: FORCE
 	# create end-user data product
 	python ./build_TMB_nc.py
-	python ./upload_to_DV.py
+	# python ./upload_to_DV.py
 
 FORCE: # dummy target
 
@@ -6010,26 +6033,6 @@ clean_all:
 clean_SMB:
 	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
 	
-#+END_SRC
-
-
-* Copernicus LaTeX setup
-#+NAME: copernicus-latex-setup
-#+BEGIN_SRC emacs-lisp :results none :eval no-export
-(add-to-list 'org-latex-classes
-               `("copernicus"
-                 "\\documentclass{copernicus}
-               [NO-DEFAULT-PACKAGES]
-               [NO-PACKAGES]
-               [EXTRA]"
-                 ("\\section{%s}" . "\\section*{%s}")
-                 ("\\subsection{%s}" . "\\subsection*{%s}")
-                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
-                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))
-               )
-
-(setq-local org-latex-title-command "")
 #+END_SRC
 
 
