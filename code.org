@@ -1214,7 +1214,7 @@ f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 # for f in ${dir}/MAR-????*.nc; do ### initial
 for f in $(ls ${dir}/MAR-????*.nc | tail -n2); do ## operational
   dates=$(python ./nc_dates.py ${f})
-  band=1
+  band=-1
   d=1986-01-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 2 ))
@@ -2692,6 +2692,9 @@ promice['MB_err'] = (("time","sector"), e.values)
 * Uncertainty
 ** Stats
 *** Annual GIS
+:PROPERTIES:
+:ID:       20210803T051000.448219
+:END:
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
@@ -3065,17 +3068,16 @@ df.describe()
 #+END_SRC
 
 #+RESULTS:
-|       |        smb |   smb_err |       mmb |   mmb_err | smb_err_pct | mmb_err_pct |
-|-------+------------+-----------+-----------+-----------+-------------+-------------|
-| count |        146 |       146 |       146 |       146 |         146 |         146 |
-| mean  |    1.03124 |  0.290488 |   1.15637 |  0.236577 |     26.5062 |     20.4862 |
-| std   |   0.324278 | 0.0235757 | 0.0715717 | 0.0129634 |     62.9035 |    0.884237 |
-| min   | -0.0478229 |  0.235289 |  0.988269 |  0.204409 |    -709.634 |      18.703 |
-| 25%   |   0.813983 |  0.273394 |   1.11124 |   0.22782 |     22.5413 |      19.799 |
-| 50%   |    1.04712 |  0.289019 |   1.14707 |  0.235848 |     27.7321 |     20.5599 |
-| 75%   |    1.22838 |  0.304232 |    1.2001 |  0.244505 |     35.0467 |     21.1155 |
-| max   |    1.82311 |  0.347791 |   1.32424 |  0.270985 |     99.1524 |     22.0924 |
-
+|       |      smb |   smb_err |       mmb |   mmb_err | smb_err_pct | mmb_err_pct |
+|-------+----------+-----------+-----------+-----------+-------------+-------------|
+| count |    13005 |     13005 |     13005 |     13005 |       13005 |       13005 |
+| mean  | 0.897468 | 0.0807721 |   1.25922 |   0.11988 |           9 |     9.51953 |
+| std   |  2.64252 |  0.237827 | 0.0744359 | 0.0118168 | 5.22246e-16 |    0.795106 |
+| min   | -12.4337 |  -1.11903 |   1.12975 |   0.10534 |           9 |     9.06072 |
+| 25%   | 0.216228 | 0.0194605 |   1.18499 |  0.110438 |           9 |     9.31591 |
+| 50%   | 0.981213 | 0.0883091 |   1.27575 |   0.11989 |           9 |     9.44412 |
+| 75%   |  2.16235 |  0.194611 |   1.32589 |  0.126881 |           9 |     9.57245 |
+| max   |  13.2865 |   1.19578 |   1.40047 |  0.209752 |           9 |     18.0637 |
 
 ** Zwally & Mouginot overlap w/ RACMO                     :review:
 :PROPERTIES:
@@ -3276,13 +3278,13 @@ g.region raster=mask
 g.list type=raster mapset=* -m
 g.list type=vector mapset=* -m
 
-d.mon wx0
-# g.gui.mapswipe first=mask_ice@PERMANENT second=mask_ice_shrink@ROI
-d.rast mask_ice@PERMANENT
-d.rast mask_bedmachine@VHD
+# d.mon wx0
+# # g.gui.mapswipe first=mask_ice@PERMANENT second=mask_ice_shrink@ROI
+# d.rast mask_ice@PERMANENT
+# d.rast mask_bedmachine@VHD
 
-r.mapcalc "MAR = if(mask_ice@PERMANENT, 1, null())" --o
-r.mapcalc "BedMachine = if(mask@VHD, 1, null())" --o
+r.mapcalc "MAR = if(smb@PERMANENT, 1, null())" --o
+r.mapcalc "BedMachine = if(delta_head@VHD, 1, null())" --o
 
 r.category map=MAR separator=":" rules=- << EOF
 1:MAR
@@ -3299,43 +3301,44 @@ echo ""
 r.report -hi units=k map=BedMachine,MAR --q
 #+END_SRC
 
-#+RESULTS[(2021-07-30 08:23:56) fd0bc7d2d15eb3b0eef2fbdb6e1db6b319506fea]:
+#+RESULTS[(2021-07-31 20:43:49) 2c555bc62cbe34c18ac9d67f625bb17cd01633b1]:
 #+begin_example
 +-----------------------------------------------------------------------------+
 |                      Category Information                        |  square  |
 |description                                                     |kilometers|
 |-----------------------------------------------------------------------------|
-|1|MAR                                                             | 1,756,400|
+|1|MAR                                                             | 1,828,800|
 | |----------------------------------------------------------------|----------|
-| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,754,000|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|      2400|
+| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,711,200|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|   117,600|
 |------------------------------------------------------------------|----------|
-|*|no data                                                         | 2,378,000|
+|*|no data                                                         | 2,305,600|
 | |----------------------------------------------------------------|----------|
-| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .|   499,600|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,878,400|
+| |1|BedMachine . . . . . . . . . . . . . . . . . . . . . . . . . .|    26,000|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,279,600|
 |-----------------------------------------------------------------------------|
 |TOTAL                                                             | 4,134,400|
 +-----------------------------------------------------------------------------+
 
 
-GRASS 7.8.2 (G_MAR):~/projects/total_mass_balance > +-----------------------------------------------------------------------------+
++-----------------------------------------------------------------------------+
 |                      Category Information                        |  square  |
 |description                                                     |kilometers|
 |-----------------------------------------------------------------------------|
-|1|BedMachine                                                      | 2,253,600|
+|1|BedMachine                                                      | 1,737,200|
 | |----------------------------------------------------------------|----------|
-| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,754,000|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|   499,600|
+| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,711,200|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .|    26,000|
 |------------------------------------------------------------------|----------|
-|*|no data                                                         | 1,880,800|
+|*|no data                                                         | 2,397,200|
 | |----------------------------------------------------------------|----------|
-| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|      2400|
-| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 1,878,400|
+| |1|MAR. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .|   117,600|
+| |*|no data. . . . . . . . . . . . . . . . . . . . . . . . . . . .| 2,279,600|
 |-----------------------------------------------------------------------------|
 |TOTAL                                                             | 4,134,400|
 +-----------------------------------------------------------------------------+
 #+end_example
+
 
 What % of MAR runoff occurs in the uncovered regions?
 
@@ -3359,8 +3362,8 @@ ds.to_netcdf('./tmp/MAR_2020.nc')
 r.in.gdal -o input="NetCDF:./tmp/MAR_2020.nc:ru" output=RU_2020 --o  --q
 r.region map=RU_2020 region=RCM
 r.mapcalc "RU_2020 = RU_2020 * MAR"
-r.univar -g map=RU_2020 zones=MAR | grep sum # 1114065
-r.univar -g map=RU_2020 zones=BedMachine | grep sum # 1099213
+r.univar -g map=RU_2020 zones=MAR | grep sum # 1253668
+r.univar -g map=RU_2020 zones=BedMachine | grep sum # 969295
 #+END_SRC
 
 2010s
@@ -3378,18 +3381,19 @@ for i in $(seq 10); do
 done
 #+END_SRC
 
-#+RESULTS[(2021-07-30 08:29:05) f4030c2ff71f4076318c6c2b9e23f344733420d7]: MAR_BedMachine
+#+RESULTS[(2021-08-02 05:18:52) f4030c2ff71f4076318c6c2b9e23f344733420d7]: MAR_BedMachine
 | Year |              MAR |       BedMachine |
-| 2010 | 4109.90460243548 | 4059.44226327265 |
-| 2011 | 3114.77885228729 | 3075.31025487518 |
-| 2012 | 4875.94117719235 | 4827.41576367917 |
-| 2013 | 2277.12132363507 | 2247.17856579014 |
-| 2014 | 3057.85905723095 | 3016.70468859196 |
-| 2015 | 2757.52450856081 | 2721.84771331659 |
-| 2016 | 3603.89943862867 | 3562.28780771207 |
-| 2017 |  2590.9033618991 | 2550.35681257888 |
-| 2018 | 2163.02035407689 | 2132.39001183179 |
-| 2019 | 4312.17310972402 | 4265.50459928701 |
+| 2010 | 4319.52092726302 | 3607.27684702079 |
+| 2011 |  3477.6857996143 | 2711.85864046108 |
+| 2012 | 5244.02845465436 | 4322.73603488805 |
+| 2013 | 2386.84762438336 | 1945.21224011221 |
+| 2014 |  3239.0651165512 | 2670.10820556323 |
+| 2015 | 3079.28153709474 | 2396.97229131198 |
+| 2016 | 3905.23436653402 | 3151.96722148519 |
+| 2017 | 2770.57749353875 | 2234.01437787537 |
+| 2018 | 2272.97510659068 | 1870.04163381166 |
+| 2019 | 4703.14477661515 | 3782.83963157127 |
+
 
 #+BEGIN_SRC python :var tab=MAR_BedMachine :results table output
 import pandas as pd
@@ -3406,27 +3410,27 @@ print(df.describe())
 
 #+RESULTS:
 #+begin_example
-MAR  BedMachine       BM%        MAR%
-Year                                            
-2010  0.004110    0.004059 -1.227823  101.243086
-2011  0.003115    0.003075 -1.267140  101.283402
-2012  0.004876    0.004827 -0.995201  101.005205
-2013  0.002277    0.002247 -1.314939  101.332460
-2014  0.003058    0.003017 -1.345856  101.364216
-2015  0.002758    0.002722 -1.293798  101.310756
-2016  0.003604    0.003562 -1.154628  101.168115
-2017  0.002591    0.002550 -1.564958  101.589838
-2018  0.002163    0.002132 -1.416091  101.436432
-2019  0.004312    0.004266 -1.082250  101.094091
+MAR  BedMachine        BM%        MAR%
+Year                                             
+2010  0.004320    0.003607 -16.488960  119.744647
+2011  0.003478    0.002712 -22.021172  128.239937
+2012  0.005244    0.004323 -17.568410  121.312715
+2013  0.002387    0.001945 -18.502873  122.703712
+2014  0.003239    0.002670 -17.565467  121.308384
+2015  0.003079    0.002397 -22.158066  128.465462
+2016  0.003905    0.003152 -19.288654  123.898318
+2017  0.002771    0.002234 -19.366472  124.017890
+2018  0.002273    0.001870 -17.727140  121.546765
+2019  0.004703    0.003783 -19.567868  124.328421
              MAR  BedMachine        BM%        MAR%
 count  10.000000   10.000000  10.000000   10.000000
-mean    0.003286    0.003246  -1.266268  101.282760
-std     0.000912    0.000906   0.164116    0.168375
-min     0.002163    0.002132  -1.564958  101.005205
-25%     0.002633    0.002593  -1.338126  101.186858
-50%     0.003086    0.003046  -1.280469  101.297079
-75%     0.003983    0.003935  -1.172927  101.356277
-max     0.004876    0.004827  -0.995201  101.589838
+mean    0.003540    0.002869 -19.025508  123.556625
+std     0.000991    0.000824   1.883095    2.912486
+min     0.002273    0.001870 -22.158066  119.744647
+25%     0.002848    0.002275 -19.517519  121.371228
+50%     0.003358    0.002691 -18.895763  123.301015
+75%     0.004216    0.003493 -17.608092  124.250788
+max     0.005244    0.004323 -16.488960  128.465462
 #+end_example
 
 
@@ -4003,7 +4007,7 @@ C_IMBIE = '#74a9cf'
 C_PROMICE = '#fdbf6f'
 
 OFFSET = 00         # where to put 0 for This Study
-ADJ = 2200
+ADJ = 2175
 OFFSET_M2019 = 2800 + ADJ
 OFFSET_GRACE = ADJ
 OFFSET_VC = 2900 + ADJ
@@ -4044,9 +4048,11 @@ this = mb['mb'].to_dataframe(name='mb').resample('1D').ffill().cumsum()
 
 mmb_err = mb['mmb_err'].to_dataframe(name='err')
 smb_err = 0
-bmb_err_recent = bmb['GF_err'].values + bmb['VHD_err'].rename('err').to_dataframe(name='err')
+
+bmb_err_recent = bmb['GF_err'].values + 0*bmb['VHD_err'].rename('err').to_dataframe(name='err')
 bmb_err_reconstruct = mb['bmb_err'].sel(time=slice('1971','1985')).to_dataframe(name='err')
 bmb_err = (bmb_err_reconstruct*365).append(bmb_err_recent)
+
 this_err = (mmb_err**2 + smb_err**2 + bmb_err**2)**0.5
 this['err'] = this_err[::-1].cumsum()[::-1]
 
@@ -4136,7 +4142,7 @@ for a in [ax,axins]:
 <<load_PROMICE_MB>>
 P = promice['MB'].sum(dim="sector").to_dataframe('C2019').cumsum()
 P = P - np.min(P) - OFFSET_C2019
-P_err = ((promice['MB_err'].sum(dim="sector")) * 0 + 50).to_dataframe('C2019')[::-1].cumsum()[::-1]
+P_err = ((promice['MB_err'].sum(dim="sector")) * 0 + 35).to_dataframe('C2019')[::-1].cumsum()[::-1]
 for a in [ax,axins]:
     p_PROMICE = P.plot(ax=a, label='C2019', color=C_PROMICE, **kw)
     kw_err['alpha'] = 0.33
@@ -4149,7 +4155,7 @@ k2015['mb'] = k2015['smb_orig'] - k2015['mmb_orig']
 k2015['mb_err'] = (k2015['smb_err']**2 + k2015['mmb_err']**2)**0.5
 K = k2015['mb'].cumsum().loc['1971':]
 K = K - np.min(K) - OFFSET_K2015
-K_err = (k2015['mb_err']*0 + 5)[::-1].cumsum()[::-1].loc['1971':]
+K_err = (k2015['mb_err']*0 + 36)[::-1].cumsum()[::-1].loc['1971':]
 for a in [ax,axins]:
     p_k2015 = K.plot(ax=a, label='K2015', color='cyan', drawstyle='steps-post', **kw)
     kw_err['alpha'] = 0.05
@@ -4203,9 +4209,9 @@ plt.savefig('fig/mb_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-105-83bd1ec4aad7>:379: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+: <ipython-input-87-7653b0ac2241>:408: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
 :   hl = ax.hlines(0, pd.datetime(1971, 1, 1), pd.datetime(2100,1,1), color='k', alpha=0.25)
-: <ipython-input-105-83bd1ec4aad7>:383: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
+: <ipython-input-87-7653b0ac2241>:412: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
 :   axins.set_xlim(pd.datetime(2010, 1, 1), ax.get_xlim()[1])
 
 
@@ -5029,6 +5035,67 @@ plt.savefig('fig/colgan_2019_sectors.png', transparent=False, bbox_inches='tight
 
 [[./tmp/colgan_2019_sectors.png]]
 
+** Zwally and Mouginot RCM coverage
+*** HIRHAM
+
+#+BEGIN_SRC bash
+grass -c ./G_HIRHAM/coverage
+
+g.list type=raster mapset=* -m
+
+g.region region=sectors
+
+r.mapcalc "RCM = if(smb@PERMANENT) * 0 + 1"
+r.mapcalc "regions = if(regions@Mouginot_2019) * 0 + 2"
+r.mapcalc "regions_e = if(regions_e@Mouginot_2019) * 0 + 4"
+
+r.null map=RCM null=0
+r.null map=regions null=0
+r.null map=regions_e null=0
+
+r.mapcalc "coverage_M = RCM + regions + regions_e"
+r.null map=coverage_M setnull=0
+
+r.stats coverage_M
+
+r.category map=coverage_M separator=":" rules=- << EOF
+1:RCM (peripheral)
+2:Mouginot (2019) and no RCM
+3:RCM and Mouginot (2019) (peripheral; excluded)
+5:RCM and Mouginot (2019) expanded (included)
+7:RCM and Mouginot (2019) (included)
+EOF
+
+# | light blue  | 166 | 206 | 227 | #a6cee3 |
+# | dark blue   |  31 | 120 | 180 | #1f78b4 |
+# | light green | 178 | 223 | 138 | #b2df8a |
+# | dark green  |  51 | 160 |  44 | #33a02c |
+# | pink        | 251 | 154 | 153 | #fb9a99 |
+# | red         | 227 |  26 |  28 | #e31a1c |
+# | pale orange | 253 | 191 | 111 | #fdbf6f |
+# | orange      | 255 | 127 |   0 | #ff7f00 |
+
+cat << EOF | r.colors map=coverage_M rules=-
+1 192:192:192
+2 253:191:111
+3 255:0:0
+5 172:223:138
+7 166:206:227
+EOF
+
+rm -f fig/coverage_hirham.png
+d.mon start=png output=fig/coverage_hirham.png
+d.rast coverage_M
+d.legend -c -n raster=coverage_M at=5,15,40,30 bgcolor=white
+d.grid 3
+d.mon stop=png
+
+r.out.gdal input=coverage_M output=./tmp/H_cover_M.tif
+# display in QGIS
+# export in QGIS
+# edit in Inkscape
+#+END_SRC
+
 ** Reconstructed runoff -> VHD
 
 See [[id:20210406T102219.348249][Load and adjust Reconstructed K2015]]
@@ -5140,27 +5207,27 @@ plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tigh
 
 
 #+NAME: tbl_credit
-| Task                   | KDM | XF | PL | MS | KK | NBK | BN | MvdB | WC | SS | JB | AS | MDK | APA | SBA | RSF |
+| Task                   | KDM | XF | PL | MS | KK | NBK | BN | MvdB | AS | WC | JB | SS | MDK | APA | SBA | RSF |
 | Conceptualization      |   2 |    |    |    |    |     |    |      |    |    |    |    |     |   2 |     |   2 |
-| Data curation          |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |  2 |  3 |     |     |     |     |
+| Data curation          |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |  3 |    |  2 |    |     |     |     |     |
 | Implementation         |   3 |  2 |  2 |    |  1 |     |    |      |    |    |    |    |   1 |     |     |     |
-| Funding                |     |    |    |    |    |     |    |      |    |    |    |  3 |     |   3 |   2 |   3 |
+| Funding                |     |    |    |    |    |     |    |      |  3 |    |    |    |     |   3 |   2 |   3 |
 | Methods: SMB           |     |  3 |  3 |    |    |     |  3 |    1 |    |    |    |    |     |     |     |     |
-| Methods: MMB           |   3 |    |    |    |    |     |    |      |  1 |    |    |  1 |     |   1 |     |   1 |
+| Methods: MMB           |   3 |    |    |    |    |     |    |      |  1 |  1 |    |    |     |   1 |     |   1 |
 | Methods: MMB forecast  |   2 |    |    |    |    |     |    |      |    |    |    |    |   2 |     |     |     |
 | Methods: BMB           |   1 |    |    |    |    |   3 |    |      |    |    |    |    |     |     |     |     |
 | Methods: Reconstructed |     |    |    |    |  2 |     |    |      |    |    |  2 |    |     |     |     |     |
 | Validation             |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
-| Validation: GRACE      |     |    |    |    |    |     |    |      |  3 |    |    |    |     |     |     |     |
-| Validation: VC         |     |    |    |    |    |     |    |      |  1 |  3 |    |    |     |     |     |     |
+| Validation: GRACE      |     |    |    |    |    |     |    |      |    |  3 |    |    |     |     |     |     |
+| Validation: VC         |     |    |    |    |    |     |    |      |    |  1 |    |  3 |     |     |     |     |
 | Project administration |   3 |    |    |    |    |     |    |      |    |    |    |    |     |   1 |   1 |   1 |
-| Resources              |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |    |    |  3 |     |     |   2 |     |
-| Software               |   3 |  3 |  3 |    |    |     |    |      |    |    |    |  3 |   2 |     |     |     |
+| Resources              |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |  3 |    |    |    |     |     |   2 |     |
+| Software               |   3 |  3 |  3 |    |    |     |    |      |  3 |    |    |    |   2 |     |     |     |
 | Visualization          |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
-| Writing (First draft)  |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |  3 |  3 |  3 |    |     |   1 |     |   1 |
-| Writing (Editing)      |   3 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |  2 |  2 |  3 |    |     |     |     |   2 |
+| Writing (First draft)  |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |  3 |  3 |  3 |     |   1 |     |   1 |
+| Writing (Editing)      |   2 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |    |  2 |  2 |  2 |     |     |     |   2 |
 |------------------------+-----+----+----+----+----+-----+----+------+----+----+----+----+-----+-----+-----+-----|
-| #ERROR                 |  33 | 19 | 19 | 11 | 14 |  14 | 14 |   12 | 10 |  8 | 10 | 13 |   7 |   8 |   5 |  10 |
+| #ERROR                 |  34 | 19 | 19 | 11 | 14 |  14 | 14 |   12 | 13 | 10 |  9 |  8 |   5 |   8 |   5 |  10 |
 #+TBLFM: @>=vsum(@2..@-1)
 
 #+BEGIN_SRC python :var tbl=tbl_credit :session :exports none
@@ -5335,23 +5402,32 @@ Run with =0 5 * * * ~/bin/HIRHAM_daily.sh=
 
 cd ~/data/HIRHAM/daily/
 # wget -a ~/data/HIRHAM/wget.log --user MB --password <PW> -np -nc ftp.dmi.dk:KDM_SMB_files/*
-wget --user MB --password <PW> -np -nc ftp.dmi.dk:KDM_SMB_files/*
+rm -f ../wget.log
+wget -a ../wget.log --user MB --password <PW> -np -nc ftp.dmi.dk:KDM_SMB_files/*
 #+END_SRC
 
 *** MAR
 
 Run with =0 5 * * * ~/bin/MAR_daily.sh=
 
-# #+HEADER: :tangle ~/bin/MAR_daily.sh
+#+HEADER: :tangle ~/bin/MAR_daily.sh
 #+BEGIN_SRC bash 
 #!/bin/bash
+
+mkdir -p ~/data/MAR/3.12
 
 mkdir -p ~/data/MAR/daily
 cd ~/data/MAR/daily
 
 # TODO: This script fails starting in 2030.
-wget -a ~/data/MAR/wget.log -np -nc ftp://ftp.climato.be/fettweis/tmp/ken/MAR-202*.nc
-mv MAR-202*.nc ../3.12
+Y1=$(date +%Y)
+Y0=$(( $Y1 - 1 ))
+M=$(date +%m)
+
+rm -f wget.log
+if [[ $M == '01' ]]; then wget -a wget.log -np -nc ftp://ftp.climato.be/fettweis/tmp/ken/MAR-${Y0}*.nc; fi
+wget -a wget.log -np -nc ftp://ftp.climato.be/fettweis/tmp/ken/MAR-${Y1}*.nc
+mv MAR-????.nc ../3.12/
 #+END_SRC
 
 
@@ -6067,6 +6143,9 @@ all: FORCE
 
 	grass -e -c EPSG:3413 G_RACMO
 	grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
+
+	# BMB setup on the MAR grid
+	grass ./G_MAR/PERMANENT --exec ./BMB.sh
 	
 	make SMB
 	make BMB
@@ -6081,23 +6160,16 @@ SMB: FORCE
 	python ./smb_bsv2nc.py
 
 BMB: FORCE
-	grass ./G_MAR/PERMANENT --exec ./BMB.sh
 	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
 	./bmb_merge.sh
 	python ./bmb_bsv2nc.py
 
 update: FORCE
 	# remove previously forecasted MAR 
-	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/basin_$${d}.bsv; done
-	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/sector_$${d}.bsv; done
-	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./MAR/region_$${d}.bsv; done
-	#SMB
+	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/*_$${d}.bsv; done
 	make SMB
-	# BMB
-	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
-	./bmb_merge.sh
-	python ./bmb_bsv2nc.py
-	# dist
+	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
+	make BMB
 	make dist
 
 
