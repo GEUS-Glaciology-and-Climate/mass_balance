@@ -548,8 +548,15 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
-# for f in ${dir}/*.nc; do ## initial
-for f in $(ls ${dir}/*.nc | tail -n 30); do ## operational
+if [ -z ${OP+x} ]; then
+  f_list=$(ls ${dir}/*.nc) ## initial
+  log_info "Initial run. Processing all files"
+else
+  f_list=$(ls ${dir}/*.nc | tail -n 30) ## operational
+  log_warning "OP set to ${OP}. Processing subset of files"
+fi
+
+for f in ${f_list}; do
   dates=$(python ./nc_dates.py ${f})
   band=0
   d=1985-09-01 # debug
@@ -621,8 +628,15 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/MAR/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-# for f in ${dir}/MAR-????*.nc; do ## initial
-for f in $(ls ${dir}/MAR-????.nc | tail -n2); do ## operational
+if [ -z ${OP+x} ]; then
+  f_list=$(ls ${dir}/*.nc) ## initial
+  log_info "Initial run. Processing all files"
+else
+  f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
+  log_warning "OP set to ${OP}. Processing subset of files"
+fi
+
+for f in ${f_list}; do
   dates=$(python ./nc_dates.py ${f})
 
   ###
@@ -704,8 +718,15 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
-# for f in ${dir}/*.nc; do  ## initial
-for f in $(ls ${dir}/*.nc | tail -n2); do ## operational
+if [ -z ${OP+x} ]; then
+  f_list=$(ls ${dir}/*.nc) ## initial
+  log_info "Initial run. Processing all files"
+else
+  f_list=$(ls ${dir}/*.nc | tail -n 30) ## operational
+  log_warning "OP set to ${OP}. Processing subset of files"
+fi
+
+for f in ${f_list}; do
   dates=$(python ./nc_dates.py ${f})
   band=0
   d=1989-07-01 # debug
@@ -1211,8 +1232,15 @@ mkdir -p tmp/BMB
 dir=${DATADIR}/${RCM}/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-# for f in ${dir}/MAR-????*.nc; do ### initial
-for f in $(ls ${dir}/MAR-????*.nc | tail -n2); do ## operational
+if [ -z ${OP+x} ]; then
+  f_list=$(ls ${dir}/*.nc) ## initial
+  log_info "Initial run. Processing all files"
+else
+  f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
+  log_warning "OP set to ${OP}. Processing subset of files"
+fi
+
+for f in ${f_list}; do
   dates=$(python ./nc_dates.py ${f})
   band=-1
   d=1986-01-01 # debug
@@ -1228,7 +1256,7 @@ for f in $(ls ${dir}/MAR-????*.nc | tail -n2); do ## operational
 
     # ru_raw in mm w eq runoff
     # Other BMB is m/day equivalent melt, so we should aim for that.
-    r.mapcalc "vhd = unit_melt * (10^-3.0) * if(mask > 50, ru_raw * (mask/100), null())" --o
+    r.mapcalc "vhd = unit_melt * (10^-3.0) * if(mask@PERMANENT > 50, ru_raw * (mask@PERMANENT/100), null())" --o
     
     r.null map=vhd null=0
 
@@ -5410,7 +5438,7 @@ wget -a ../wget.log --user MB --password <PW> -np -nc ftp.dmi.dk:KDM_SMB_files/*
 
 Run with =0 5 * * * ~/bin/MAR_daily.sh=
 
-#+HEADER: :tangle ~/bin/MAR_daily.sh
+# #+HEADER: :tangle ~/bin/MAR_daily.sh
 #+BEGIN_SRC bash 
 #!/bin/bash
 
@@ -6167,9 +6195,9 @@ BMB: FORCE
 update: FORCE
 	# remove previously forecasted MAR 
 	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/*_$${d}.bsv; done
-	make SMB
+	OP=true	make SMB
 	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
-	make BMB
+	OP=true	make BMB
 	make dist
 
 
