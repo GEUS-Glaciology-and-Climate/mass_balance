@@ -553,7 +553,7 @@ if [ -z ${OP+x} ]; then
   log_info "Initial run. Processing all files"
 else
   f_list=$(ls ${dir}/*.nc | tail -n 30) ## operational
-  log_warning "OP set to ${OP}. Processing subset of files"
+  log_warn "OP set to ${OP}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -633,7 +633,7 @@ if [ -z ${OP+x} ]; then
   log_info "Initial run. Processing all files"
 else
   f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
-  log_warning "OP set to ${OP}. Processing subset of files"
+  log_warn "OP set to ${OP}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -722,8 +722,8 @@ if [ -z ${OP+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
-  f_list=$(ls ${dir}/*.nc | tail -n 30) ## operational
-  log_warning "OP set to ${OP}. Processing subset of files"
+  f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
+  log_warn "OP set to ${OP}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -1177,6 +1177,14 @@ r.mapcalc 'q = (1000 * 9.8 * dh)'
 
 # r.mapcalc "q = (1000 * 9.8 * delta_head) - 0.36 * (917 * 9.8 * delta_p_head)"
 r.mapcalc "unit_melt = q / (335 * 1000)" # 335 kJ/kg ice
+
+
+# Other BMB is m/day equivalent melt, so we should aim for that.
+# r.mapcalc "vhd = unit_melt * (10^-3.0) * if(mask@PERMANENT > 50, ru_raw * (mask@PERMANENT/100), null())" --o
+## The above is slow (42 s). Let's speed it up.
+## Calculate everything except 'ru_raw' which must be done in the loop (elsewhere)
+r.mapcalc "scale = unit_melt * (10^-3.0) * if(mask@PERMANENT > 50, (mask@PERMANENT/100), null())" # 1x @ 30 s
+
 #+END_SRC
 
 ***** Debug
@@ -1237,7 +1245,7 @@ if [ -z ${OP+x} ]; then
   log_info "Initial run. Processing all files"
 else
   f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
-  log_warning "OP set to ${OP}. Processing subset of files"
+  log_warn "OP set to ${OP}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -1254,10 +1262,7 @@ for f in ${f_list}; do
     r.in.gdal -o input="NetCDF:${f}:ru" band=${band} output=ru_raw --o --q
     r.region map=ru_raw region=RCM
 
-    # ru_raw in mm w eq runoff
-    # Other BMB is m/day equivalent melt, so we should aim for that.
-    r.mapcalc "vhd = unit_melt * (10^-3.0) * if(mask@PERMANENT > 50, ru_raw * (mask@PERMANENT/100), null())" --o
-    
+    r.mapcalc "vhd = scale * ru_raw" --o
     r.null map=vhd null=0
 
     r.univar -t --q map=vhd zones=sectors_e@Zwally_2012 \
@@ -6205,6 +6210,7 @@ validate: FORCE
 	grass -e -c EPSG:3413 G
 	
 dist: FORCE
+	mkdir TMB
 	# create end-user data product
 	python ./build_TMB_nc.py
 	# python ./upload_to_DV.py
