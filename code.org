@@ -2724,360 +2724,6 @@ promice['MB_err'] = (("time","sector"), e.values)
 
 
 * Uncertainty
-** Stats
-*** Annual GIS
-:PROPERTIES:
-:ID:       20210803T051000.448219
-:END:
-
-#+BEGIN_SRC jupyter-python
-import xarray as xr
-
-mb = xr.open_dataset('./TMB/mb_region.nc')\
-       .resample({'time':'1D'})\
-       .interpolate()\
-       .resample({'time':'YS'})\
-       .sum()
-
-df_yr = mb[['mb','mb_err','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe()
-
-print(df_yr.loc['1986':].describe())
-# "global" reported single-value uncertainty comes from post-1986 MB error: 86 Gt yr-1
-
-df_yr.describe()
-#+END_SRC
-
-#+RESULTS:
-:RESULTS:
-:                mb      mb_err         smb    smb_err         mmb    mmb_err        bmb    bmb_err
-: count   36.000000   36.000000   36.000000  36.000000   36.000000  36.000000  36.000000  36.000000
-: mean  -153.262606   86.236848  324.476284  29.202866  454.742067  43.288373  22.996823   5.465268
-: std    128.386952   10.068607  116.296234  10.466661   37.617064   4.003816   2.392836   0.401837
-: min   -429.388962   52.273297   85.786621   7.720796  296.590067  29.977026  15.388394   3.449850
-: 25%   -224.575470   81.288768  253.622034  22.825983  433.927963  40.130277  22.018876   5.397232
-: 50%   -159.553452   85.219248  328.052265  29.524704  458.924118  43.920115  22.694050   5.466932
-: 75%    -76.770669   93.745642  404.418727  36.397685  484.441320  46.393970  23.929866   5.577768
-: max    137.124909  109.466438  578.338093  52.050428  495.130950  52.812337  30.103807   6.324098
-|       |         mb |   mb_err |      smb |   smb_err |      mmb |   mmb_err |       bmb |   bmb_err |
-|-------+------------+----------+----------+-----------+----------+-----------+-----------+-----------|
-| count |  182       | 182      | 182      |  182      | 182      |  182      | 182       | 182       |
-| mean  |  -80.7368  | 125.33   | 367.107  |   90.783  | 423.613  |   74.4371 |  24.2307  |  13.0278  |
-| std   |  116.993   |  21.1982 |  99.7624 |   31.7356 |  32.2504 |   16.1563 |   1.69217 |   3.82393 |
-| min   | -429.389   |  52.2733 |  85.7866 |    7.7208 | 296.59   |   29.977  |  15.3884  |   3.44985 |
-| 25%   | -161.526   | 122.686  | 301.155  |   94.5937 | 401.15   |   75.1204 |  23.2301  |  13.9843  |
-| 50%   |  -68.2805  | 133.404  | 376.011  |  104.156  | 422.222  |   80.9276 |  24.2423  |  14.6838  |
-| 75%   |    1.74817 | 138.245  | 432.959  |  109.691  | 442.061  |   83.9127 |  25.1732  |  15.1436  |
-| max   |  137.125   | 152.841  | 578.715  |  123.009  | 495.131  |   94.7579 |  30.1038  |  16.6656  |
-:END:
-
-Years with min & max mb
-
-#+BEGIN_SRC jupyter-python
-print(df_yr.iloc[df_yr['mb'].argmin()])
-print("")
-print(df_yr.iloc[df_yr['mb'].argmax()])
-print("")
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-mb        -429.388962
-mb_err     109.466438
-smb         85.786621
-smb_err      7.720796
-mmb        485.071777
-mmb_err     46.563655
-bmb         30.103807
-bmb_err      6.324098
-Name: 2012-01-01 00:00:00, dtype: float64
-
-mb         137.124909
-mb_err      83.386222
-smb        578.338093
-smb_err     52.050428
-mmb        420.400003
-mmb_err     39.398711
-bmb         20.813182
-bmb_err      5.304374
-Name: 1996-01-01 00:00:00, dtype: float64
-#+end_example
-
-Largest change
-
-#+BEGIN_SRC jupyter-python
-df_yr_diff = df_yr.diff()
-df_yr_diff.describe()
-#+END_SRC
-
-#+RESULTS:
-|       |       mb |     mb_err |      smb |   smb_err |       mmb |   mmb_err |        bmb |     bmb_err |
-|-------+----------+------------+----------+-----------+-----------+-----------+------------+-------------|
-| count |      181 |        181 |      181 |       181 |       181 |       181 |        181 |         181 |
-| mean  | -1.50423 |  -0.450868 | -2.00035 | -0.515628 | -0.458621 | -0.270877 | -0.0374954 |   -0.057849 |
-| std   |  97.4645 |    6.67523 |  96.4435 |   7.66439 |   15.7223 |   2.64496 |    1.55361 |    0.665697 |
-| min   | -339.359 |   -35.7899 | -338.518 |  -39.7246 |  -194.124 |   -23.747 |   -8.83719 |    -5.09502 |
-| 25%   |  -59.682 |   -3.29974 | -58.4066 |  -3.63217 |  -3.23597 | -0.967781 |  -0.674775 |    -0.23635 |
-| 50%   | -7.97511 | -0.0389047 | -6.39214 | -0.143827 |  0.844704 |  0.147918 | 0.00336225 | -0.00328227 |
-| 75%   |  60.8032 |    2.86086 |  58.1801 |   3.09637 |   4.30778 |  0.885478 |   0.622575 |    0.231408 |
-| max   |  346.343 |    18.2254 |   342.25 |   30.8025 |   19.7194 |    3.7542 |    5.85415 |    0.952317 |
-
-Years with min & max change in mb
-
-#+BEGIN_SRC jupyter-python
-print(df_yr_diff[['mb','mb_err','mmb']].iloc[df_yr_diff['mb'].argmin()])
-print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmin()])
-print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmin()-1])
-print("")
-
-print(df_yr_diff[['mb','mb_err','mmb']].iloc[df_yr_diff['mb'].argmax()])
-print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmax()])
-print(df_yr[['mb','mb_err']].iloc[df_yr_diff['mb'].argmax()-1])
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-mb       -339.358544
-mb_err     16.335839
-mmb        -4.320310
-Name: 2019-01-01 00:00:00, dtype: float64
-mb       -413.254891
-mb_err     98.433567
-Name: 2019-01-01 00:00:00, dtype: float64
-mb       -73.896346
-mb_err    82.097727
-Name: 2018-01-01 00:00:00, dtype: float64
-
-mb        346.343082
-mb_err      7.261900
-mmb        -2.218008
-Name: 1996-01-01 00:00:00, dtype: float64
-mb        137.124909
-mb_err     83.386222
-Name: 1996-01-01 00:00:00, dtype: float64
-mb       -209.218174
-mb_err     76.124322
-Name: 1995-01-01 00:00:00, dtype: float64
-#+end_example
-
-
-*** Decadal GIS
-
-#+BEGIN_SRC jupyter-python
-import xarray as xr
-
-mb = xr.open_dataset('./TMB/mb_region.nc')\
-       .resample({'time':'1D'})\
-       .interpolate()\
-       .resample({'time':'AS'})\
-       .sum()\
-       .resample({'time':'10AS'})\
-       .mean()\
-
-mb['mb_std'] = xr.open_dataset('./TMB/mb_region.nc')\
-                 .resample({'time':'1D'})\
-                 .interpolate()\
-                 .resample({'time':'AS'})\
-                 .sum()\
-                 .resample({'time':'10AS'})\
-                 .std()['mb']
-
-df_yr = mb[['mb','mb_err','mb_std','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe().iloc[:-1]
-
-print(df_yr[['mb','mb_std']])
-df_yr.describe()
-#+END_SRC
-
-#+RESULTS:
-:RESULTS:
-#+begin_example
-                    mb      mb_std
-time                              
-1840-01-01  -11.378102   87.604435
-1850-01-01  -31.048761   65.505742
-1860-01-01   49.684533   50.883106
-1870-01-01  -13.635586   49.407639
-1880-01-01   -4.674611   43.723108
-1890-01-01  -10.944179   70.943840
-1900-01-01 -121.715816   74.075085
-1910-01-01  -35.203205   42.175396
-1920-01-01 -128.938908   80.247948
-1930-01-01 -203.549995   97.450512
-1940-01-01  -87.614026  128.081425
-1950-01-01 -134.800045   74.989210
-1960-01-01 -169.917220   82.993060
-1970-01-01   -7.978041   75.215344
-1980-01-01  -32.678246  113.110915
-1990-01-01  -65.251266  115.836702
-2000-01-01 -175.419184   69.765875
-2010-01-01 -250.958202  127.000517
-#+end_example
-|       |        mb |   mb_err |   mb_std |      smb |   smb_err |      mmb |   mmb_err |      bmb |   bmb_err |
-|-------+-----------+----------+----------+----------+-----------+----------+-----------+----------+-----------|
-| count |   18      |   18     |  18      |  18      |   18      |  18      |   18      | 18       |  18       |
-| mean  |  -79.7789 |  125.943 |  80.5005 | 368.447  |   91.5452 | 423.946  |   74.8369 | 24.2798  |  13.122   |
-| std   |   83.0654 |   19.799 |  26.8752 |  56.8732 |   30.5697 |  29.7031 |   15.5009 |  1.19555 |   3.65776 |
-| min   | -250.958  |   80.947 |  42.1754 | 260.997  |   23.4897 | 372.877  |   40.192  | 21.8575  |   5.39049 |
-| 25%   | -133.335  |  124.706 |  66.5708 | 316.294  |   96.5535 | 406.228  |   75.6907 | 23.4965  |  14.1013  |
-| 50%   |  -50.2272 |  134.007 |  75.1023 | 391.848  |  104.868  | 418.442  |   81.4557 | 24.1899  |  14.7     |
-| 75%   |  -11.9425 |  138.11  |  94.989  | 411.47   |  108.939  | 439.636  |   83.5231 | 25.1276  |  15.1724  |
-| max   |   49.6845 |  146.392 | 128.081  | 444.943  |  115.906  | 487.076  |   92.0417 | 26.5152  |  15.9145  |
-:END:
-
-Decades with min & max SMB
-
-#+BEGIN_SRC jupyter-python
-print(df_yr.iloc[df_yr['smb'].argmin()])
-print("")
-print(df_yr.iloc[df_yr['smb'].argmax()])
-print("")
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-mb        -250.958202
-mb_err      94.666167
-smb        260.996807
-smb_err     23.489713
-mmb        487.075598
-mmb_err     46.711174
-bmb         24.879411
-bmb_err      5.691443
-Name: 2010-01-01 00:00:00, dtype: float64
-
-mb          49.684533
-mb_err     127.469233
-smb        444.943400
-smb_err    101.686285
-mmb        372.876755
-mmb_err     75.480586
-bmb         22.382112
-bmb_err     14.001501
-Name: 1860-01-01 00:00:00, dtype: float64
-#+end_example
-
-Decades with min and max MMB
-
-#+BEGIN_SRC jupyter-python
-print(df_yr.iloc[df_yr['mmb'].argmin()])
-print("")
-print(df_yr.iloc[df_yr['mmb'].argmax()])
-print("")
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-mb          49.684533
-mb_err     127.469233
-smb        444.943400
-smb_err    101.686285
-mmb        372.876755
-mmb_err     75.480586
-bmb         22.382112
-bmb_err     14.001501
-Name: 1860-01-01 00:00:00, dtype: float64
-
-mb        -250.958202
-mb_err      94.666167
-smb        260.996807
-smb_err     23.489713
-mmb        487.075598
-mmb_err     46.711174
-bmb         24.879411
-bmb_err      5.691443
-Name: 2010-01-01 00:00:00, dtype: float64
-#+end_example
-
-Decades with min and max BMB
-
-#+BEGIN_SRC jupyter-python
-print(df_yr.iloc[df_yr['bmb'].argmin()])
-print("")
-print(df_yr.iloc[df_yr['bmb'].argmax()])
-print("")
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-mb         -65.251266
-mb_err      80.947001
-smb        385.629517
-smb_err     34.706657
-mmb        429.023319
-mmb_err     40.192044
-bmb         21.857465
-bmb_err      5.390488
-Name: 1990-01-01 00:00:00, dtype: float64
-
-mb        -203.549995
-mb_err     146.391649
-smb        289.245138
-smb_err    112.658174
-mmb        466.279963
-mmb_err     92.041689
-bmb         26.515170
-bmb_err     15.914480
-Name: 1930-01-01 00:00:00, dtype: float64
-#+end_example
-
-
-Largest change
-
-#+BEGIN_SRC jupyter-python
-df_yr_diff = df_yr.diff()
-df_yr_diff.describe()
-#+END_SRC
-
-#+RESULTS:
-|       |       mb |   mb_err |      smb |  smb_err |      mmb |  mmb_err |       bmb |    bmb_err |
-|-------+----------+----------+----------+----------+----------+----------+-----------+------------|
-| count |       18 |       18 |       18 |       18 |       18 |       18 |        18 |         18 |
-| mean  | -8.66377 | -3.80581 |  -8.4197 | -4.94533 | 0.441826 | -2.41849 | -0.197753 |  -0.547601 |
-| std   |  81.7866 |   11.315 |  62.7867 |  10.9933 |  31.4979 |  7.96314 |   1.64388 |    1.61918 |
-| min   | -110.877 |  -25.305 |  -96.722 |  -35.208 | -93.2402 |  -23.754 |  -5.07242 |   -5.30889 |
-| 25%   | -72.1242 | -8.00574 | -43.0389 | -6.03996 | -5.11118 |  -6.8941 | -0.859563 |  -0.464366 |
-| 50%   | -28.7456 | -3.95416 | -19.3401 | -4.27893 |  2.85679 | -1.01463 | -0.192557 | -0.0769732 |
-| 75%   |  62.9901 |  5.68186 |  6.55863 |  2.18054 |   18.627 |  2.73194 |    1.0935 |   0.304105 |
-| max   |  162.114 |  10.7223 |  139.224 |     9.12 |  49.6158 |  10.3371 |   1.70366 |   0.636216 |
-
-Years with min & max change in mb
-
-#+BEGIN_SRC jupyter-python
-print(df_yr_diff[['mb','mb_err','mmb']].iloc[df_yr_diff['mb'].argmin()])
-print(df_yr[['mb','mb_err']].iloc[df_yr['mb'].argmin()])
-print(df_yr[['mb','mb_err']].iloc[df_yr['mb'].argmin()-1])
-print("")
-
-print(df_yr_diff[['mb','mb_err','mmb']].iloc[df_yr_diff['mb'].argmax()])
-print(df_yr[['mb','mb_err']].iloc[df_yr['mb'].argmax()])
-print(df_yr[['mb','mb_err']].iloc[df_yr['mb'].argmax()-1])
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-mb       -339.358544
-mb_err     16.335839
-mmb        -4.320310
-Name: 2019-01-01 00:00:00, dtype: float64
-mb       -250.958202
-mb_err     94.666167
-Name: 2010-01-01 00:00:00, dtype: float64
-mb       -175.419184
-mb_err     87.614024
-Name: 2000-01-01 00:00:00, dtype: float64
-
-mb        346.343082
-mb_err      7.261900
-mmb        -2.218008
-Name: 1996-01-01 00:00:00, dtype: float64
-mb         49.684533
-mb_err    127.469233
-Name: 1860-01-01 00:00:00, dtype: float64
-mb        -31.048761
-mb_err    145.007872
-Name: 1850-01-01 00:00:00, dtype: float64
-#+end_example
-
-
 ** Reconstructed percent (approx)
 :PROPERTIES:
 :ID:       20210413T061118.026153
@@ -4041,7 +3687,7 @@ C_IMBIE = '#74a9cf'
 C_PROMICE = '#fdbf6f'
 
 OFFSET = 00         # where to put 0 for This Study
-ADJ = 2175
+ADJ = 2150
 OFFSET_M2019 = 2800 + ADJ
 OFFSET_GRACE = ADJ
 OFFSET_VC = 2900 + ADJ
@@ -5229,12 +4875,12 @@ plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tigh
 #+END_SRC
 
 #+RESULTS:
-: slope:  0.029557388940898793
-: intercept:  -3.4633056369036304
-: r^2:  0.7469795590445695
-: p:  6.253448888175992e-09
-: std_err : 0.003440483722315962
-: <ipython-input-43-94d2e58012ef>:261: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
+: slope:  0.02779523106638524
+: intercept:  -3.204674758436137
+: r^2:  0.7503894036942795
+: p:  5.267031413783773e-09
+: std_err : 0.003206184032882044
+: <ipython-input-20-798d3ad1530e>:261: UserWarning: This figure includes Axes that are not compatible with tight_layout, so results might be incorrect.
 :   plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tight', dpi=300)
 
 ** CRediT
@@ -5259,7 +4905,7 @@ plt.savefig('fig/reconstructed_runoff.png', transparent=False, bbox_inches='tigh
 | Software               |   3 |  3 |  3 |    |    |     |    |      |  3 |    |    |    |   2 |     |     |     |
 | Visualization          |   3 |    |    |    |    |     |    |      |    |    |    |    |     |     |     |     |
 | Writing (First draft)  |   3 |  3 |  3 |  3 |  3 |   3 |  3 |    3 |    |  3 |  3 |  3 |     |   1 |     |   1 |
-| Writing (Editing)      |   2 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |    |  2 |  2 |  2 |     |     |     |   2 |
+| Writing (Editing)      |   2 |  2 |  2 |  2 |  2 |   2 |  2 |    2 |    |  2 |  2 |  2 |   2 |     |     |   2 |
 |------------------------+-----+----+----+----+----+-----+----+------+----+----+----+----+-----+-----+-----+-----|
 | #ERROR                 |  34 | 19 | 19 | 11 | 14 |  14 | 14 |   12 | 13 | 10 |  9 |  8 |   5 |   8 |   5 |  10 |
 #+TBLFM: @>=vsum(@2..@-1)
@@ -5279,7 +4925,7 @@ df.to_csv('./tmp/credit.csv')
 : None
 
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC jupyter-python :session credit
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -5568,6 +5214,283 @@ for f in files:
 
 
 curl -H X-Dataverse-key:$API_TOKEN -X POST -F "file=@$FILENAME" -F 'jsonData={"description":"My description.","directoryLabel":"data/subdir1","categories":["Data"], "restrict":"false"}' "$SERVER_URL/api/datasets/:persistentId/add?persistentId=$PERSISTENT_ID"
+
+* Stats
+** Annual GIS
+:PROPERTIES:
+:ID:       20210803T051000.448219
+:END:
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+
+mb = xr.open_dataset('./TMB/mb_region.nc')\
+       .resample({'time':'1D'})\
+       .interpolate()\
+       .resample({'time':'YS'})\
+       .sum()
+
+df_yr = mb[['mb','mb_err','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe()
+
+print("ALL:")
+print(df_yr.describe())
+print("1986:")
+print(df_yr.loc['1986':].describe())
+# "global" reported single-value uncertainty comes from post-1986 MB error: 86 Gt yr-1
+
+df_yr.describe()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+#+begin_example
+ALL:
+               mb      mb_err         smb     smb_err         mmb     mmb_err         bmb  \
+count  182.000000  182.000000  182.000000  182.000000  182.000000  182.000000  182.000000   
+mean   -80.794193  125.345689  366.788792   90.754311  423.725918   74.450666   23.857068   
+std    117.399375   21.079649  100.536354   31.807693   31.837508   16.119800    1.516364   
+min   -428.641023   58.316901   85.786621    7.720796  317.088041   32.445140   18.289144   
+25%   -161.514548  122.666581  301.154640   94.593748  401.149700   75.120370   22.890307   
+50%    -67.874620  133.392796  376.010763  104.156394  422.222093   80.927551   23.873308   
+75%      2.098873  138.221561  432.958860  109.691269  442.061328   83.912730   24.716830   
+max    137.293490  152.800869  578.714777  123.009131  495.130950   94.757858   29.355867   
+
+          bmb_err  
+count  182.000000  
+mean    12.864916  
+std      3.745037  
+min      3.895276  
+25%     13.886869  
+50%     14.510833  
+75%     14.920642  
+max     16.293678  
+1986:
+               mb      mb_err         smb    smb_err         mmb    mmb_err        bmb    bmb_err
+count   36.000000   36.000000   36.000000  36.000000   36.000000  36.000000  36.000000  36.000000
+mean  -155.246210   86.402255  322.866865  29.058018  455.311455  43.356932  22.801620   5.443801
+std    129.099646    9.520848  119.093502  10.718415   35.234490   3.784493   2.038575   0.325342
+min   -428.641023   58.316901   85.786621   7.720796  317.088041  32.445140  18.289144   3.895276
+25%   -240.945283   81.287165  253.622034  22.825983  433.927963  40.130277  21.839887   5.376715
+50%   -167.780829   85.217834  328.052265  29.524704  458.924118  43.920115  22.451248   5.436764
+75%    -76.507763   93.740967  404.418727  36.397685  484.441320  46.393970  23.639193   5.536868
+max    137.267357  109.461721  578.338093  52.050428  495.130950  52.812337  29.355867   6.220920
+#+end_example
+|       |         mb |   mb_err |      smb |   smb_err |      mmb |   mmb_err |       bmb |   bmb_err |
+|-------+------------+----------+----------+-----------+----------+-----------+-----------+-----------|
+| count |  182       | 182      | 182      |  182      | 182      |  182      | 182       | 182       |
+| mean  |  -80.7942  | 125.346  | 366.789  |   90.7543 | 423.726  |   74.4507 |  23.8571  |  12.8649  |
+| std   |  117.399   |  21.0796 | 100.536  |   31.8077 |  31.8375 |   16.1198 |   1.51636 |   3.74504 |
+| min   | -428.641   |  58.3169 |  85.7866 |    7.7208 | 317.088  |   32.4451 |  18.2891  |   3.89528 |
+| 25%   | -161.515   | 122.667  | 301.155  |   94.5937 | 401.15   |   75.1204 |  22.8903  |  13.8869  |
+| 50%   |  -67.8746  | 133.393  | 376.011  |  104.156  | 422.222  |   80.9276 |  23.8733  |  14.5108  |
+| 75%   |    2.09887 | 138.222  | 432.959  |  109.691  | 442.061  |   83.9127 |  24.7168  |  14.9206  |
+| max   |  137.293   | 152.801  | 578.715  |  123.009  | 495.131  |   94.7579 |  29.3559  |  16.2937  |
+:END:
+
+Years with min & max mb
+
+#+BEGIN_SRC jupyter-python
+df_yr = df_yr.loc['1986':]
+
+print(df_yr.iloc[df_yr['mb'].argmin()])
+print("")
+print(df_yr.iloc[df_yr['mb'].argmax()])
+print("")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+mb        -250.578015
+mb_err      94.662651
+mb_std     126.861945
+smb        260.996807
+smb_err     23.489713
+mmb        487.075598
+mmb_err     46.711174
+bmb         24.499224
+bmb_err      5.643037
+Name: 2010-01-01 00:00:00, dtype: float64
+
+mb         -65.047037
+mb_err      80.945405
+mb_std     115.790916
+smb        385.629517
+smb_err     34.706657
+mmb        429.023319
+mmb_err     40.192044
+bmb         21.653235
+bmb_err      5.366423
+Name: 1990-01-01 00:00:00, dtype: float64
+#+end_example
+
+** Decadal GIS
+:PROPERTIES:
+:ID:       20210813T110327.480906
+:END:
+
+#+BEGIN_SRC jupyter-python
+import xarray as xr
+
+mb = xr.open_dataset('./TMB/mb_region.nc')\
+       .resample({'time':'1D'})\
+       .interpolate()\
+       .resample({'time':'AS'})\
+       .sum()\
+       .resample({'time':'10AS'})\
+       .mean()\
+
+mb['mb_std'] = xr.open_dataset('./TMB/mb_region.nc')\
+                 .resample({'time':'1D'})\
+                 .interpolate()\
+                 .resample({'time':'AS'})\
+                 .sum()\
+                 .resample({'time':'10AS'})\
+                 .std()['mb']
+
+df_yr = mb[['mb','mb_err','mb_std','smb','smb_err','mmb','mmb_err','bmb','bmb_err']].to_dataframe().iloc[:-1]
+
+print(df_yr[['mb','mb_std']])
+df_yr.describe()
+#+END_SRC
+
+#+RESULTS:
+:RESULTS:
+#+begin_example
+                    mb      mb_std
+time                              
+1840-01-01  -11.030299   87.561444
+1850-01-01  -30.652297   65.479303
+1860-01-01   49.973645   50.851681
+1870-01-01  -13.250539   49.381461
+1880-01-01   -4.313202   43.732115
+1890-01-01  -10.546295   70.911020
+1900-01-01 -121.277076   74.066356
+1910-01-01  -34.811835   42.168373
+1920-01-01 -128.474188   80.171286
+1930-01-01 -203.014191   97.412829
+1940-01-01  -87.131045  128.045423
+1950-01-01 -134.316386   74.948904
+1960-01-01 -169.459645   82.953600
+1970-01-01   -7.553647   75.206271
+1980-01-01  -32.340083  113.084801
+1990-01-01  -65.047037  115.790916
+2000-01-01 -175.144532   69.742113
+2010-01-01 -250.578015  126.861945
+#+end_example
+|       |        mb |   mb_err |   mb_std |      smb |   smb_err |      mmb |   mmb_err |      bmb |   bmb_err |
+|-------+-----------+----------+----------+----------+-----------+----------+-----------+----------+-----------|
+| count |   18      |  18      |  18      |  18      |   18      |  18      |   18      | 18       |  18       |
+| mean  |  -79.387  | 125.925  |  80.465  | 368.447  |   91.5452 | 423.946  |   74.8369 | 23.8879  |  12.9551  |
+| std   |   83.0348 |  19.7917 |  26.8562 |  56.8732 |   30.5697 |  29.7031 |   15.5009 |  1.11574 |   3.59007 |
+| min   | -250.578  |  80.9454 |  42.1684 | 260.997  |   23.4897 | 372.877  |   40.192  | 21.6532  |   5.36642 |
+| 25%   | -132.856  | 124.686  |  66.545  | 316.294  |   96.5535 | 406.228  |   75.6907 | 23.1526  |  13.9899  |
+| 50%   |  -49.9294 | 133.984  |  75.0776 | 391.848  |  104.868  | 418.442  |   81.4557 | 23.7927  |  14.5241  |
+| 75%   |  -11.5854 | 138.089  |  94.95   | 411.47   |  108.939  | 439.636  |   83.5231 | 24.6875  |  14.9481  |
+| max   |   49.9736 | 146.359  | 128.045  | 444.943  |  115.906  | 487.076  |   92.0417 | 25.9794  |  15.6157  |
+:END:
+
+Decades with min & max SMB
+
+#+BEGIN_SRC jupyter-python
+print(df_yr.iloc[df_yr['smb'].argmin()])
+print("")
+print(df_yr.iloc[df_yr['smb'].argmax()])
+print("")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+mb        -250.578015
+mb_err      94.662651
+mb_std     126.861945
+smb        260.996807
+smb_err     23.489713
+mmb        487.075598
+mmb_err     46.711174
+bmb         24.499224
+bmb_err      5.643037
+Name: 2010-01-01 00:00:00, dtype: float64
+
+mb          49.973645
+mb_err     127.458220
+mb_std      50.851681
+smb        444.943400
+smb_err    101.686285
+mmb        372.876755
+mmb_err     75.480586
+bmb         22.092999
+bmb_err     13.900711
+Name: 1860-01-01 00:00:00, dtype: float64
+#+end_example
+
+Decades with min and max MMB
+
+#+BEGIN_SRC jupyter-python
+print(df_yr.iloc[df_yr['mmb'].argmin()])
+print("")
+print(df_yr.iloc[df_yr['mmb'].argmax()])
+print("")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+mb          49.973645
+mb_err     127.458220
+mb_std      50.851681
+smb        444.943400
+smb_err    101.686285
+mmb        372.876755
+mmb_err     75.480586
+bmb         22.092999
+bmb_err     13.900711
+Name: 1860-01-01 00:00:00, dtype: float64
+
+mb        -250.578015
+mb_err      94.662651
+mb_std     126.861945
+smb        260.996807
+smb_err     23.489713
+mmb        487.075598
+mmb_err     46.711174
+bmb         24.499224
+bmb_err      5.643037
+Name: 2010-01-01 00:00:00, dtype: float64
+#+end_example
+
+Decades with min and max BMB
+
+#+BEGIN_SRC jupyter-python
+print(df_yr.iloc[df_yr['bmb'].argmin()])
+print("")
+print(df_yr.iloc[df_yr['bmb'].argmax()])
+print("")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+mb         -65.047037
+mb_err      80.945405
+mb_std     115.790916
+smb        385.629517
+smb_err     34.706657
+mmb        429.023319
+mmb_err     40.192044
+bmb         21.653235
+bmb_err      5.366423
+Name: 1990-01-01 00:00:00, dtype: float64
+
+mb        -203.014191
+mb_err     146.359427
+mb_std      97.412829
+smb        289.245138
+smb_err    112.658174
+mmb        466.279963
+mmb_err     92.041689
+bmb         25.979365
+bmb_err     15.615669
+Name: 1930-01-01 00:00:00, dtype: float64
+#+end_example
+
 
 * READMEs
 ** Dataverse README.txt

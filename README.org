@@ -12,10 +12,10 @@
 This is the source for "Greenland ice sheet mass balance from 1840 through next week" and previous and subsequent versions.
 
 + Paper [in review]: [[https://doi.org/10.5194/essd-2021-131][doi:10.5194/essd-2021-131]]
-+ Data: available at https://dataverse01.geus.dk/privateurl.xhtml?token=d09976c4-4f89-43ef-8f91-173d269806a4 while the paper is in review, and will be available at https://doi.org/10.22008/FK2/YG3IWC, with all daily historical versions archived, after review.
-+ Code: https://github.com/GEUS-PROMICE/mass_balance
-  + Issues: https://github.com/GEUS-PROMICE/mass_balance/issues
-  + This [[https://github.com/GEUS-PROMICE/mass_balance/compare/10.5194/essd-12-2811-2020...main][diff]] shows changes between the published version of the paper and the current (active) development version.
++ Data: available at https://doi.org/10.22008/FK2/OHI23Z with all daily historical versions archived.
++ Code: https://github.com/GEUS-Glaciology-and-Climate/mass_balance/
+  + Issues: https://github.com/GEUS-Glaciology-and-Climate/mass_balance/issues
+  + This [[https://github.com/GEUS-Glaciology-and-Climate/mass_balance/compare/submitted...main][diff]] shows changes between the published version of the paper and the current (active) development version.
   + Major changes post-publication are tagged [[https://github.com/GEUS-PROMICE/mass_balance/issues?q=label%3Amajor_change]["major_change"]].
 
     
@@ -23,12 +23,12 @@ This is the source for "Greenland ice sheet mass balance from 1840 through next 
 
 + Companion paper: "Greenland Ice Sheet solid ice discharge from 1986 through March 2020"
   + Publication: [[https://doi.org/10.5194/essd-12-1367-2020][doi:10.5194/essd-12-1367-2020]]
-  + Source: https://github.com/GEUS-PROMICE/ice_discharge/
+  + Source: https://github.com/GEUS-Glaciology-and-Climate/ice_discharge/
   + Data: [[https://doi.org/10.22008/promice/data/ice_discharge][doi:10.22008/promice/data/ice_discharge]]
 
 + Companion paper: "Greenland liquid water runoff from 1958 through 2019"
   + Paper: [[https://doi.org/10.5194/essd-12-2811-2020][doi:10.5194/essd-12-2811-2020]]
-  + Source: https://github.com/GEUS-PROMICE/freshwater/
+  + Source: https://github.com/GEUS-Glaciology-and-Climate/freshwater/
   + Data: [[https://doi.org/10.22008/promice/freshwater][doi:10.22008/promice/freshwater]]
 
 * Citation
@@ -40,9 +40,10 @@ This is the source for "Greenland ice sheet mass balance from 1840 through next 
   author    = {Mankoff, Kenneth D. and Fettweis, Xavier and Langen,
                Peter L. and Stendel, Martin and Kjeldsen, Kristian K. and
 	       Karlsson, Nanna B. and Noël, Brice and {van den Broeke},
-	       Michiel R. and Colgan, Wiliam and Simonsen, Sebastian B.
-	       and Box, Jason E. and Solgaard, Anne and Ahlstrøm, Andreas P.
-	       and Andersen, Signe Bech and Fausto, Robert S.},
+	       Michiel R. and Solgaard, Anne and Colgan, William and
+	       Box, Jason E. and Simonsen, Sebastian B. and King, Michalea D.
+	       and Ahlstrøm, Andreas P. and Andersen, Signe Bech and
+	       Fausto, Robert S.},
   title     = {{G}reenland ice sheet mass balance from 1840 through next week},
   journal   = {Earth System Science Data},
   note      = {In review},
@@ -53,9 +54,7 @@ This is the source for "Greenland ice sheet mass balance from 1840 through next 
 
 ** Data
 
-+ Please contact kdm @ geus before using this data
-+ The data is currently in draft form. The DOI is not active, and version number not updating.
-+ The version number will change with each daily update.
++ NOTE: The version number will change with each daily update.
 
 #+BEGIN_EXAMPLE
 @data{mankoff_2021_data,
@@ -65,9 +64,8 @@ This is the source for "Greenland ice sheet mass balance from 1840 through next 
   publisher = {GEUS Dataverse},
   title	    = {{G}reenland ice sheet mass balance from from 1840 through next week},
   year	    = {2021},
-  note      = {In review},
   edition   = {VERSION NUMBER},
-  doi	    = {10.22008/FK2/YG3IWC}}
+  doi	    = {10.22008/FK2/OHI23Z}}
 #+END_EXAMPLE
     
 * Open science vs. reproducible science
