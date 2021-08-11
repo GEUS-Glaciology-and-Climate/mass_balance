@@ -1039,6 +1039,7 @@ for var in $(echo mask surface bed thickness); do
 done
 
 g.region raster=surface
+g.region res=1000
 g.region save=BedMachine
 
 r.colors map=mask color=haxby
@@ -6210,7 +6211,7 @@ validate: FORCE
 	grass -e -c EPSG:3413 G
 	
 dist: FORCE
-	mkdir TMB
+	mkdir -p TMB
 	# create end-user data product
 	python ./build_TMB_nc.py
 	# python ./upload_to_DV.py
