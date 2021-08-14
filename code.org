@@ -5148,11 +5148,11 @@ assert("*" not in hash)
 # establish connection
 
 base_url = 'https://dataverse01.geus.dk/'
-api_token = 'nnnnnnn-nnn-nnn-nnn-nnnnn'
+api_token = 'nnnnnn-nnnnnn-nnnnnn-nn-nn-nnnnnn'
 api = NativeApi(base_url, api_token)
 
 # get dataverse metadata
-identifier = 'doi:10.22008/FK2/YG3IWC'
+identifier = 'doi:10.22008/FK2/OHI23Z'
 resp = api.get_dataset(identifier)
 files = resp.json()['data']['latestVersion']['files']
 for f in files:
@@ -5181,33 +5181,19 @@ for f in files:
     # print(f)
 
     ## replace
-    # d = api.replace_datafile(persistentId, "./TMB/"+filename, json_str)
-    # if d.json()["status"] == "ERROR": 
-    #     print(d.content)
-    #     print("\n")
-    #     continue
+    d = api.replace_datafile(persistentId, "./TMB/"+filename, json_str)
+    if d.json()["status"] == "ERROR": 
+        print(d.content)
+        print("\n")
+        continue
 
-    # # need to update filenames after uploading because of DataVerse bug
-    # # https://github.com/IQSS/dataverse/issues/7223
-    # file_id = d.json()['data']['files'][0]['dataFile']['id']
-
-    # d2 = api.update_datafile_metadata(file_id, json_str=json_str, is_filepid=Fales)
+    # need to update filenames after uploading because of DataVerse bug
+    # https://github.com/IQSS/dataverse/issues/7223
+    file_id = d.json()['data']['files'][0]['dataFile']['id']
+    d2 = api.update_datafile_metadata(file_id, json_str=json_str, is_filepid=False)
     # print(d2)
 
-    ### Draft mode, delete and add
-    # https://groups.google.com/g/dataverse-community/c/uR_GVWW7Rco/m/0U3nAJpZBAAJ
-    # https://github.com/IQSS/dataverse/issues/3913
-    # https://guides.dataverse.org/en/5.1.1/api/sword.html#delete-a-file-by-database-id <
-    result = os.system("curl -u 74b053ab-701c-45cd-bc98-8962fa418125:A1bright-discolor-sliver-emperor -X DELETE https://dataverse01.geus.dk/dvn/api/data-deposit/v1.1/swordv2/edit-media/file/" + str(fileId))
-    # d2 = api.upload_datafile(identifier, "./TMB/"+filename, json_str, is_pid=False)
-    print("delete:", fileId, filename)
-    print(result)
-
-    cmd = "curl -H X-Dataverse-key:" + api_token + " -X POST -F \"file=@./TMB/"+filename + "\" -F 'jsonData={\"description\":\""+description+"\", \"restrict\":\"false\"}' "+base_url + "/api/datasets/:persistentId/add?persistentId="+identifier
-    result = os.system(cmd)
-    print("upload:")
-    print(result)
-    
+resp = api.publish_dataset(identifier, "major")
 #+END_SRC
 
 #+RESULTS:
