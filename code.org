@@ -5148,7 +5148,8 @@ assert("*" not in hash)
 # establish connection
 
 base_url = 'https://dataverse01.geus.dk/'
-api_token = 'nnnnnn-nnnnnn-nnnnnn-nn-nn-nnnnnn'
+import secret
+api_token = secret.dataverse_api_token
 api = NativeApi(base_url, api_token)
 
 # get dataverse metadata
