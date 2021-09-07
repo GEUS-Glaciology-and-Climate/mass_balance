@@ -11,13 +11,13 @@ ROI refers both to the citet:zwally_2012 sectors and the citet:mouginot_2019_gla
 Procedure to map the ROIs to the SMB grids:
 + ROIs are in EPSG:4326 projection, and need to be re-projected to the SMB projection
   + HIRHAM :: rotated pole
-  + MAR :: Oblique stereographic 
+  + MAR :: EPSG:3413
   + RACMO :: EPSG:3413
 
 SMB grids do not match ROIs perfectly. When the ROIs are larger, that is fine - whatever the SMB is in the sector interior is the modeled SMB. It is problematic where the ROIs are smaller than the model domain. Because the largest SMB losses are at the edge, if some RCM pixels are outside of a ROI and not counted, this would introduce large errors.
 + For each SMB, determine the mask
-  + HIRHAM ::
-  + MAR ::
+  + HIRHAM :: GL2offline_CountryGlacierMasks_SD.nc:glacGRL with only the largest cluster used (remove peripheral)
+  + MAR :: 'msk' variable provided in each NetCDF data file. See code in [[#MAR_ice_mask_50][[[#MAR_ice_mask_50]]]] for algorithm to derive mask from this floating point fractional mask that does not distinguish between main ice sheet and peripheral glaciers.
   + RACMO :: No mask provided. Look at summer season and assume any cell with any values != 0 is in the model domain, and all cells summed = 0 is outside
 + For all model domain cells outside of a ROI, enlarge the ROI to include them, and join the new ROI cells to the nearest ROI cell that is inside the model domain
 
@@ -221,7 +221,7 @@ g.mapset PERMANENT
 + Use all cells != 0 for sum of 2020 JAS as model domain
 
 #+BEGIN_SRC bash
-r.in.gdal -ol input="NetCDF:${DATADIR}/HIRHAM/ZwallyMasks_all_SD.nc:glacmask" output=mask
+r.in.gdal -ol input="NetCDF:${DATADIR}/HIRHAM/GL2offline_CountryGlacierMasks_SD.nc:glacGRL" output=mask
 r.region map=mask region=RCM
 r.mapcalc "mask_ice_all = if(mask == 1, 1, null())"
 
@@ -378,6 +378,10 @@ g.region save=sectors
 #+END_SRC
 
 ** Ice mask
+:PROPERTIES:
+:CUSTOM_ID:  MAR_ice_mask_50
+:END:
+
 #+BEGIN_SRC bash
 r.external -o source=NetCDF:${DATADIR}/MAR/3.12/MAR-2000.nc:msk output=mask
 r.region map=mask region=RCM
