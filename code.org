@@ -165,8 +165,8 @@ v.proj location=Gnorm input=M
 # d.vect M
 # d.grid 1:0:0
 
-v.out.ogr input=Z output=./dat/Zrot.gpkg
-v.out.ogr input=M output=./dat/Mrot.gpkg
+v.out.ogr input=Z output=./dat/Zrot.gpkg # Zwally_2012_HIRHAM.gpkg
+v.out.ogr input=M output=./dat/Mrot.gpkg # Mouginot_2019_HIRHAM.gpkg
 #+END_SRC
 
 ** Load sectors
@@ -217,8 +217,6 @@ g.mapset PERMANENT
  
 
 ** Find model ice domain
-
-+ Use all cells != 0 for sum of 2020 JAS as model domain
 
 #+BEGIN_SRC bash
 r.in.gdal -ol input="NetCDF:${DATADIR}/HIRHAM/GL2offline_CountryGlacierMasks_SD.nc:glacGRL" output=mask
@@ -288,6 +286,19 @@ r.category map=regions separator=":" > ./tmp/region_cats
 r.category map=regions_e separator=":" rules=./tmp/region_cats
 r.to.vect input=regions_e output=regions_e type=area
 #+END_SRC
+
+
+*** Export
+
+In the case of HIRHAM, we want to export the ROIs as rasters for eventual work in the XY domain
+
+#+BEGIN_SRC bash
+mkdir -p tmp
+r.out.gdal input=sectors_e@Zwally_2012 output=./tmp/HIRHAM_sectors_e_Zwally_2012.tif
+r.out.gdal input=regions_e@Mouginot_2019 output=./tmp/HIRHAM_regions_e_Mouginot_2019.tif
+#+END_SRC
+
+
 
 ** Test location alignment
 
@@ -542,15 +553,33 @@ for _ in t: print(_)
 #+END_SRC
 
 ** HIRHAM
+:PROPERTIES:
+:CUSTOM_ID: HIRHAM_smb_to_ROI
+:END:
 
 #+BEGIN_SRC bash :results verbatim :tangle SMB_HIRHAM_ROI.sh
 <<init_bash>>
+<<init_grass>>
+
+
+log_info "HIRHAM ROI areas"
 
 RCM=HIRHAM
 mkdir -p tmp/${RCM}
 
+g.region s=0 w=0 n=441 e=300 res=1 -a
+
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
+
+r.in.gdal -o input="NetCDF:${DATADIR}/HIRHAM/ZwallyMasks_all_SD.nc:cellarea" output=area_HIRHAM
+# r.region map=area_HIRHAM region=RCM
+
+# Regions and Sectors
+r.in.gdal -o input=./tmp/HIRHAM_sectors_e_Zwally_2012.tif output=sectors_e
+r.in.gdal -o input=./tmp/HIRHAM_regions_e_Mouginot_2019.tif output=regions_e
+r.region -c map=sectors_e
+r.region -c map=regions_e
 
 if [ -z ${OP+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
@@ -574,57 +603,37 @@ for f in ${f_list}; do
     var=smb
     if [[ ${f} == *"SMBmodel"* ]]; then var=gld; fi
 
-    r.in.gdal -ol input="NetCDF:${f}:${var}" band=${band} output=smb --o --q
-    r.region map=smb region=RCM
+    r.in.gdal -o input="NetCDF:${f}:${var}" band=${band} output=smb_raw --o --q
+
+    r.mapcalc "smb = smb_raw * area_HIRHAM" --o
     
-    r.univar -t --q map=smb zones=sectors_e@Zwally_2012 \
+    r.univar -t --q map=smb zones=sectors_e \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/sector_${d}.bsv
 
-    r.univar -t --q map=smb zones=regions_e@Mouginot_2019 \
+    r.univar -t --q map=smb zones=regions_e \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/region_${d}.bsv
 
-    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/basin_${d}.bsv
+    # r.univar -t --q map=smb zones=basins_e \
+    # | cut -d"|" -f1,13 \
+    # | datamash -t"|" transpose \
+    # | sed s/^sum/${d}/ \
+    # > ./tmp/${RCM}/basin_${d}.bsv
     
   done
 done
-
-# log_info "HIRHAM ROI areas"
-# r.in.gdal -ol input="NetCDF:${DATADIR}/HIRHAM/ZwallyMasks_all_SD.nc:cellarea" output=area
-# r.region map=area region=RCM
-
-# r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/HIRHAM_sector_area.bsv
-
-# r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/HIRHAM_basin_area.bsv
-
-# r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/HIRHAM_region_area.bsv
 #+END_SRC
 
 ** MAR
 #+BEGIN_SRC bash :results verbatim :tangle SMB_MAR_ROI.sh
 
 <<init_bash>>
+<<init_grass>>
 
 RCM=MAR
 mkdir -p tmp/${RCM}
@@ -677,37 +686,14 @@ for f in ${f_list}; do
     | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/region_${d}.bsv
 
-    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/basin_${d}.bsv
+    # r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
+    # | cut -d"|" -f1,13 \
+    # | datamash -t"|" transpose \
+    # | sed s/^sum/${d}/ \
+    # > ./tmp/${RCM}/basin_${d}.bsv
     
   done
 done
-
-# log_info "${RCM} ROI areas"
-# r.in.gdal -o input="NetCDF:${DATADIR}/MAR/3.12/MAR_basins.nc:AREA" output=area
-# r.region map=area region=RCM
-
-# r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/${RCM}_sector_area.bsv
-
-# r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/${RCM}_basin_area.bsv
-
-# r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/${RCM}_region_area.bsv
-
 #+END_SRC
 
 
@@ -715,6 +701,7 @@ done
 #+BEGIN_SRC bash :results verbatim :tangle SMB_RACMO_ROI.sh
 
 <<init_bash>>
+<<init_grass>>	
 
 RCM=RACMO
 mkdir -p tmp/${RCM}
@@ -759,37 +746,14 @@ for f in ${f_list}; do
     | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/region_${d}.bsv
     
-    r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/basin_${d}.bsv
+    # r.univar -t --q map=smb zones=basins_e@Mouginot_2019 \
+    # | cut -d"|" -f1,13 \
+    # | datamash -t"|" transpose \
+    # | sed s/^sum/${d}/ \
+    # > ./tmp/${RCM}/basin_${d}.bsv
 
   done
 done
-
-
-# log_info "${RCM} ROI areas"
-# r.region map=area region=RCM
-
-# r.univar -t --q map=area zones=sectors_e@Zwally_2012 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/${RCM}_sector_area.bsv
-
-# r.univar -t --q map=area zones=basins_e@Mouginot_2019 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/${RCM}_basin_area.bsv
-
-# r.univar -t --q map=area zones=regions_e@Mouginot_2019 \
-# | cut -d"|" -f1,13 \
-# | datamash -t"|" transpose \
-# | sed s/^sum/${d}/ \
-# > ./tmp/${RCM}_region_area.bsv
-	
 #+END_SRC
 
 
@@ -800,9 +764,11 @@ done
 <<init_bash>>
 
 for RCM in HIRHAM MAR RACMO; do
-  for ROI in sector region basin; do
+  # for ROI in sector region basin; do
+  for ROI in sector region; do
     log_info ${RCM} ${ROI}
-    head -n1 ./tmp/${RCM}/${ROI}_2000-01-01.bsv > ./tmp/${RCM}_${ROI}.bsv
+    head -n1 $(ls ./tmp/${RCM}/${ROI}_????-??-??.bsv|tail -n1)  > ./tmp/${RCM}_${ROI}.bsv
+    # head -n1 ./tmp/${RCM}/${ROI}_2000-01-01.bsv > ./tmp/${RCM}_${ROI}.bsv
     tail -q -n1 ./tmp/${RCM}/${ROI}_*.bsv >> ./tmp/${RCM}_${ROI}.bsv
   done
 done
@@ -851,7 +817,8 @@ def bsv2nc(smb, bsv, dim):
         df = df.reindex(sorted(df.columns), axis=1)
  
     if 'HIRHAM' in bsv:
-        grid = 912 * 912
+        # grid applied with 'r.mapcalc "smb = smb_raw * area_HIRHAM" --o' prior to 'r.univar'
+        grid = 1
         error = 0.15
     if 'MAR' in bsv:
         grid = 1000 * 1000
@@ -968,17 +935,19 @@ r.univar -t --q map=GF zones=sectors_e@Zwally_2012 \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_GF_sector.bsv
 
-r.univar -t --q map=GF zones=basins_e@Mouginot_2019 \
-  | cut -d"|" -f1,13 \
-  | datamash -t"|" transpose \
-  | sed s/^sum/daily/ \
-  > ./tmp/BMB_GF_basin.bsv
-
 r.univar -t --q map=GF zones=regions_e@Mouginot_2019 \
   | cut -d"|" -f1,13 \
   | datamash -t"|" transpose \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_GF_region.bsv
+
+# r.univar -t --q map=GF zones=basins_e@Mouginot_2019 \
+#   | cut -d"|" -f1,13 \
+#   | datamash -t"|" transpose \
+#   | sed s/^sum/daily/ \
+#   > ./tmp/BMB_GF_basin.bsv
+
+
 #+END_SRC
 
 ** Velocity
@@ -1003,17 +972,19 @@ r.univar -t --q map=vel zones=sectors_e@Zwally_2012 \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_vel_sector.bsv
 
-r.univar -t --q map=vel zones=basins_e@Mouginot_2019 \
-  | cut -d"|" -f1,13 \
-  | datamash -t"|" transpose \
-  | sed s/^sum/daily/ \
-  > ./tmp/BMB_vel_basin.bsv
-
 r.univar -t --q map=vel zones=regions_e@Mouginot_2019 \
   | cut -d"|" -f1,13 \
   | datamash -t"|" transpose \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_vel_region.bsv
+
+# r.univar -t --q map=vel zones=basins_e@Mouginot_2019 \
+#   | cut -d"|" -f1,13 \
+#   | datamash -t"|" transpose \
+#   | sed s/^sum/daily/ \
+#   > ./tmp/BMB_vel_basin.bsv
+
+
 #+END_SRC
 
 ** VHD
@@ -1276,18 +1247,18 @@ for f in ${f_list}; do
     | sed s/^sum/${d}/ \
     > ./tmp/BMB/sector_${d}.bsv
 
-    r.univar -t --q map=vhd zones=basins_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/BMB/basin_${d}.bsv
-
     r.univar -t --q map=vhd zones=regions_e@Mouginot_2019 \
     | cut -d"|" -f1,13 \
     | datamash -t"|" transpose \
     | sed s/^sum/${d}/ \
     > ./tmp/BMB/region_${d}.bsv
     
+    # r.univar -t --q map=vhd zones=basins_e@Mouginot_2019 \
+    # | cut -d"|" -f1,13 \
+    # | datamash -t"|" transpose \
+    # | sed s/^sum/${d}/ \
+    # > ./tmp/BMB/basin_${d}.bsv
+
   done
 done
 #+END_SRC
@@ -1315,7 +1286,8 @@ r.report -i --q -h units=k map=mask_bedmachine,mask_ice
 #+BEGIN_SRC bash :tangle bmb_merge.sh :results verbatim
 <<init_bash>>
 
-for ROI in sector region basin; do
+# for ROI in sector region basin; do
+for ROI in sector region; do
   log_info MAR ${ROI}
   head -n1 ./tmp/BMB/${ROI}_2000-01-01.bsv > ./tmp/BMB_VHD_${ROI}.bsv
   tail -q -n1 ./tmp/BMB/${ROI}_*.bsv >> ./tmp/BMB_VHD_${ROI}.bsv
@@ -5666,11 +5638,11 @@ print(tweet_str)
 #+RESULTS:
 : Sea level rise (#SLR: 📈=🌊+🧊💧) from 🇬🇱#Greenland
 : 
-:   Since 1990 (IPCC FAR): 14.77 ±7.69 mm (-5345 Gt)
+:   Since 1990 (IPCC FAR): 14.75 ±7.69 mm (-5338 Gt)
 : 
-:   2021 (→️ 2021-09-07): 0.72 ±0.17 mm (-262 Gt)
+:   2021 (→️ 2021-09-08): 0.7 ±0.17 mm (-255 Gt)
 : 
-:   Next 7 days (2021-09-01 →️ 2021-09-07)📈: 0.02 ±0.0 mm (-6.9 ±1.3 Gt)
+:   Next 7 days (2021-09-09 →️ 2021-09-15)📉: mass gain +17.7 ±2.8 Gt
 : 
 :   https://doi.org/10.5194/essd-2021-131
 
@@ -6190,6 +6162,7 @@ print(DATADIR)
 set -o nounset
 set -o pipefail
 
+# set -x
 # set -o errexit
 
 ### uncomment the above line when doing initial run. When rerunning and
@@ -6231,7 +6204,7 @@ if [ -z ${DATADIR+x} ]; then
     exit 255
 fi
 
-set -x # print commands to STDOUT before running them
+# set -x # print commands to STDOUT before running them
 #+END_SRC
 
 * Manuscript
@@ -6280,6 +6253,7 @@ all: FORCE
 	# set up
 	grass -e -c EPSG:4326 G_HIRHAM
 	grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
+	grass -e -c XY G_HIRHAM_XY
 	
 	grass -e -c EPSG:3413 G_MAR
 	grass ./G_MAR/PERMANENT --exec ./MAR.sh
@@ -6296,7 +6270,7 @@ all: FORCE
 
 SMB: FORCE
 	# partition RCM by Zwally sectors, Mouginot basins, and Mouginot regions
-	grass ./G_HIRHAM/PERMANENT --exec ./SMB_HIRHAM_ROI.sh
+	grass ./G_HIRHAM_XY/PERMANENT --exec ./SMB_HIRHAM_ROI.sh
 	grass ./G_MAR/PERMANENT --exec ./SMB_MAR_ROI.sh
 	grass ./G_RACMO/PERMANENT --exec ./SMB_RACMO_ROI.sh
 	./smb_merge.sh
@@ -6324,11 +6298,14 @@ dist: FORCE
 	# create end-user data product
 	python ./build_TMB_nc.py
 	# python ./upload_to_DV.py
+	python ./twitfig.py
+	# python ./twitbot.py
+
 
 FORCE: # dummy target
 
 clean_all:
-	rm -fR G G_RACMO G_HIRHAM G_MAR G_tmp tmp dat PROMICE_MB
+	rm -fR G G_RACMO G_HIRHAM G_HIRHAM_XY G_MAR G_tmp tmp dat TMB
 
 clean_SMB:
 	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
