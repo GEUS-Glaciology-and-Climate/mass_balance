@@ -77,13 +77,13 @@ The mass of the Greenland ice sheet is declining as mass gain from snow accumula
 - [[#product-description][Product description]]
 - [[#data-sources][Data sources]]
   - [[#surface-mass-balance][Surface mass balance]]
-  - [[#marine-mass-balance][Marine mass balance]]
+  - [[#discharge][Discharge]]
   - [[#basal-mass-balance][Basal mass balance]]
   - [[#other][Other]]
   - [[#products-used-for-validation][Products used for validation]]
 - [[#methods][Methods]]
   - [[#surface-mass-balance-1][Surface mass balance]]
-  - [[#projected-marine-mass-balance][Projected marine mass balance]]
+  - [[#projected-discharge][Projected discharge]]
   - [[#basal-mass-balance-1][Basal mass balance]]
   - [[#reconstructed-adjustment][Reconstructed adjustment]]
   - [[#domains-boundaries-and-regions-of-interest][Domains, boundaries, and regions of interest]]
@@ -94,7 +94,7 @@ The mass of the Greenland ice sheet is declining as mass gain from snow accumula
   - [[#volume-change-vc][Volume Change (VC)]]
   - [[#imbie][IMBIE]]
 - [[#uncertainty][Uncertainty]]
-  - [[#marine-mass-balance-1][Marine mass balance]]
+  - [[#discharge-1][Discharge]]
   - [[#regions-of-interest-roi][Regions of interest (ROI)]]
   - [[#accumulating-uncertainties][Accumulating uncertainties]]
   - [[#peripheral-ice-masses][Peripheral ice masses]]
@@ -151,7 +151,7 @@ There are three common methods for estimating mass balance -- changes in gravity
 
 The IO method has a complex spatial resolution (where). The inputs typically come from regional climate models (RCMs) which can reach a spatial resolution of up to 1 km. However, that spatial resolution is generally reduced in the final output to sector or region scale -- typically higher than GMB but now lower resolution than VC. The IO temporal resolution (when) is limited by ice velocity data updates, which for the past several years occur every 12 days year-round after the launch of the Sentinel missions citep:solgaard_2021. The primary issue with the IO method is unknown ice thickness in some locations (e.g. citet:mankoff_2020_solid). Finally, the IO method can provide insight into the processes (how) by distinguishing between changes caused by SMB (which may be due to changes in positive and/or negative SMB components) vs. changes in other mass loss terms (e.g., calving). Our IO method is also the first IO product to include the basal mass balance citep:karlsson_2021 -- a term implicitly included in the GMB and VC methods but neglected by all previous IO estimates.
 
-In this work we introduce the new PROMICE Greenland ice sheet mass balance dataset based on the IO method, updating the previous product from citet:colgan_2019. We use the SMB field from one empirical model from 1840 through 1985, and three RCMs from 1986 onward. The combined SMB field used here is comprised of positive SMB terms (precipitation in the form of snowfall, rainfall, and condensation/riming) and negative SMB terms (surface melt, evaporation, sublimation, and snow drift erosion/deposition). We also use the basal mass balance, and an estimate of dynamic ice discharge. Spatial resolution is effectively per sector citep:zwally_2012_data or region citep:mouginot_2019_data. Temporal resolution is annual from 1840 through 1985, and effectively daily since 1986 - the RCM fields are updated daily and forecasted through next week, and the marine mass balance (i.e., discharge at marine terminating glaciers) is updated every 12 days with ~12 day resolution, interpolated to daily, and forecasted using historical and seasonal trends through next week. Thus, this study provides a daily-updating estimate of Greenland mass changes from 1840 through next week.
+In this work we introduce the new PROMICE Greenland ice sheet mass balance dataset based on the IO method, updating the previous product from citet:colgan_2019. We use the SMB field from one empirical model from 1840 through 1985, and three RCMs from 1986 onward. The combined SMB field used here is comprised of positive SMB terms (precipitation in the form of snowfall, rainfall, and condensation/riming) and negative SMB terms (surface melt, evaporation, sublimation, and snow drift erosion/deposition). We also use the basal mass balance, and an estimate of dynamic ice discharge. Spatial resolution is effectively per sector citep:zwally_2012_data or region citep:mouginot_2019_data. Temporal resolution is annual from 1840 through 1985, and effectively daily since 1986 - the RCM fields are updated daily and forecasted through next week, and the discharge at marine terminating glaciers is updated every 12 days with ~12 day resolution, interpolated to daily, and forecasted using historical and seasonal trends through next week. Thus, this study provides a daily-updating estimate of Greenland mass changes from 1840 through next week.
 
 ** Terminology
 
@@ -163,28 +163,28 @@ We use the following terminology throughout the document:
 + Sector refers to one of the citet:zwally_2012_data sectors (Fig. \ref{fig:overview}), expanded here to cover the RCM ice domains which exist slightly outside these sectors in some locations.
 + Region refers to the citet:mouginot_2019_data regions (Fig. \ref{fig:overview}), expanded here to cover the RCM ice domains.
 + SMB is the surface mass balance from an RCM.
-+ MMB is the marine mass balance, which in other works is often referred to as solid ice discharge or D. It includes both calving and submarine melting.
++ D is solid ice discharge or D. It includes both calving and submarine melting at marine terminating glaciers.
 + BMB is the basal mass balance. It comes from geothermal flux (BMB_{GF}), frictional heating from ice velocity (BMB_{friction}), and viscous heat dissipation (BMB_{VHD}).
 + MB is the total mass balance including the BMB term (Eq. \ref{eq:MB}).
 + MB* is the mass balance not including the BMB term (Eq. \ref{eq:MBstar}).
-+ HIRHAM/HARMONIE, MAR, and RACMO refer to the RCMs, which only provide SMB, and runoff in the case of MAR. However, when referencing the different MB products, we use, for example, "MAR MB" rather than repeatedly explicitly stating "MB derived from MAR SMB minus BMB and MMB". The use should be clear from context.
++ HIRHAM/HARMONIE, MAR, and RACMO refer to the RCMs, which only provide SMB, and runoff in the case of MAR. However, when referencing the different MB products, we use, for example, "MAR MB" rather than repeatedly explicitly stating "MB derived from MAR SMB minus BMB and D". The use should be clear from context.
 
 * Product description
 
 #+NAME: fig:overview
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
-#+CAPTION: Annual mass balance (black lines), surface mass balance (blue lines) and marine plus basal mass balance (dashed grey) in Gt yr^{-1} for each of the seven citet:mouginot_2019_data regions. The map shows both the named regions citep:mouginot_2019_data and the numbered sectors citep:zwally_2012_data. Marine mass balance gates are marked in black. Only recent (post-1986) data are shown because reconstructed data are not separated into regions or sectors. Next week is defined as src_bash{date --iso --date="next week"} based on the date this document was compiled.
+#+CAPTION: Annual mass balance (black lines), surface mass balance (blue lines) and discharge plus basal mass balance (dashed grey) in Gt yr^{-1} for each of the seven citet:mouginot_2019_data regions. The map shows both the named regions citep:mouginot_2019_data and the numbered sectors citep:zwally_2012_data. Discharge gates are marked in black. Only recent (post-1986) data are shown because reconstructed data are not separated into regions or sectors. Next week is defined as src_bash{date --iso --date="next week"} based on the date this document was compiled.
 [[./fig/overview_w_plots.png]]
 
-The output of this work is two NetCDF files and one CSV file containing a time series of mass balance and the components used to calculate mass balance. The only difference between the two NetCDF files is the ROI -- one for citet:zwally_2012_data sectors and one for citet:mouginot_2019_data regions. Each NetCDF file includes the ice sheet mass balance (MB), MB per region of interest (ROI; sector or region), MB per ROI per RCM, ice sheet surface mass balance (SMB), SMB per ROI, ice sheet marine mass balance (MMB), MMB per ROI, ice sheet basal mass balance (BMB), and BMB per ROI. The CSV file contains a copy of the ice-sheet summed data.
+The output of this work is two NetCDF files and one CSV file containing a time series of mass balance and the components used to calculate mass balance. The only difference between the two NetCDF files is the ROI -- one for citet:zwally_2012_data sectors and one for citet:mouginot_2019_data regions. Each NetCDF file includes the ice sheet mass balance (MB), MB per region of interest (ROI; sector or region), MB per ROI per RCM, ice sheet surface mass balance (SMB), SMB per ROI, ice sheet discharge (D), D per ROI, ice sheet basal mass balance (BMB), and BMB per ROI. The CSV file contains a copy of the ice-sheet summed data.
 
-An example of the output is shown in Fig. \ref{fig:mb_ts}, where the top panel shows mass balance for the entire Greenland ice sheet, in addition to SMB, and MMB, at annual resolution. The lower panel shows an example two years at daily temporal resolution. The ice-sheet-wide product includes data from 1840 through next week, but the sector and region-scale products only includes data from 1986 through next week, because the 1840 through 1985 reconstructed only exists at ice-sheet scale (Fig. \ref{fig:overview}).
+An example of the output is shown in Fig. \ref{fig:mb_ts}, where the top panel shows mass balance for the entire Greenland ice sheet, in addition to SMB, and D, at annual resolution. The lower panel shows an example two years at daily temporal resolution. The ice-sheet-wide product includes data from 1840 through next week, but the sector and region-scale products only includes data from 1986 through next week, because the 1840 through 1985 reconstructed only exists at ice-sheet scale (Fig. \ref{fig:overview}).
 
-# TODO:  The nearly-flat MMB + BMB varies by ~4 % from -1.33 to -1.39 Gt d^{-1}
+# TODO:  The nearly-flat D + BMB varies by ~4 % from -1.33 to -1.39 Gt d^{-1}
 
 #+NAME: fig:mb_ts
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
-#+CAPTION: Mass balance and its major components. Top panel: Annual average surface mass balance (blue line), marine mass balance (gray dashed), and their mass balance sum (black line). Here the marine and basal mass balance (MMB + BMB) are shown with sign inverted (e.g. -1 \(\times\) (MMB+BMB)) Lower panel: Same data at daily resolution and limited to 2019 and 2020.
+#+CAPTION: Mass balance and its major components. Top panel: Annual average surface mass balance (blue line), discharge (gray dashed), and their mass balance sum (black line). Here the discharge and basal mass balance (D + BMB) are shown with sign inverted (e.g. -1 \(\times\) (D+BMB)) Lower panel: Same data at daily resolution and limited to 2019 and 2020.
 [[./fig/mb_ts.png]]
 
 
@@ -192,18 +192,18 @@ An example of the output is shown in Fig. \ref{fig:mb_ts}, where the top panel s
 
 This section introduces data products that exist prior to and are external to this work (Table \ref{tab:data}). In the following Methods section we introduce both the intermediate products we generate using these data sources, and the final product that is the output of This Study.
 
-The inputs to this work are the recent SMB fields from the three RCMs, the recent marine mass balance data from citet:mankoff_2020_solid (data: citet:mankoff_MMB_dataverse), and the recent basal mass balance fields, of which BMB_{GF} and BMB_{friction} are direct outputs from citet:karlsson_2021 (data: citet:karlsson_2021_data), but the BMB_{VHD} calculations are redone here (see Methods Sect. \ref{sec:methods:VHD}) using the MAR runoff field. The reconstructed data (pre 1986) are surface and marine mass balance from citet:kjeldsen_2015 (data: citet:kjeldsen_2015_data), but adjusted here using the overlapping period (see Methods Sect. \ref{sec:methods:reconstructed_adjustment}), and runoff from citet:kjeldsen_2015 (data: citet:kjeldsen_2015_data) as a proxy and scaled for BMB_{VHD} (see Methods Sect. \ref{sec:methods:VHD}).
+The inputs to this work are the recent SMB fields from the three RCMs, the recent discharge from citet:mankoff_2020_solid (data: citet:mankoff_D_dataverse), and the recent basal mass balance fields, of which BMB_{GF} and BMB_{friction} are direct outputs from citet:karlsson_2021 (data: citet:karlsson_2021_data), but the BMB_{VHD} calculations are redone here (see Methods Sect. \ref{sec:methods:VHD}) using the MAR runoff field. The reconstructed data (pre 1986) are surface mass balance and discharge from citet:kjeldsen_2015 (data: citet:kjeldsen_2015_data), but adjusted here using the overlapping period (see Methods Sect. \ref{sec:methods:reconstructed_adjustment}), and runoff from citet:kjeldsen_2015 (data: citet:kjeldsen_2015_data) as a proxy and scaled for BMB_{VHD} (see Methods Sect. \ref{sec:methods:VHD}).
 
 #+NAME: tab:data
 #+CAPTION: Summary of data products used as inputs to This Study.
 | Product                  | Period                  | Reference                | Data / Notes                                  |
 |--------------------------+-------------------------+--------------------------+-----------------------------------------------|
 | Reconstructed SMB        | 1840 through 1985       | citet:kjeldsen_2015      | citet:kjeldsen_2015_data                      |
-| Reconstructed MMB        | 1840 through 1985       | citet:kjeldsen_2015      | citet:kjeldsen_2015_data                      |
+| Reconstructed D          | 1840 through 1985       | citet:kjeldsen_2015      | citet:kjeldsen_2015_data                      |
 | HIRHAM/HARMONIE SMB      | 1986 through yesterday  | citet:langen_2017        |                                               |
 | MAR SMB                  | 1986 through next week  | citet:fettweis_2020      |                                               |
 | RACMO SMB                | 1986 through last month | citet:noel_2019          |                                               |
-| MMB                      | 1986 through last month | citet:mankoff_2020_solid | citet:mankoff_MMB_dataverse                   |
+| D                        | 1986 through last month | citet:mankoff_2020_solid | citet:mankoff_D_dataverse                     |
 | BMB_{GF}; BMB_{friction} | 1840 through next week  | citet:karlsson_2021      | citet:karlsson_2021_data                      |
 | BMB_{VHD}                | 1840 through 1985       | citet:kjeldsen_2015      | citet:kjeldsen_2015_data reconstructed runoff |
 | BMB_{VHD}                | 1986 through next week  | citet:fettweis_2020      | MAR runoff                                    |
@@ -254,15 +254,15 @@ The citet:box_2013_II 171-year (1840-2010) reconstruction is developed from line
 
 The reconstructed surface mass balance is adjusted as described in the Methods Sect. \ref{sec:methods:reconstructed_adjustment} (Fig. \ref{fig:reconstructed_adj}).
 
-** Marine mass balance
+** Discharge
 
-The recent marine mass balance data are the discharge (D) product from citet:mankoff_2020_solid (data: citet:mankoff_MMB_dataverse). This product covers all fast-flowing (> 100 m yr-1) marine-terminating glaciers. The marine mass balance in citet:mankoff_2020_solid is computed at flux gates ~5 km upstream from glacier termini citep:mankoff_MMB_gates, using a wide range of velocity products, and ice thickness from BedMachine v4. Discharge across flux gates is derived with a 200 m spatial resolution grid, but then summed and provided at glacier resolution. Temporal coverage begins in 1986 with a few velocity estimates, and is updated each time a new velocity product is released, which is every ~12 days with a ~30 day lag citep:solgaard_2021 (data: citet:solgaard_2021_data).
+The recent discharge data are from citet:mankoff_2020_solid (data: citet:mankoff_D_dataverse). This product covers all fast-flowing (> 100 m yr-1) marine-terminating glaciers. The discharge in citet:mankoff_2020_solid is computed at flux gates ~5 km upstream from glacier termini citep:mankoff_D_gates, using a wide range of velocity products, and ice thickness from BedMachine v4. Discharge across flux gates is derived with a 200 m spatial resolution grid, but then summed and provided at glacier resolution. Temporal coverage begins in 1986 with a few velocity estimates, and is updated each time a new velocity product is released, which is every ~12 days with a ~30 day lag citep:solgaard_2021 (data: citet:solgaard_2021_data).
 
-Some changes have been implemented since the last publication describing the marine mass balance product (i.e., citet:mankoff_2020_solid). These are minor and include updating the citet:khan_2016 (data: citet:khan_2016_data) surface elevation change product from 2015 through 2019, updating various MEaSUREs velocity products to their latest version, updating the PROMICE Sentinel ice velocity product from Edition 1 (doi:10.22008/promice/data/sentinel1icevelocity/greenlandicesheet/v1.0.0) to Edition 2 (citet:solgaard_2021,solgaard_2021_data), and updating from BedMachine v3 (supplemented in the SE with citet:millan_2018) to use only BedMachine v4 citep:NSIDC_BedMachine_GL.
+Some changes have been implemented since the last publication describing the discharge product (i.e., citet:mankoff_2020_solid). These are minor and include updating the citet:khan_2016 (data: citet:khan_2016_data) surface elevation change product from 2015 through 2019, updating various MEaSUREs velocity products to their latest version, updating the PROMICE Sentinel ice velocity product from Edition 1 (doi:10.22008/promice/data/sentinel1icevelocity/greenlandicesheet/v1.0.0) to Edition 2 (citet:solgaard_2021,solgaard_2021_data), and updating from BedMachine v3 (supplemented in the SE with citet:millan_2018) to use only BedMachine v4 citep:NSIDC_BedMachine_GL.
 
-The reconstructed marine mass balance data citep:kjeldsen_2015 are estimated via a linear fit between unsmoothed annual marine mass balance spanning 2000 to 2012 citep:enderlin_2014_improved and runoff data from citep:kjeldsen_2015 using a 6-year trailing average. The method for scaling discharge from runoff was introduced by citep:rignot_2008_mass, who scaled the SMB anomaly with discharge. Sensitivity analyses conducted by citet:box_2013_III showed runoff to be the more effective discharge predictor, and include a discussion of the physical basis. Although the fitting period of the present dataset includes an anomalous period of discharge (2000 through 2005; e.g., citet:boers_2021), the discharge data used by citet:rignot_2008_mass and citet:box_2013_III also includes years 1958 and 1964 that lie near the regression line (See citet:box_2013_III Fig. 4 and related section 4. Physical basis). Further, while 2000 through 2005 cover a changing period in Greenlandic discharge citep:mankoff_2020_solid,king_2020, there were likely other anomalous periods in the past, when glaciers in Greenland experienced considerable increases in discharge as inferred by geological and geodetic investigations citep:andresen_2012,bjork_2012,khan_2015,khan_2020.
+The reconstructed discharge data citep:kjeldsen_2015 are estimated via a linear fit between unsmoothed annual discharge spanning 2000 to 2012 citep:enderlin_2014_improved and runoff data from citep:kjeldsen_2015 using a 6-year trailing average. The method for scaling discharge from runoff was introduced by citep:rignot_2008_mass, who scaled the SMB anomaly with discharge. Sensitivity analyses conducted by citet:box_2013_III showed runoff to be the more effective discharge predictor, and include a discussion of the physical basis. Although the fitting period of the present dataset includes an anomalous period of discharge (2000 through 2005; e.g., citet:boers_2021), the discharge data used by citet:rignot_2008_mass and citet:box_2013_III also includes years 1958 and 1964 that lie near the regression line (See citet:box_2013_III Fig. 4 and related section 4. Physical basis). Further, while 2000 through 2005 cover a changing period in Greenlandic discharge citep:mankoff_2020_solid,king_2020, there were likely other anomalous periods in the past, when glaciers in Greenland experienced considerable increases in discharge as inferred by geological and geodetic investigations citep:andresen_2012,bjork_2012,khan_2015,khan_2020.
 
-The reconstructed marine mass balance is adjusted as described in the Methods Sect. \ref{sec:methods:reconstructed_adjustment}.
+The reconstructed discharge is adjusted as described in the Methods Sect. \ref{sec:methods:reconstructed_adjustment}.
 
 ** Basal mass balance
 
@@ -331,18 +331,18 @@ We validate This Study against five other data products (See Table \ref{tab_summ
 :CUSTOM_ID: sec:methods
 :END:
 
-The total mass balance for all of Greenland and all the different ROIs involves summing each field (SMB, MMB, BMB) by each ROI, then subtracting the MMB and BMB from the SMB fields, or,
+The total mass balance for all of Greenland and all the different ROIs involves summing each field (SMB, D, BMB) by each ROI, then subtracting the D and BMB from the SMB fields, or,
 
 #+NAME: eq:MB
 \begin{equation}
-MB = SMB - MMB - BMB.
+MB = SMB - D - BMB.
 \end{equation}
 
 Products that do not include the BMB term (i.e., citet:mouginot_2019,colgan_2019, and citet:kjeldsen_2015) have total mass balance defined as
 
 #+NAME: eq:MBstar
 \begin{equation}
-MB^{*} = SMB - MMB,
+MB^{*} = SMB - D,
 \end{equation}
 
 and when comparing This Study to those products, we compare like terms, never comparing our MB to a different product MB^{*}, except in Fig. \ref{fig:mb_cumsum} where all products are shown together.
@@ -353,11 +353,11 @@ Prior to calculating the mass balance, we perform the following steps.
 
 In This Study we generate an output based on each of the three RCMs (HIRHAM/HARMONIE, MAR, and RACMO), however, in addition to these we generate a final and 4th SMB field defined as a combination of 1) the adjusted reconstructed SMB from 1840 through 1985 (Sect. \ref{sec:methods:reconstructed_adjustment}), and 2) the average of HIRHAM/HARMONIE, MAR, and RACMO from 1986 through a few months ago when RACMO drops are available, the average of HIRHAM/HARMONIE and MAR from a few months ago through yesterday, and MAR from yesterday through next week. See the Appendix \ref{apdx:RCM_diff} for differences among This Study MB and MB derived using each of the RCM SMBs. There is no obvious change or step function at the 1985 to 1986 reconstructed-to-recent change, nor as the RACMO and then HIRHAM/HARMONIE RCMs become unavailable a few months ago and yesterday, respectively.
 
-** Projected marine mass balance
+** Projected discharge
 
-We project the marine mass balance from the last observed point from citet:mankoff_2020_solid (generally between 2 weeks and 1 month old) to seven days into the future at each glacier. We define the long-term trend as the linear least squares fit to the last three years  of observed data. We deﬁne the seasonal signal as the mean of the last three years of observed data during the temporal window of interest that spans from the most recently available observation through to present plus one week. We then assign the long term trend plus the seasonal signal value to next week's MMB (i.e., now + 7 days), and finally linearly interpolate between the last observed value and the forecasted next week's value, to provide the recent past projected and future forecasted MMB.
+We project the discharge from the last observed point from citet:mankoff_2020_solid (generally between 2 weeks and 1 month old) to seven days into the future at each glacier. We define the long-term trend as the linear least squares fit to the last three years  of observed data. We deﬁne the seasonal signal as the mean of the last three years of observed data during the temporal window of interest that spans from the most recently available observation through to present plus one week. We then assign the long term trend plus the seasonal signal value to next week's D (i.e., now + 7 days), and finally linearly interpolate between the last observed value and the forecasted next week's value, to provide the recent past projected and future forecasted D.
 
-Marine mass balance does not change sign and changes magnitude by approximately 6 % annually over the entire ice sheet citep:king_2018, but surface mass balance changes sign and has much larger and short-term variability. From this, the statistical forecast for marine mass balance described above does not impact results as much as the physically-based model forecast for surface mass balance.
+Discharge does not change sign and changes magnitude by approximately 6 % annually over the entire ice sheet citep:king_2018, but surface mass balance changes sign and has much larger and short-term variability. From this, the statistical forecast for discharge described above does not impact results as much as the physically-based model forecast for surface mass balance.
 
 ** Basal mass balance
 :PROPERTIES:
@@ -395,16 +395,16 @@ To estimate reconstructed basal mass balance, we treat BMB_{GF} and BMB_{frictio
 
 #+NAME: fig:reconstructed_adj
 #+ATTR_LATEX: :width 0.4\textwidth :placement [!h]
-#+CAPTION: Comparison between This Study and the reconstructed citep:kjeldsen_2015. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the years for the unadjusted data sets. The matching colored diamonds show the adjusted data. MB^{*} shown here does not include BMB for either the reconstructed or This Study data. Arrows show statistical properties before and after the adjustment. No adjustment is made to MB^{*}, but it is computed from Eq. \ref{eq:MBstar} both before (numbered) and after (diamonds) the surface and marine mass balance adjustments.
+#+CAPTION: Comparison between This Study and the reconstructed citep:kjeldsen_2015. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the years for the unadjusted data sets. The matching colored diamonds show the adjusted data. MB^{*} shown here does not include BMB for either the reconstructed or This Study data. Arrows show statistical properties before and after the adjustment. No adjustment is made to MB^{*}, but it is computed from Eq. \ref{eq:MBstar} both before (numbered) and after (diamonds) the surface and discharge adjustments.
 [[./fig/K2015_adjusted.png]]
 
-We use the reconstructed and recent surface (SMB) and marine (MMB) mass balance overlap from 1986 through 2012 to adjust the reconstructed data. This Study vs reconstructed SMB has a slope of 0.6 and an intercept of 165 Gt yr^{-1} (Fig. \ref{fig:reconstructed_adj} SMB), and This Study vs reconstructed MMB has a slope of 1.1 and an intercept of -6 Gt yr^{-1} (Fig. \ref{fig:reconstructed_adj} MMB). The unadjusted reconstructed data slightly underestimates years with high SMB and overestimates years with low SMB (see 1986, 2010, 2011, and 2012 in Fig. \ref{fig:reconstructed_adj} SMB). The unadjusted reconstructed data slightly overestimates years with low MMB and overestimates years with high MMB.
+We use the reconstructed and recent surface mass balance (SMB) and discharge (D) overlap from 1986 through 2012 to adjust the reconstructed data. This Study vs reconstructed SMB has a slope of 0.6 and an intercept of 165 Gt yr^{-1} (Fig. \ref{fig:reconstructed_adj} SMB), and This Study vs reconstructed D has a slope of 1.1 and an intercept of -6 Gt yr^{-1} (Fig. \ref{fig:reconstructed_adj} D). The unadjusted reconstructed data slightly underestimates years with high SMB and overestimates years with low SMB (see 1986, 2010, 2011, and 2012 in Fig. \ref{fig:reconstructed_adj} SMB). The unadjusted reconstructed data slightly overestimates years with low D and overestimates years with high D.
 
-We adjust the reconstructed data until the reconstructed vs. recent slope is 1 and intercept is 0 Gt yr^{-1} for each of the surface and marine mass balance comparisons (Fig. \ref{fig:reconstructed_adj}). We then derive the BMB_{VHD} term for reconstructed basal mass balance (Sect. \ref{sec:methods:VHD} and Appendix \ref{apdx:reconstructed_runoff}), bring in the other BMB terms (Sect. \ref{sec:methods:VHD}), and use Eq. \ref{eq:MB} to compute the adjusted reconstructed mass balance.
+We adjust the reconstructed data until the reconstructed vs. recent slope is 1 and intercept is 0 Gt yr^{-1} for each of the surface mass balance and discharge comparisons (Fig. \ref{fig:reconstructed_adj}). We then derive the BMB_{VHD} term for reconstructed basal mass balance (Sect. \ref{sec:methods:VHD} and Appendix \ref{apdx:reconstructed_runoff}), bring in the other BMB terms (Sect. \ref{sec:methods:VHD}), and use Eq. \ref{eq:MB} to compute the adjusted reconstructed mass balance.
 
-For reconstructed SMB and MMB, the mean of the recent uncertainty is added to the reconstructed uncertainty during the adjustment. Reconstructed MB uncertainty is then re-calculated as the square root of the sum of the squares of the reconstructed SMB and MMB uncertainty.
+For reconstructed SMB and D, the mean of the recent uncertainty is added to the reconstructed uncertainty during the adjustment. Reconstructed MB uncertainty is then re-calculated as the square root of the sum of the squares of the reconstructed SMB and D uncertainty.
 
-For surface mass balance, the adjustment is effectively a rotation around the mean values, with years with low SMB decreasing and years with high SMB increasing after the adjustment. For marine mass balance, years with low MMB are slightly reduced, and years with high MMB have a higher reduction to better match the overlapping estimates.
+For surface mass balance, the adjustment is effectively a rotation around the mean values, with years with low SMB decreasing and years with high SMB increasing after the adjustment. For discharge, years with low D are slightly reduced, and years with high D have a higher reduction to better match the overlapping estimates.
 
 The adjustment described above treats all biases in the reconstructed data. The primary assumption of our adjustment is that the bias contributions do not change in proportion to each other over time. We attribute the disagreement and need for the adjustment to the demonstrated too-high biases in accumulation and ablation estimates in the 1840-2012 reconstructed SMB field citep:fettweis_2020, an offset resulting from differences in ice masks citep:kjeldsen_2015, the inclusion of peripheral glaciers citep:kjeldsen_2015, other accumulation rate inaccuracies citep:lewis_2017,lewis_2019, and other unknowns.
 
@@ -441,7 +441,7 @@ We compare to six related data sets (see Table \ref{tab_summary} and Sect. \ref{
 
 Our initial comparison (Fig. \ref{fig:mb_cumsum}) shows all seven products overlaid in a time series accumulating at the product resolution (daily to annual) from the beginning of the first overlap (1972, citet:mouginot_2019) until seven days from now (now defined as src_bash{date --iso} {{{results(=2021-04-01=)}}}). Each data set is manually aligned vertically so that the last timestamps appear to overlap, allowing disagreements to grow back in time. We also assume errors are smallest at present and allow errors to grow back in time. The errors for this product are described in the Uncertainty section.
 
-In the sections below, we compare This Study to each of the validation data in more detail. The citet:mouginot_2019 and citet:colgan_2019 products allow term-level (SMB, MMB, and MB^{*}) comparison, and the GMB, VC, and IMBIE2 only MB-level comparison. The MB or MB^{*} comparison for each product is summarized in Table \ref{tab_summary}. All have different masks. Bias [Gt yr^{-1}] is defined as \(\frac{1}{n} \sum_{i=1}^n(x_i - y_i)\). RMSE [Gt yr^{-1}] is defined as \(\sqrt{\frac{1}{n} \sum_{i=1}^n(x_i - y_i)^2}\). Sums are computed using ice-sheet wide annual values, where \(x\) is This Study, \(y\) is the other product, and a positive bias means that This Study has a larger value.
+In the sections below, we compare This Study to each of the validation data in more detail. The citet:mouginot_2019 and citet:colgan_2019 products allow term-level (SMB, D, and MB^{*}) comparison, and the GMB, VC, and IMBIE2 only MB-level comparison. The MB or MB^{*} comparison for each product is summarized in Table \ref{tab_summary}. All have different masks. Bias [Gt yr^{-1}] is defined as \(\frac{1}{n} \sum_{i=1}^n(x_i - y_i)\). RMSE [Gt yr^{-1}] is defined as \(\sqrt{\frac{1}{n} \sum_{i=1}^n(x_i - y_i)^2}\). Sums are computed using ice-sheet wide annual values, where \(x\) is This Study, \(y\) is the other product, and a positive bias means that This Study has a larger value.
 
 # bias = np.mean(x.values - y.values)
 # RMSE = np.sqrt(np.mean((x.values - y.values)**2))
@@ -479,9 +479,9 @@ print(df[[row in i for i in df.index]][col].values[0])
 
 The citet:mouginot_2019 product spans the 1972 through 2018 period. The SMB comes from RACMO v2.3p2 downscaled at 1 km, and agrees very well with SMB from This Study (r^{2} call_tso(row="mouginot", col="r") {{{results(=0.94=)}}}, bias call_tso(row="mouginot", col="bias") {{{results(=9=)}}}, RMSE call_tso(row="mouginot", col="RMSE") {{{results(=36=)}}} , slope 1.1). The minor SMB differences are likely due to mask differences, or our use of a three-RCM average SMB estimate.
 
-citet:mouginot_2019 discharge and our MMB from citet:mankoff_2020_solid have a -33 Gt yr^{-1} bias. This difference can mainly be attributed to different discharge estimates in the Southeast and Central east sector (Appendix: Mouginot regions). When we include BMB in This Study (diamonds in middle panel shifting values to the right), it adds ~25 Gt yr^{-1} to This Study.
+citet:mouginot_2019 discharge and our D from citet:mankoff_2020_solid have a -33 Gt yr^{-1} bias. This difference can mainly be attributed to different discharge estimates in the Southeast and Central east sector (Appendix: Mouginot regions). When we include BMB in This Study (diamonds in middle panel shifting values to the right), it adds ~25 Gt yr^{-1} to This Study.
 
-Because MB^{*} is a linear combination of SMB and MMB terms (Eq \ref{eq:MBstar}), the MB^{*} differences between this product and citet:mouginot_2019 are dominated by the MMB term, although it is not apparent because interannual variability is dominated by SMB.
+Because MB^{*} is a linear combination of SMB and D terms (Eq \ref{eq:MBstar}), the MB^{*} differences between this product and citet:mouginot_2019 are dominated by the D term, although it is not apparent because interannual variability is dominated by SMB.
 
 ** Colgan (2019)
 
@@ -492,13 +492,13 @@ Because MB^{*} is a linear combination of SMB and MMB terms (Eq \ref{eq:MBstar})
 
 The citet:colgan_2019 product spans 1995 through 2015. The SMB term is broadly similar to the RCM-averaged SMB term in This Study, although citet:colgan_2019 use only an older version of MAR (Fig. \ref{fig:C2019} top panel). The citet:colgan_2019 SMB is spatially interpolated over the PROMICE ice-sheet ice mask citep:citterio_2013, which contains more detail on the ice sheet periphery, and therefore a larger ablation area than the native coarser MAR ice mask. This Study does not interpolate the SMB field and instead works on the SMB ice domain and.
 
-The most critical difference between This Study and citet:colgan_2019 is that the latter estimate grounding line ice discharge based on corrections to ice volume flow rate measured across the approximately 1700 m elevation contour. This ice volume flow rate measurement is far inland relative to the grounding line flux gates used in This Study (from citet:mankoff_MMB_gates). This introduces uncertainty in the citet:colgan_2019 MMB term induced by the SMB corrections between the 1700 m elevation contour and the terminus (see large disagreement in Fig. \ref{fig:C2019} mid panel). This disagreement increases when BMB is included in the results of This Study (shown by dots shifting the annual values to the right).
+The most critical difference between This Study and citet:colgan_2019 is that the latter estimate grounding line ice discharge based on corrections to ice volume flow rate measured across the approximately 1700 m elevation contour. This ice volume flow rate measurement is far inland relative to the grounding line flux gates used in This Study (from citet:mankoff_D_gates). This introduces uncertainty in the citet:colgan_2019 D term induced by the SMB corrections between the 1700 m elevation contour and the terminus (see large disagreement in Fig. \ref{fig:C2019} mid panel). This disagreement increases when BMB is included in the results of This Study (shown by dots shifting the annual values to the right).
 
-The MMB disagreement is represented differently across sectors (Appendix: Colgan 2019), where sectors 1, 2, 5, and 6 all have correlation coefficients less than ~0.1, while the remaining sectors 3, 4, 7, and 8 all have correlation coefficients greater than 0.5.
+The D disagreement is represented differently across sectors (Appendix: Colgan 2019), where sectors 1, 2, 5, and 6 all have correlation coefficients less than ~0.1, while the remaining sectors 3, 4, 7, and 8 all have correlation coefficients greater than 0.5.
 
-This Study assesses greater MMB bias (43 Gt yr$^{-1}$) than citet:colgan_2019. While citet:colgan_2019 did not assess BMB, the majority of this discrepancy likely results from citet:colgan_2019 aliasing the aforementioned downstream correction terms. For example, while This Study shows very little interannual variability in ice discharge in the predominantly land-terminating SW region, citet:colgan_2019 infer large interannual variability in ice discharge based on large interannual variability in SMB and changes in ablation area ice volume in their Sector 6. The discrepancy between This Study and citet:colgan_2019 MMB [+BMB] is largest during the earliest part of the record (i.e. 1995-2000), decreasing towards present-day, which may suggest that citet:colgan_2019 particularly overestimated the response in ice discharge to 1990s climate variability.
+This Study assesses greater D bias (43 Gt yr$^{-1}$) than citet:colgan_2019. While citet:colgan_2019 did not assess BMB, the majority of this discrepancy likely results from citet:colgan_2019 aliasing the aforementioned downstream correction terms. For example, while This Study shows very little interannual variability in ice discharge in the predominantly land-terminating SW region, citet:colgan_2019 infer large interannual variability in ice discharge based on large interannual variability in SMB and changes in ablation area ice volume in their Sector 6. The discrepancy between This Study and citet:colgan_2019 D [+BMB] is largest during the earliest part of the record (i.e. 1995-2000), decreasing towards present-day, which may suggest that citet:colgan_2019 particularly overestimated the response in ice discharge to 1990s climate variability.
 
-Similar to the comparison with citet:mouginot_2019, the disagreement between This Study and citet:colgan_2019 is dominated by MMB disagreement, although it is again not apparent because interannual variability is dominated by SMB.
+Similar to the comparison with citet:mouginot_2019, the disagreement between This Study and citet:colgan_2019 is dominated by D disagreement, although it is again not apparent because interannual variability is dominated by SMB.
 
 ** Gravimetric Mass Balance (GMB)
 
@@ -536,7 +536,7 @@ In comparison to mass balance assessed by IMBIE2, This Study has a small bias of
 :CUSTOM_ID: sec:uncertainty
 :END:
 
-We treat the three inputs to the total mass balance (surface, marine, and basal mass balance, or SMB, MMB, and BMB) as independent when calculating the total error. This is a simplification -- the RCM SMB and the BMB_{VHD} from RCM runoff are related, and MMB ice thickness and BMB_{VHD} pressure gradients are related, and other terms may have dependencies. However, the two dominant IO terms, SMB inputs and MMB outputs, are independent on annual time scales, and for simplification we treat all terms as independent. We use Eq \ref{eq:MB} and standard error propagation for SMB, MMB, and BMB terms (i.e., the square root of the sum of the squares of the SMB plus MMB plus BMB error terms). For the MMB, extra work is done to calculate uncertainty between the last Mankoff 2020 MMB data (up to 30 days old, with error of ~9 % or ~45 Gt yr$^{-1}$) and the forecasted now-plus-7-day MMB (see Sect. \ref{sec:uncertainty:MMB}). Table \ref{tab:uncertainty} provides a summary of the uncertainty for each input.
+We treat the three inputs to the total mass balance (surface mass balance, discharge, and basal mass balance, or SMB, D, and BMB) as independent when calculating the total error. This is a simplification -- the RCM SMB and the BMB_{VHD} from RCM runoff are related, and D ice thickness and BMB_{VHD} pressure gradients are related, and other terms may have dependencies. However, the two dominant IO terms, SMB inputs and D outputs, are independent on annual time scales, and for simplification we treat all terms as independent. We use Eq \ref{eq:MB} and standard error propagation for SMB, D, and BMB terms (i.e., the square root of the sum of the squares of the SMB plus D plus BMB error terms). For D, extra work is done to calculate uncertainty between the last Mankoff 2020 D data (up to 30 days old, with error of ~9 % or ~45 Gt yr$^{-1}$) and the forecasted now-plus-7-day D (see Sect. \ref{sec:uncertainty:D}). Table \ref{tab:uncertainty} provides a summary of the uncertainty for each input.
 
 The final This Study MB uncertainty value shown in Table \ref{tab:uncertainty} comes from mean of the annual sum of the MB error term.
 
@@ -551,8 +551,8 @@ MAR SMB & 15 \% & \citet{fettweis_2020}. The mean bias between the model and the
 RACMO SMB & 15 \% & \citet{noel_2019}. Average 5\% runoff bias compared to annual cumulative discharge from the Watson River. Increases to a maximum of 20 \% for extreme runoff years. \\
 This Study SMB & 9 \% & Average of 15 \% SMB uncertainties above, assuming uncorrelated. \\
 Reconstructed SMB & $\sim20$ \% & From \citet{kjeldsen_2015} Table 1. \\
-Recent MMB & $\sim45$ Gt yr$^{-1}$ & \(\sim9\) \%. \citet{mankoff_2020_solid} updated \citep{mankoff_2020_ice_github}. \\
-Reconstructed MMB & \(\sim10\) \% & From \citet{kjeldsen_2015} Table 1. \\
+Recent D & $\sim45$ Gt yr$^{-1}$ & \(\sim9\) \%. \citet{mankoff_2020_solid} updated \citep{mankoff_2020_ice_github}. \\
+Reconstructed D & \(\sim10\) \% & From \citet{kjeldsen_2015} Table 1. \\
 BMB_{\mathrm{GF}} & 50 \% & 5.3 +4/-1.4 Gt yr$^{-1}$ from \citet{karlsson_2021} Table 1, using the average of the three available methods. \\
 BMB_{\mathrm{friction}} & 20 \% & 11.8 $\pm$3.4 Gt yr$^{-1}$ from \citet{karlsson_2021} Table 1.\\
 BMB_{\mathrm{VHD}} & 15 \% & MAR runoff uncertainty.\\
@@ -562,18 +562,18 @@ This Study MB & $\sim86$ Gt yr$^{-1}$ & Eq \ref{eq:MB}, assuming all uncertainty
 \label{tab:uncertainty}
 \end{table}
 
-** Marine mass balance
+** Discharge
 :PROPERTIES:
-:CUSTOM_ID: sec:uncertainty:MMB
+:CUSTOM_ID: sec:uncertainty:D
 :END:
 
-The MMB uncertainty is discussed in detail in citet:mankoff_2020_solid, but the main uncertainties come from unknown ice thickness, the assumption of no vertical shear at fast-flowing marine-terminating outlet glaciers, and ice density of 917 kg m^{-3}. Regional ice density can be significantly reduced by crevasses. For example, citet:mankoff_2020_A380 identified a snow-covered crevasse field with 20 % crevasse density, meaning at that location regional firn density should be reduced by 20 %.
+The D uncertainty is discussed in detail in citet:mankoff_2020_solid, but the main uncertainties come from unknown ice thickness, the assumption of no vertical shear at fast-flowing marine-terminating outlet glaciers, and ice density of 917 kg m^{-3}. Regional ice density can be significantly reduced by crevasses. For example, citet:mankoff_2020_A380 identified a snow-covered crevasse field with 20 % crevasse density, meaning at that location regional firn density should be reduced by 20 %.
 
-Temporally, MMB at daily resolution comes from ~12 day observations up-sampled to daily, and those ~12 day resolution observations come from longer time period observations citep:solgaard_2021. Because the velocity method using feature tracking, it is correct on average but misses variability within each sample period (e.g., citet:greene_2020).
+Temporally, D at daily resolution comes from ~12 day observations up-sampled to daily, and those ~12 day resolution observations come from longer time period observations citep:solgaard_2021. Because the velocity method using feature tracking, it is correct on average but misses variability within each sample period (e.g., citet:greene_2020).
 
-Spatially, MMB discharge is estimated ~5 km upstream from the grounding lines for ice velocities as low as 100 m yr^{-1}. That ice accelerates toward the margin, but even ice flowing steady at 1 km yr^{-1} would take 5 years before that mass is lost. However, at any given point in time, ice that had previously crossed the flux gate is calving or melting into the fjord. The discrepancy here between the flux gate estimated mass loss and the actual mass lost at the downstream terminus is only significant for glaciers that have had large velocity changes at some point in the recent past, large changes in ice thickness, or large changes in the location (retreat or advance) of the terminus. We do not consider SMB changes downstream of the flux gate, because the gates are temporally near the terminus for most of the ice that is fast-flowing, and the largest SMB uncertainty is at the ice sheet margin where there are both mask issues and high topographic variability.
+Spatially, discharge is estimated ~5 km upstream from the grounding lines for ice velocities as low as 100 m yr^{-1}. That ice accelerates toward the margin, but even ice flowing steady at 1 km yr^{-1} would take 5 years before that mass is lost. However, at any given point in time, ice that had previously crossed the flux gate is calving or melting into the fjord. The discrepancy here between the flux gate estimated mass loss and the actual mass lost at the downstream terminus is only significant for glaciers that have had large velocity changes at some point in the recent past, large changes in ice thickness, or large changes in the location (retreat or advance) of the terminus. We do not consider SMB changes downstream of the flux gate, because the gates are temporally near the terminus for most of the ice that is fast-flowing, and the largest SMB uncertainty is at the ice sheet margin where there are both mask issues and high topographic variability.
 
-The forecasted MMB uncertainty is estimated from the same forecasted calendar days of the last three years of observed MMB at each glacier. MMB uncertainty for the first forecasted day is the baseline MMB uncertainty plus the largest daily change observed during the forecast period from the last three years. The MMB uncertainty for the second forecasted day is the baseline uncertainty plus the uncertainty from the first forecasted day plus the second largest daily change observed during the forecast period from the last three years. We repeat this for the approximately 30 days of forecasted MMB. This implementation takes into account the larger variability (uncertainty) during the seasonal transition between the lower winter and higher summer discharge, or the smaller variability during the winter period.
+The forecasted D uncertainty is estimated from the same forecasted calendar days of the last three years of observed D at each glacier. D uncertainty for the first forecasted day is the baseline D uncertainty plus the largest daily change observed during the forecast period from the last three years. The D uncertainty for the second forecasted day is the baseline uncertainty plus the uncertainty from the first forecasted day plus the second largest daily change observed during the forecast period from the last three years. We repeat this for the approximately 30 days of forecasted D. This implementation takes into account the larger variability (uncertainty) during the seasonal transition between the lower winter and higher summer discharge, or the smaller variability during the winter period.
 
 ** Regions of interest (ROI)
 :PROPERTIES:
@@ -591,17 +591,17 @@ We encourage RCM developers, BedMachine, and others to use a common and up-to-da
 
 ** Accumulating uncertainties
 
-When accumulating errors as in Fig. \ref{fig:mb_cumsum}, we use only the MMB and BMB_{GF} uncertainty. The MMB uncertainty is primarily due to unknown ice thickness and is invariant in time, and the geothermal heat flux is steady state. SMB uncertainty is assumed to have errors randomly distributed in time (for the purposes of Fig. \ref{fig:mb_cumsum}). There may be time-invariant biases in the BMB_{friction} and SMB fields, but treating all uncertainties as biases is incorrect - evidence for that comes from the six other MB estimates. This distinction between bias and random uncertainty is only done for Fig. \ref{fig:mb_cumsum} where errors accumulate in time. The provided data product contains one uncertainty field and does not distinguish between systematic and random uncertainty.
+When accumulating errors as in Fig. \ref{fig:mb_cumsum}, we use only the D and BMB_{GF} uncertainty. The D uncertainty is primarily due to unknown ice thickness and is invariant in time, and the geothermal heat flux is steady state. SMB uncertainty is assumed to have errors randomly distributed in time (for the purposes of Fig. \ref{fig:mb_cumsum}). There may be time-invariant biases in the BMB_{friction} and SMB fields, but treating all uncertainties as biases is incorrect - evidence for that comes from the six other MB estimates. This distinction between bias and random uncertainty is only done for Fig. \ref{fig:mb_cumsum} where errors accumulate in time. The provided data product contains one uncertainty field and does not distinguish between systematic and random uncertainty. We caution others in treating SMB uncertainty as random in time for analyses that go beyond the graphical display used here.
 
 The shaded region in Fig. \ref{fig:mb_cumsum} representing the uncertainty for This Study is computed as a 365 day rolling smooth from 1840 through 1999 of the above-described uncertainty,  1/365th of the annual error at now + 7 days, and a linear blend, from 2000 to now + 7 days, between the smoothed reconstructed uncertainty and the present and future more variable uncertainty. 
 
 The citet:mouginot_2019, citet:colgan_2019, and citet:kjeldsen_2015 products all provide an error estimate, but do not distinguish between temporally fixed errors (biases; should accumulate in time) vs. temporally random errors.
 
-We treat the citet:mouginot_2019 data the same as This Study. Marine mass balance uncertainty is treated as a bias and accumulates, and surface mass balance uncertainty is treated as random and does not accumulate.
+We treat the citet:mouginot_2019 data the same as This Study. Discharge uncertainty is treated as a bias and accumulates, and surface mass balance uncertainty is treated as random and does not accumulate.
 
 The citet:colgan_2019 vs. this study bias and RMSE are -35 and 61 Gt yr^{-1} respectively. This suggests that in any given year, there could be up to -35 \pm 61 or +26/-96 Gt yr^{-1} departure from This Study. From this, we assign a 35 Gt yr^{-1} bias (36 %; accumulates in time) and a 61 Gt yr^{-1} RMSE (64 %; random in time).
 
-The adjusted citet:kjeldsen_2015 data have 0 surface and marine mass balance bias by definition (Sect. \ref{sec:methods:reconstructed_adjustment}), but Fig. \ref{fig:mb_cumsum} displays the unadjusted data, and we apply a 36 Gt yr^{-1} accumulating uncertainty from the unadjusted MMB bias (Fig. \ref{fig:reconstructed_adj}).
+The adjusted citet:kjeldsen_2015 data have 0 surface mass balance and discharge bias by definition (Sect. \ref{sec:methods:reconstructed_adjustment}), but Fig. \ref{fig:mb_cumsum} displays the unadjusted data, and we apply a 36 Gt yr^{-1} accumulating uncertainty from the unadjusted D bias (Fig. \ref{fig:reconstructed_adj}).
 
 ** Peripheral ice masses
 
@@ -611,23 +611,23 @@ Greenland’s peripheral glaciers and ice caps are not included in this product.
 
 # See [[id:20210803T051000.448219][Annual GIS]]
 
-From the 181 years of data, the mean mass balance is -80 \pm125 Gt yr^{-1}, with a minimum of -429 \pm109 Gt in 2012 (SMB of 86 \pm8 Gt, MMB of 485 \pm46 Gt, BMB of 29 \pm6 Gt) and a maximum of 137 \pm83 Gt yr^{-1} Gt in 1996 (SMB of 578 \pm52 Gt, MMB of 420 \pm39 Gt, BMB of 21 \pm5 Gt).
+From the 181 years of data, the mean mass balance is -80 \pm125 Gt yr^{-1}, with a minimum of -429 \pm109 Gt in 2012 (SMB of 86 \pm8 Gt, D of 485 \pm46 Gt, BMB of 29 \pm6 Gt) and a maximum of 137 \pm83 Gt yr^{-1} Gt in 1996 (SMB of 578 \pm52 Gt, D of 420 \pm39 Gt, BMB of 21 \pm5 Gt).
 
 # See [[id:20210813T110327.480906][Decadal GIS]]
 
-At the decadal average, the following trends are apparent. Surface mass balance has decreased from a high of ~450 Gt yr^{-1} in the 1860s to low of ~260 Gt yr^{-1} in the 2010s. SMB variability has also increased during this time. Marine mass balance has increased slightly from a low of ~375 Gt yr^{-1} in the 1860s to a high of ~490 Gt yr^{-1} in the 2010s. Basal mass balance, from runoff as a proxy, had a high of 26 \pm16 Gt yr^{-1} in the 1930s and a low of 22 \pm5 Gt yr^{-1} in the 1990s, but as with runoff, is increasing in recent decades.
+At the decadal average, the following trends are apparent. Surface mass balance has decreased from a high of ~450 Gt yr^{-1} in the 1860s to low of ~260 Gt yr^{-1} in the 2010s. SMB variability has also increased during this time. Discharge has increased slightly from a low of ~375 Gt yr^{-1} in the 1860s to a high of ~490 Gt yr^{-1} in the 2010s. Basal mass balance, from runoff as a proxy, had a high of 26 \pm16 Gt yr^{-1} in the 1930s and a low of 22 \pm5 Gt yr^{-1} in the 1990s, but as with runoff, is increasing in recent decades.
 
 The total mass balance decadal trend from the 1840s through the 2010s is one of general mass decrease and increased intra-decadal variability. The record begins in the 1840s with ~-10 Gt yr^{-1}, has only one (of 19) decades with a mass gain (~50 Gt yr^{-1} in the 1860s), and a record low of ~-250 Gt yr^{-1} in the 2010s.
 
 * Data availability
 
-The RCM surface mass balance, and the VHD basal mass balance components are updated daily, the marine mass balance approximately every 12 days, and all are used to produce the final daily-updating product. The data area available at https://doi.org/10.22008/FK2/YG3IWC citep:this_study_data, with all historical (daily updated) versions archived.
+The RCM surface mass balance, and the VHD basal mass balance components are updated daily, the discharge approximately every 12 days, and all are used to produce the final daily-updating product. The data area available at https://doi.org/10.22008/FK2/YG3IWC citep:this_study_data, with all historical (daily updated) versions archived.
 
 As part of our commitment to make continual and improving updates to the data product, we introduce a GitHub database (https://github.com/GEUS-Glaciology-and-Climate/mass_balance/; last visited \today) where users can track progress, make suggestions, discuss, report and respond to issues that arise during use of this product. 
 
 * Conclusions
 
-This study is the first to provide a dataset containing more than a century and real time estimates detailing the state of Greenland ice sheet mass balance, with regional or sector spatial and daily temporal resolution products of surface mass balance, marine mass balance, basal mass balance, and the total mass balance.
+This study is the first to provide a dataset containing more than a century and real time estimates detailing the state of Greenland ice sheet mass balance, with regional or sector spatial and daily temporal resolution products of surface mass balance, discharge, basal mass balance, and the total mass balance.
 
 IMBIE2 highlights that during the GRACE satellite gravimetry era (2003 through 2017), there are usually more than twenty independent estimates of annual Greenland ice sheet mass balance. Just two independent estimates, however, are available prior to 2003. This study will therefore provide additional insight on ice sheet mass balance during the late 1980s and 1990s. IMBIE2 also highlights how the availability of mass balance estimates declines in the year prior to IMBIE2 publication. This reflects a lag period during which mass balance assessments from non-operational products are undergoing peer-review. The operational nature of this product supports the timely inclusion of annual MB estimates in community consensus reports such as those from IMBIE and the IPCC.
 
@@ -645,7 +645,7 @@ As such, the data products provided in this study present the first operational 
 
 #+NAME: fig:RCM_compare
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
-#+CAPTION: Comparison of This Study combined RCM product and the HIRHAM/HARMONIE, MAR, and RACMO RCMs. Results shown here are MB, not SMB, but the same MMB and BMB have been subtracted from each SMB product. Top panel: annual MB for entire time series. Middle panel: Example two years (2019 and 2020) at daily resolution. Bottom panel: Difference between the three RCM MB products and This Study RCM-averaged product, for the same data shown in the middle panel.
+#+CAPTION: Comparison of This Study combined RCM product and the HIRHAM/HARMONIE, MAR, and RACMO RCMs. Results shown here are MB, not SMB, but the same D and BMB have been subtracted from each SMB product. Top panel: annual MB for entire time series. Middle panel: Example two years (2019 and 2020) at daily resolution. Bottom panel: Difference between the three RCM MB products and This Study RCM-averaged product, for the same data shown in the middle panel.
 [[./fig/mb_3RCM.png]]
 
 ** Mouginot 2019 by region
@@ -735,7 +735,7 @@ This work was performed using only open-source software, primarily =GRASS GIS= c
 
 * Misc journal sections                                   :ignore:
 
-\authorcontribution{Author contribution is captured following the CRediT system \citep{allen_2014,brand_2015,allen_2019} and shown graphically in Figure \ref{fig:credit}. The following authors contributed in the following ways. Conceptualization: KDM, APA, and RSF. Curation: KDM, XF, PL, MS, KK, NBK, BN, MvdB, AS, and JB. Implementation: KDM, XF, PL, KK, and MKD. Funding: AS, APA, SBA, and RSF. SMB methods: XF, PL, BN, and MvdB. MMB methods: KDM, WC, AS, MKD, APA, and RSF. BMB methods: NBK and KDM. Validation (general): KDM. Validation GRACE: WC. Validation VC: WC and SS. Reconstruction methods: KK, JB, and KDM. Project admin: KDM, APA, SBA, and RSF. Resources: KDM, XF, PL, MS, KK, NBK, BN, MvdB, AS, and SBA. Software: KDM, XF, PL, AS, and MKD. Visualization: KDM. Writing: KDM, XF, PL, MS, KK, NBK, BN, MvdB, WC, JB, SS, APA, and RSF.}
+\authorcontribution{Author contribution is captured following the CRediT system \citep{allen_2014,brand_2015,allen_2019} and shown graphically in Figure \ref{fig:credit}. The following authors contributed in the following ways. Conceptualization: KDM, APA, and RSF. Curation: KDM, XF, PL, MS, KK, NBK, BN, MvdB, AS, and JB. Implementation: KDM, XF, PL, KK, and MKD. Funding: AS, APA, SBA, and RSF. SMB methods: XF, PL, BN, and MvdB. D methods: KDM, WC, AS, MKD, APA, and RSF. BMB methods: NBK and KDM. Validation (general): KDM. Validation GRACE: WC. Validation VC: WC and SS. Reconstruction methods: KK, JB, and KDM. Project admin: KDM, APA, SBA, and RSF. Resources: KDM, XF, PL, MS, KK, NBK, BN, MvdB, AS, and SBA. Software: KDM, XF, PL, AS, and MKD. Visualization: KDM. Writing: KDM, XF, PL, MS, KK, NBK, BN, MvdB, WC, JB, SS, APA, and RSF.}
 
 \competinginterests{The authors declare that they have no conflict of interest.}
 
