@@ -30,7 +30,7 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.9171329"
-     inkscape:cx="556.9174"
+     inkscape:cx="497.784"
      inkscape:cy="80.729953"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
@@ -64,69 +64,69 @@
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/mb_ts_CE.png"
        xlink:href="mb_ts_CE.png"
-       width="60.959999"
-       height="35.559998"
-       preserveAspectRatio="none"
-       id="image928"
+       y="146.26036"
        x="131.42853"
-       y="146.26036" />
+       id="image928"
+       preserveAspectRatio="none"
+       height="35.559998"
+       width="60.959999" />
     <g
        id="g829"
        transform="matrix(0.16933333,0,0,0.16933333,-7.984562,1.0658153)" />
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/mb_ts_CW.png"
        xlink:href="mb_ts_CW.png"
-       width="60.959999"
-       height="35.559998"
-       preserveAspectRatio="none"
-       id="image939"
+       y="115.49274"
        x="-7.0729256"
-       y="115.49274" />
+       id="image939"
+       preserveAspectRatio="none"
+       height="35.559998"
+       width="60.959999" />
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/mb_ts_NE.png"
        xlink:href="mb_ts_NE.png"
-       width="60.959999"
-       height="35.559998"
-       preserveAspectRatio="none"
-       id="image950"
+       y="28.364285"
        x="136.15532"
-       y="28.364285" />
+       id="image950"
+       preserveAspectRatio="none"
+       height="35.559998"
+       width="60.959999" />
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/mb_ts_NO.png"
        xlink:href="mb_ts_NO.png"
-       width="60.959999"
-       height="35.559998"
-       preserveAspectRatio="none"
-       id="image961"
+       y="5.454381"
        x="-7.0729256"
-       y="5.454381" />
+       id="image961"
+       preserveAspectRatio="none"
+       height="35.559998"
+       width="60.959999" />
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/mb_ts_NW.png"
        xlink:href="mb_ts_NW.png"
-       width="60.959999"
-       height="35.559998"
-       preserveAspectRatio="none"
-       id="image972"
+       y="71.466064"
        x="-7.0729256"
-       y="71.466064" />
+       id="image972"
+       preserveAspectRatio="none"
+       height="35.559998"
+       width="60.959999" />
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/mb_ts_SW.png"
        xlink:href="mb_ts_SW.png"
-       width="60.959999"
-       height="35.559998"
-       preserveAspectRatio="none"
-       id="image994"
+       y="168.8674"
        x="-7.0729256"
-       y="168.8674" />
+       id="image994"
+       preserveAspectRatio="none"
+       height="35.559998"
+       width="60.959999" />
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/mb_ts_SE.png"
        xlink:href="mb_ts_SE.png"
-       y="190.21774"
-       x="110.31084"
-       id="image837"
-       preserveAspectRatio="none"
+       width="60.959999"
        height="35.644669"
-       width="60.959999" />
+       preserveAspectRatio="none"
+       id="image837"
+       x="110.31084"
+       y="190.21774" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.52777767px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -157,12 +157,12 @@
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/overview.png"
        xlink:href="overview.png"
-       width="125.08818"
-       height="225.24548"
-       preserveAspectRatio="none"
-       id="image899"
+       y="6.9012418"
        x="33.861671"
-       y="6.9012418" />
+       id="image899"
+       preserveAspectRatio="none"
+       height="225.24548"
+       width="125.08818" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.52777767px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
@@ -195,7 +195,7 @@
          id="tspan834"
          x="171.03139"
          y="218.48157"
-         style="stroke-width:0.26458332">MMB</tspan></text>
+         style="stroke-width:0.26458332">D</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.52777767px;line-height:1.25;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"

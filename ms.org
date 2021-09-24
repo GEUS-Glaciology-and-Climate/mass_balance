@@ -163,7 +163,7 @@ We use the following terminology throughout the document:
 + Sector refers to one of the citet:zwally_2012_data sectors (Fig. \ref{fig:overview}), expanded here to cover the RCM ice domains which exist slightly outside these sectors in some locations.
 + Region refers to the citet:mouginot_2019_data regions (Fig. \ref{fig:overview}), expanded here to cover the RCM ice domains.
 + SMB is the surface mass balance from an RCM.
-+ D is solid ice discharge or D. It includes both calving and submarine melting at marine terminating glaciers.
++ D is solid ice discharge. It includes both calving and submarine melting at marine terminating glaciers.
 + BMB is the basal mass balance. It comes from geothermal flux (BMB_{GF}), frictional heating from ice velocity (BMB_{friction}), and viscous heat dissipation (BMB_{VHD}).
 + MB is the total mass balance including the BMB term (Eq. \ref{eq:MB}).
 + MB* is the mass balance not including the BMB term (Eq. \ref{eq:MBstar}).
