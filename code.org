@@ -2302,7 +2302,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB.attrs['references'] = '10.22008/promice/mass_balance'
     MB.attrs['product_version'] = 1.0
 
-    comp = dict(zlib=True, complevel=2)
+    comp = dict(zlib=True, complevel=2, dtype='float32')
     encoding = {var: comp for var in MB.data_vars} # all
 
     fn = './TMB/MB_'+roi+'.nc'
@@ -2311,7 +2311,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
 
 # maybe also some CSV output
-MB[['MB','MB_err','SMB','SMB_err','D','D_err','BMB','BMB_err']].to_dataframe().to_csv('./TMB/MB_SMB_D_BMB.csv')
+MB[['MB','MB_err','SMB','SMB_err','D','D_err','BMB','BMB_err']].to_dataframe().to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
 #+END_SRC
 
 #+RESULTS:
