@@ -5555,13 +5555,17 @@ this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
 adj(ax, ['bottom','left'])
 ax.set_ylim([-500,300])
 ax.set_yticks([-500,-400,-300,-200,-100,0,100,200,300])
-
-ax.set_xticklabels(['Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug'])
-ax.set_xlabel('')
 ax.set_ylabel('Hydrologic year\nrunning mass change [Gt]')
 
-plt.setp(ax.get_xticklabels(minor=True), visible=False)
-plt.minorticks_off()
+## https://stackoverflow.com/questions/17158382/
+ax.xaxis.set_major_formatter(ticker.NullFormatter())
+ax.xaxis.set_minor_locator(ticker.FixedLocator(ax.get_xticks()+16))
+months = ['Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug']
+ax.xaxis.set_minor_formatter(ticker.FixedFormatter(months))
+ax.set_xlabel('')
+
+plt.setp(ax.xaxis.get_minorticklabels(), rotation=90)
+ax.tick_params(which='minor', length=0)
 plt.xticks(rotation=90)
 plt.legend(fontsize=7)
 
