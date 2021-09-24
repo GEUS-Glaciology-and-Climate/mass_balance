@@ -581,12 +581,12 @@ r.in.gdal -o input=./tmp/HIRHAM_regions_e_Mouginot_2019.tif output=regions_e
 r.region -c map=sectors_e
 r.region -c map=regions_e
 
-if [ -z ${OP+x} ]; then
+if [ -z ${RECENT+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
   f_list=$(ls ${dir}/*.nc | tail -n 30) ## operational
-  log_warn "OP set to ${OP}. Processing subset of files"
+  log_warn "RECENT set to ${RECENT}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -641,12 +641,12 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/MAR/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-if [ -z ${OP+x} ]; then
+if [ -z ${RECENT+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
   f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
-  log_warn "OP set to ${OP}. Processing subset of files"
+  log_warn "RECENT set to ${RECENT}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -709,12 +709,12 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
-if [ -z ${OP+x} ]; then
+if [ -z ${RECENT+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
   f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
-  log_warn "OP set to ${OP}. Processing subset of files"
+  log_warn "RECENT set to ${RECENT}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -1215,12 +1215,12 @@ mkdir -p tmp/BMB
 dir=${DATADIR}/${RCM}/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-if [ -z ${OP+x} ]; then
+if [ -z ${RECENT+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
   f_list=$(ls ${dir}/*.nc | tail -n 2) ## operational
-  log_warn "OP set to ${OP}. Processing subset of files"
+  log_warn "RECENT set to ${RECENT}. Processing subset of files"
 fi
 
 for f in ${f_list}; do
@@ -6287,9 +6287,9 @@ BMB: FORCE
 update: FORCE
 	# remove previously forecasted MAR 
 	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/*_$${d}.bsv; done
-	OP=true	make SMB
+	RECENT=true make SMB
 	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
-	OP=true	make BMB
+	RECENT=true make BMB
 	make dist
 
 
