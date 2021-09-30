@@ -199,16 +199,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4009851"
-     inkscape:cx="252.47857"
-     inkscape:cy="280.16002"
+     inkscape:zoom="9.222312"
+     inkscape:cx="110.99333"
+     inkscape:cy="410.78238"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="1920"
-     inkscape:window-height="1051"
-     inkscape:window-x="1728"
-     inkscape:window-y="1629"
+     inkscape:window-width="1440"
+     inkscape:window-height="2531"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -242,14 +242,14 @@
     <image
        sodipodi:absref="/home/kdm/projects/total_mass_balance/fig/MB_cumsum_compare.png"
        xlink:href="MB_cumsum_compare.png"
-       inkscape:export-ydpi="149.923"
-       inkscape:export-xdpi="149.923"
-       width="199.136"
-       height="148.25134"
-       preserveAspectRatio="none"
-       id="image823"
+       y="8.9398069"
        x="2.8635483"
-       y="8.9398069" />
+       id="image823"
+       preserveAspectRatio="none"
+       height="148.25134"
+       width="199.136"
+       inkscape:export-xdpi="149.923"
+       inkscape:export-ydpi="149.923" />
     <rect
        style="opacity:1;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.07802618;stroke-miterlimit:10;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
        id="rect826"
@@ -457,7 +457,7 @@
     </g>
     <path
        style="fill:none;stroke:#00ffff;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#TriangleOutL)"
-       d="M 32.895244,51.548554 H 29.548129"
+       d="M 32.895244,48.373552 H 29.548129"
        id="path1204"
        inkscape:connector-curvature="0" />
     <rect
@@ -476,7 +476,7 @@
        y="134.60852" />
     <path
        style="fill:none;stroke:#000000;stroke-width:0.26499999;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#TriangleOutL-3)"
-       d="M 32.895244,43.707412 H 29.548129"
+       d="M 32.895244,49.643004 H 29.548129"
        id="path1204-7"
        inkscape:connector-curvature="0" />
   </g>

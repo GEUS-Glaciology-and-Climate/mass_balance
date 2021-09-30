@@ -1559,7 +1559,7 @@ kw_errbar = {'fmt':',', 'color':'k', 'alpha':0.33, 'linewidth':0.5}
 kw_nums = {'fontsize':9,
            'fontweight':'bold',
            'horizontalalignment':'center','verticalalignment':'center'}
-kw_adj = {'linewidth':1, 'marker':(4,0,90), 'markersize':7, 'markevery':[-1,1], 'mfc':'none', 'clip_on':False}
+kw_adj = {'linewidth':1, 'marker':(4,0,45), 'markersize':7, 'markevery':[-1,1], 'mfc':'none', 'clip_on':False}
 
 ###
 ### SMB
@@ -1764,64 +1764,14 @@ D = (D / 365).resample({"time":"1D"})\
 # I want monotonic cubic interpolation for discharge
 D['D'] = (('time'), (msave['D']/365).resample({'time':'1D'}).mean().to_dataframe().interpolate(method='pchip').values.flatten())
 D['region'] = D['region'].astype(str)
+
+<<forecast_D>>
+D = D_fc
 #+END_SRC
 
 #+RESULTS: load_D
-*** Forecast D for sectors and regions
 
-#+NAME: forecast_D
-#+BEGIN_SRC jupyter-python
-<<load_D>>
-
-import numpy as np
-import pandas as pd
-import xarray as xr
-import scipy as sp
-import scipy.stats
-import scipy.signal
-
-time_first_obs = D['time'][0].values
-time_last_obs = D['time'][-1].values
-# time_last_obs_str = np.datetime_as_string(time_last_obs).split('T')[0]
-time_end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 7)
-time_start = '1986-01-01'
-time_all = pd.date_range(start=time_start, end=time_end, freq='D')
-
-df = D[['D','D_err']].to_dataframe()
-
-# select last 3 years for linear trend
-df3 = df[-365*3:]
-
-# short term variations
-df3['seasonal'] = sp.signal.detrend(df3['D'].values)
-# trend is computed by subracting the short-term seasonal variations and computing the mean daily change of the long-term signal
-trend = (df3['D'] - df3['seasonal']).diff().mean()
-
-forecast = pd.DataFrame(index = pd.date_range(start=time_last_obs, end=time_end, freq='D'))
-forecast['flat'] = df3.iloc[-1]['D']
-forecast['trend'] = forecast['flat'] + trend * np.arange(forecast.index.size)
-
-df3['idx'] = np.arange(df3.index.size) % 365 + 1
-forecast['seasonal'] = df3['seasonal'].groupby(df3['idx']).mean().values[0:forecast.index.size]
-forecast['seasonal'] = forecast['seasonal'] - forecast['seasonal'][0]
-forecast['best'] = forecast['trend'] + forecast['seasonal']
-
-# Uncertainty
-# 1. Assume that discharge n days in the future may increase by the largest change over n days historically
-# 1. Add that to the baseline uncertainty.
-forecast['err'] = np.nan
-for i in np.arange(forecast.index.size):
-    forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).apply(lambda x: x.max()-x.min()).bfill().iloc[i]
-    # forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).mean().max()
-# forecast['D_err'] = df3.iloc[-1]['D_err'] + forecast['err'].cumsum()
-forecast['D_err'] = df3.iloc[-1]['D_err'] + forecast['err']
-
-df = df.reindex(time_all).bfill()
-df.loc[time_last_obs:, 'D'] = forecast[time_last_obs:]['best']
-df.loc[time_last_obs:, 'D_err'] = forecast[time_last_obs:]['D_err']
-#+END_SRC
-
-*** INPROGRESS Forecast D for GIS: xarray
+*** Forecast D for GIS: xarray
 
 + D:
   + Estimate +7d D from long term trend + seasonal trend
@@ -1837,8 +1787,6 @@ df.loc[time_last_obs:, 'D_err'] = forecast[time_last_obs:]['D_err']
 
 #+NAME: forecast_D
 #+BEGIN_SRC jupyter-python
-<<load_D>>
-
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -1859,39 +1807,47 @@ time_index_hindcast = np.concatenate([time_index_forecast - datetime.timedelta(d
                                       time_index_forecast - datetime.timedelta(days=365*2),
                                       time_index_forecast - datetime.timedelta(days=365*1)])
 
-D_all = D.reindex({'time':time_index_all})
+D_fc = D.reindex({'time':time_index_all})
 
 # https://gist.github.com/rabernat/1ea82bb067c3273a6166d1b1f77d490f
 def detrend_dim(da, dim, deg=1):
     # detrend along a single dimension
     p = da.polyfit(dim=dim, deg=deg)
     fit = xr.polyval(da[dim], p.polyfit_coefficients)
-    return fit
+    return fit,p
 
-for v in ['D','D_region','D_sector']:
+for v in ['D_sector','D_region','D']:
     # trend is linear long term trend of last 3 years of observations.
-    last3_plus_forecast = D_all[v].sel({'time':slice(time_index_last3y[0],time_forecast_end)})
-    trend = detrend_dim(last3_plus_forecast, 'time')
+    last3_plus_forecast = D_fc[v].sel({'time':slice(time_index_last3y[0],time_forecast_end)})
+    trend, _ = detrend_dim(last3_plus_forecast, 'time')
 
     # season is the detrended values of forecasted calendar dates for the past 3 years
     season = (last3_plus_forecast - trend).reindex({'time':time_index_hindcast})
+    # Find the average trend of the last 3 seasons
+    last3_break = np.where(np.diff(season['time'].values).astype('timedelta64[D]').astype(int) > 1)[0]+1
+    _, p1 = detrend_dim(season.isel({'time':slice(0,last3_break[0])}), 'time')
+    _, p2 = detrend_dim(season.isel({'time':slice(last3_break[0],last3_break[1])}), 'time')
+    _, p3 = detrend_dim(season.isel({'time':slice(last3_break[1],999)}), 'time')
 
     # forecast is the long term trend adjusted to start from the last observed,
     # then cropped to the last timestamp, then seasonality added, then gap-filled
-    # with bilinear interpolation for smoothness
 
     forecast = trend.reindex({'time':time_index_forecast})
     forecast = forecast - forecast.isel(time=0) + D[v].isel({'time':-1}) + forecast.diff(dim='time').isel({'time':-1})
-    forecast = forecast + season.mean(dim='time').values
-    forecast = forecast.where(forecast['time'] == forecast['time'][-1]).dropna(dim='time')
-    D_all[v] = xr.concat([D[v],forecast], dim='time').interp(time=time_index_all)
+
+    season_trend = xr.polyval(xr.ones_like(forecast)['time'], ((p1+p2+p3)/3).polyfit_coefficients)
+    season_trend = season_trend - season_trend.isel({'time':0}) + season_trend.diff(dim='time').isel({'time':0})
+    forecast = forecast + season_trend
     
-for v in ['D_err','err_region','err_sector']:
-    last3_hindcast = D_all[v].sel({'time':time_index_hindcast})
+    forecast1 = forecast.where(forecast['time'] == forecast['time'][-1]).dropna(dim='time')
+    D_fc[v] = xr.concat([D[v],forecast1], dim='time').interp(time=time_index_all)
+    
+for v in ['D_err','err_sector','err_region']:
+    last3_hindcast = D_fc[v].sel({'time':time_index_hindcast})
     diff = np.abs(last3_hindcast.reindex({'time':time_index_last3y}).diff(dim='time').dropna(dim='time'))
 
-    if size(diff.dims) == 1:
-        err = diff.sortby(diff, ascending=False).values[0:time_index_forecast.size] # .cumsum()
+    if np.size(diff.dims) == 1:
+        err = diff.sortby(diff, ascending=False).values[0:time_index_forecast.size]
         e = xr.DataArray(data=err, dims=['time'], coords={'time':time_index_forecast})
     else:
         rank = diff.to_dataframe().unstack()[v]
@@ -1900,10 +1856,14 @@ for v in ['D_err','err_region','err_sector']:
         for c in rank.columns: err[c] = rank[c].sort_values(ascending=False).values[0:time_index_forecast.size]
         e = xr.DataArray(err).squeeze().reindex({'time':time_index_all})
         
-    D_all[v] = D_all[v].ffill(dim='time') + e.cumsum().reindex({'time':time_index_all}).fillna(0)
+    D_fc[v] = D_fc[v].ffill(dim='time') + e.cumsum().reindex({'time':time_index_all}).fillna(0)
 
-D_all = D_all.bfill(dim='time')
+D_fc = D_fc.bfill(dim='time')
+#+END_SRC
 
+#+RESULTS: forecast_D
+
+#+BEGIN_SRC jupyter-python
 from matplotlib import rc
 rc('font', size=12)
 rc('text', usetex=False)
@@ -1914,80 +1874,19 @@ fig.clf()
 fig.set_tight_layout(True)
 ax = fig.add_subplot(111)
 
-# D_all['D'].plot(ax=ax)
-# ax.fill_between(D_all['time'],
-#                 D_all['D']-D_all['D_err'],
-#                 D_all['D']+D_all['D_err'],
+# D_fc['D'].plot(ax=ax)
+# ax.fill_between(D_fc['time'],
+#                 D_fc['D']-D_fc['D_err'],
+#                 D_fc['D']+D_fc['D_err'],
 #                 color='gray', alpha=0.25)
 
 r = 'NO'
-D_all['D_region'].sel({'region':r}).plot(ax=ax)
-ax.fill_between(D_all['time'],
-                D_all['D_region'].sel({'region':r}) - D_all['err_region'].sel({'region':r}),
-                D_all['D_region'].sel({'region':r}) + D_all['err_region'].sel({'region':r}),
+D_fc['D_region'].sel({'region':r}).plot(ax=ax)
+ax.fill_between(D_fc['time'],
+                D_fc['D_region'].sel({'region':r}) - D_fc['err_region'].sel({'region':r}),
+                D_fc['D_region'].sel({'region':r}) + D_fc['err_region'].sel({'region':r}),
                 color='gray', alpha=0.25)
 
-#+END_SRC
-
-#+RESULTS: forecast_D
-: <matplotlib.collections.PolyCollection at 0x7f8acd4d9d90>
-
-
-
-
-
-*** DONE Forecast D for GIS: Pandas
-
-#+NAME: forecast_D
-#+BEGIN_SRC jupyter-python
-<<load_D>>
-
-import numpy as np
-import pandas as pd
-import xarray as xr
-import scipy as sp
-import scipy.stats
-import scipy.signal
-
-time_first_obs = D['time'][0].values
-time_last_obs = D['time'][-1].values
-# time_last_obs_str = np.datetime_as_string(time_last_obs).split('T')[0]
-time_end = datetime.datetime.utcnow().date() + datetime.timedelta(days = 7)
-time_start = '1986-01-01'
-time_all = pd.date_range(start=time_start, end=time_end, freq='D')
-
-df = D[['D','D_err']].to_dataframe()
-
-# select last 3 years for linear trend
-df3 = df[-365*3:]
-
-# short term variations
-df3['seasonal'] = sp.signal.detrend(df3['D'].values)
-# trend is computed by subracting the short-term seasonal variations and computing the mean daily change of the long-term signal
-trend = (df3['D'] - df3['seasonal']).diff().mean()
-
-forecast = pd.DataFrame(index = pd.date_range(start=time_last_obs, end=time_end, freq='D'))
-forecast['flat'] = df3.iloc[-1]['D']
-forecast['trend'] = forecast['flat'] + trend * np.arange(forecast.index.size)
-
-df3['idx'] = np.arange(df3.index.size) % 365 + 1
-forecast['seasonal'] = df3['seasonal'].groupby(df3['idx']).mean().values[0:forecast.index.size]
-forecast['seasonal'] = forecast['seasonal'] - forecast['seasonal'][0]
-forecast['best'] = forecast['trend'] + forecast['seasonal']
-
-# Uncertainty
-# 1. Assume that discharge n days in the future may increase by the largest change over n days historically
-# 1. Add that to the baseline uncertainty.
-forecast['err'] = np.nan
-for i in np.arange(forecast.index.size):
-    forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).apply(lambda x: x.max()-x.min()).bfill().iloc[i]
-    # forecast['err'].iloc[i] = df3['seasonal'].rolling(window=i+2).mean().max()
-# forecast['D_err'] = df3.iloc[-1]['D_err'] + forecast['err'].cumsum()
-forecast['D_err'] = df3.iloc[-1]['D_err'] + forecast['err']
-
-df = df.reindex(time_all).bfill()
-df.loc[time_last_obs:, 'D'] = forecast[time_last_obs:]['best']
-df.loc[time_last_obs:, 'D_err'] = forecast[time_last_obs:]['D_err']
 #+END_SRC
 
 ** Load BMB (Karlsson 2021)
@@ -2134,21 +2033,23 @@ SMB['SMB_err'] = (('time'),
 
 
 <<load_D>>
-dt_last_obs = D['time'].values[-1]
-err = []
-for dt in pd.date_range(start=dt_last_obs, end=time[-1]):
-    std = D['D'].sel(time=(D['time.month'] == dt.month) & (D['time.day'] == dt.day)).std().values
-    # print(std)
-    err_today = max(max(err), 2*std) if dt != dt_last_obs else 2*std
-    err.append(err_today)
+# dt_last_obs = D['time'].values[-1]
+# err = []
+# for dt in pd.date_range(start=dt_last_obs, end=time[-1]):
+#     std = D['D'].sel(time=(D['time.month'] == dt.month) & (D['time.day'] == dt.day)).std().values
+#     # print(std)
+#     err_today = max(max(err), 2*std) if dt != dt_last_obs else 2*std
+#     err.append(err_today)
 
 D = D.reindex({'time':time})
 D['D'] = (('time'),
               np.append(k2015['D'].values/365, D['D'].sel({'time':slice('1986','2200')}).values))
 D['D_err'] = (('time'),
-                  np.hstack((k2015['D_err'].values/365,
-                             D['D_err'].sel({'time':slice('1986',dt_last_obs)}).values,
-                             err[1:])).ravel())
+              np.append(k2015['D_err'].values/365, D['D_err'].sel({'time':slice('1986','2200')}).values))
+# D['D_err'] = (('time'),
+#                   np.hstack((k2015['D_err'].values/365,
+#                              D['D_err'].sel({'time':slice('1986',dt_last_obs)}).to_dataframe().values,
+#                              err[1:])).ravel())
 
 
 <<load_BMB>>
@@ -3713,12 +3614,15 @@ BMB_err = (BMB_err_reconstruct*365).append(BMB_err_recent)
 
 this_err = (D_err**2 + SMB_err**2 + BMB_err**2)**0.5
 this['err'] = this_err[::-1].cumsum()[::-1]
+# TODO: expand error from last observed through projected for graphic
+# Uncertainty is treated correctly in published product
+# Accumulating it here and expanding is not needed - it is not visible at the scale on this graphic.
 
 this.loc[:'1985'] = this.loc[:'1985'].resample('Y').mean().resample('1D').bfill()
 
 this['MB'] = this['MB'] + OFFSET
 
-tt = (this.index.max() - this.index) / (this.index.max() - pd.Timestamp('2000-01-01'))
+tt = (this.index[-1] - this.index) / (this.index[-1] - pd.Timestamp('2000-01-01'))
 tt = tt.where(tt <= 1, 1)
 
 this['bumpy'] = this['MB']
@@ -3820,12 +3724,11 @@ for a in [ax,axins]:
     a.fill_between(K.index.values, (K-K_err).values.flatten(), (K+K_err).values.flatten(),
                    color='cyan', **kw_err)
 
-# hl = ax.hlines(0, pd.datetime(1971, 1, 1), pd.datetime(2100,1,1), color='k', linestyle='--')
-hl = ax.hlines(0, pd.datetime(1971, 1, 1), pd.datetime(2100,1,1), color='k', alpha=0.25)
+hl = ax.hlines(0, datetime.datetime(1971, 1, 1), datetime.datetime(2100,1,1), color='k', alpha=0.25)
 
 ax.xaxis.set_minor_locator(dates.YearLocator(1, month=1, day=1))
 
-axins.set_xlim(pd.datetime(2010, 1, 1), ax.get_xlim()[1])
+axins.set_xlim(datetime.datetime(2010, 1, 1), ax.get_xlim()[1])
 axins.set_ylim(-6000,-3000)
 axins.patch.set_alpha(0)
 axins.set_xlabel('')
@@ -3867,10 +3770,6 @@ plt.savefig('fig/MB_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 #+END_SRC
 
 #+RESULTS:
-: <ipython-input-87-7653b0ac2241>:408: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
-:   hl = ax.hlines(0, pd.datetime(1971, 1, 1), pd.datetime(2100,1,1), color='k', alpha=0.25)
-: <ipython-input-87-7653b0ac2241>:412: FutureWarning: The pandas.datetime class is deprecated and will be removed from pandas in a future version. Import from datetime module instead.
-:   axins.set_xlim(pd.datetime(2010, 1, 1), ax.get_xlim()[1])
 
 
 ** This vs. Mouginot (2019): GIS xy
@@ -3961,10 +3860,10 @@ axSMB.text(0, 0.9, 'SMB', transform=axSMB.transAxes)
 axSMB.set_xticks([0,600])
 axSMB.set_ylabel('Mouginot 2019', labelpad=-25)
 
-axD.text(0, 0.9, 'D [+BMB]', transform=axD.transAxes)
+axD.text(0, 0.9, 'D [$\diamond$=+BMB]', transform=axD.transAxes)
 axD.set_xticks([375,600])
 
-axMB.text(0, 0.9, 'MB$^{*}$ [+BMB]', transform=axMB.transAxes)
+axMB.text(0, 0.9, 'MB$^{*}$ [$\diamond$=+BMB]', transform=axMB.transAxes)
 axMB.set_xticks([-450, 0, 150])
 axMB.set_xlabel('This Study', labelpad=-10)
 
@@ -4105,9 +4004,9 @@ my_plot(axMB,  MB['MB']+MB['BMB'], MB['MB_err'], promice['MB'], promice['MB_err'
 axSMB.text(0, 0.9, 'SMB', transform=axSMB.transAxes)
 axSMB.set_xticks([0,600])
 axSMB.set_ylabel('Colgan 2019', labelpad=-25)
-axD.text(0, 0.9, 'D [+BMB]', transform=axD.transAxes)
+axD.text(0, 0.9, 'D [$\diamond$=+BMB]', transform=axD.transAxes)
 axD.set_xticks([300,600])
-axMB.text(0, 0.9, 'MB$^{*}$ [+BMB]', transform=axMB.transAxes)
+axMB.text(0, 0.9, 'MB$^{*}$ [$\diamond$=+BMB]', transform=axMB.transAxes)
 axMB.set_xticks([-450, 0, 150])
 axMB.set_xlabel('This Study', labelpad=-10)
 
@@ -5548,14 +5447,14 @@ mean['MB'].cumsum().plot(ax=ax, drawstyle='steps', color='k', linewidth=2, label
 
 kw_plot['color'] = 'r'
 kw_plot['linewidth'] = 2
-this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
-
-# if sub.index.size > 8:
-#     sub['MB'].iloc[:-8].cumsum().plot(ax=ax, **kw_plot)
-#     sub['MB'].iloc[-8:].cumsum().plot(ax=ax, **kw_plot)
-# else:
-#     sub['MB'].cumsum().plot(ax=ax, **kw_plot)
-
+# this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
+if this.index.size > 8:
+    this['MB'].cumsum().iloc[:-10].plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
+    kw_plot['alpha'] = 0.8
+    this['MB'].cumsum().iloc[-7:].plot(ax=ax, label='_no', **kw_plot)
+else:
+    this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
+    
 adj(ax, ['bottom','left'])
 ax.set_ylim([-500,300])
 ax.set_yticks([-500,-400,-300,-200,-100,0,100,200,300])
