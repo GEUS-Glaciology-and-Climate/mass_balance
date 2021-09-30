@@ -3420,13 +3420,14 @@ plt.savefig('fig/MB_ts.png', transparent=False, bbox_inches='tight', dpi=300)
 Improve the figure generated below with an Inkscape overlay
 
 #+BEGIN_SRC bash :results verbatim
-inkscape -z ./fig/overview.svg -e ./fig/overview_w_plots.png
+inkscape -d 300 -z ./fig/overview.svg -e ./fig/overview_w_plots.png
 o ./fig/overview_w_plots.png
 #+END_SRC
 
 #+RESULTS:
+: DPI: 300
 : Background RRGGBBAA: ffffff00
-: Area 0:0:771.735:862.218 exported to 772 x 862 pixels (96 dpi)
+: Area 0:0:771.735:862.218 exported to 2412 x 2694 pixels (300 dpi)
 : Bitmap saved as: ./fig/overview_w_plots.png
 
 
@@ -3521,13 +3522,14 @@ for r in MB['region'].values:
 Improve the figure generated below with an Inkscape overlay
 
 #+BEGIN_SRC bash :results verbatim
-inkscape -z ./fig/MB_cumsum_compare_manual.svg -e ./fig/MB_cumsum_compare_manual.png
+inkscape -d 300 -z ./fig/MB_cumsum_compare_manual.svg -e ./fig/MB_cumsum_compare_manual.png
 o ./fig/MB_cumsum_compare_manual.png
 #+END_SRC
 
 #+RESULTS:
+: DPI: 300
 : Background RRGGBBAA: ffffff00
-: Area 0:0:752.64:560.32 exported to 753 x 560 pixels (96 dpi)
+: Area 0:0:752.64:560.32 exported to 2352 x 1751 pixels (300 dpi)
 : Bitmap saved as: ./fig/MB_cumsum_compare_manual.png
 
 
