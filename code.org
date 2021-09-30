@@ -1771,12 +1771,10 @@ D = D_fc
 
 #+RESULTS: load_D
 
-*** Forecast D for GIS: xarray
+*** Forecasted discharge
 
 + D:
-  + Estimate +7d D from long term trend + seasonal trend
-  + pchip interpolate from last observed to +7d value
-  + This means no discontinuity from last observed to last obs + 1d
+  + Estimate projected (up to -30 to +7d) D from long term trend + seasonal trend
 + D err:
   + Take last observed to now+7d window (for ex 25 days)
   + Take that window last 3 years (ex: 75 days)
@@ -1821,73 +1819,65 @@ for v in ['D_sector','D_region','D']:
     last3_plus_forecast = D_fc[v].sel({'time':slice(time_index_last3y[0],time_forecast_end)})
     trend, _ = detrend_dim(last3_plus_forecast, 'time')
 
-    # season is the detrended values of forecasted calendar dates for the past 3 years
+    # season is the average of (the detrended values of forecasted calendar dates for the past 3 years starting at 0)
     season = (last3_plus_forecast - trend).reindex({'time':time_index_hindcast})
     # Find the average trend of the last 3 seasons
     last3_break = np.where(np.diff(season['time'].values).astype('timedelta64[D]').astype(int) > 1)[0]+1
-    _, p1 = detrend_dim(season.isel({'time':slice(0,last3_break[0])}), 'time')
-    _, p2 = detrend_dim(season.isel({'time':slice(last3_break[0],last3_break[1])}), 'time')
-    _, p3 = detrend_dim(season.isel({'time':slice(last3_break[1],999)}), 'time')
+    last3_3 = season.isel({'time':slice(0,last3_break[0])})
+    last3_2 = season.isel({'time':slice(last3_break[0],last3_break[1])})
+    last3_1 = season.isel({'time':slice(last3_break[1],999)})
+
+    last3_3 = last3_3 - last3_3.isel({'time':0}) # start forecast at 0
+    last3_2 = last3_2 - last3_2.isel({'time':0})
+    last3_1 = last3_1 - last3_1.isel({'time':0})
+    season_trend = xr.zeros_like(last3_3.reindex(time=time_index_forecast))
+    season_trend.data = (last3_3.values + last3_2.values + last3_1.values)/3
 
     # forecast is the long term trend adjusted to start from the last observed,
     # then cropped to the last timestamp, then seasonality added, then gap-filled
-
     forecast = trend.reindex({'time':time_index_forecast})
     forecast = forecast - forecast.isel(time=0) + D[v].isel({'time':-1}) + forecast.diff(dim='time').isel({'time':-1})
-
-    season_trend = xr.polyval(xr.ones_like(forecast)['time'], ((p1+p2+p3)/3).polyfit_coefficients)
-    season_trend = season_trend - season_trend.isel({'time':0}) + season_trend.diff(dim='time').isel({'time':0})
     forecast = forecast + season_trend
-    
-    forecast1 = forecast.where(forecast['time'] == forecast['time'][-1]).dropna(dim='time')
-    D_fc[v] = xr.concat([D[v],forecast1], dim='time').interp(time=time_index_all)
-    
-for v in ['D_err','err_sector','err_region']:
-    last3_hindcast = D_fc[v].sel({'time':time_index_hindcast})
-    diff = np.abs(last3_hindcast.reindex({'time':time_index_last3y}).diff(dim='time').dropna(dim='time'))
+    D_fc[v] = xr.concat([D[v],forecast], dim='time') # .interp(time=time_index_all)
 
-    if np.size(diff.dims) == 1:
-        err = diff.sortby(diff, ascending=False).values[0:time_index_forecast.size]
-        e = xr.DataArray(data=err, dims=['time'], coords={'time':time_index_forecast})
-    else:
-        rank = diff.to_dataframe().unstack()[v]
-        err = pd.DataFrame(columns=rank.columns, index=time_index_forecast)
-        err.index.name = 'time'
-        for c in rank.columns: err[c] = rank[c].sort_values(ascending=False).values[0:time_index_forecast.size]
-        e = xr.DataArray(err).squeeze().reindex({'time':time_index_all})
-        
-    D_fc[v] = D_fc[v].ffill(dim='time') + e.cumsum().reindex({'time':time_index_all}).fillna(0)
-
+    vv = {'D':'D_err', 'D_sector':'err_sector', 'D_region':'err_region'}[v]
+    e = xr.ones_like(D_fc[vv].sel({'time':time_index_forecast})).cumsum(dim='time')/100
+    baseline_err = D_fc[vv].dropna(dim='time').mean(dim='time')
+    e = baseline_err + baseline_err * e
+    D_fc[vv] = D_fc[vv].ffill(dim='time') + e.reindex({'time':time_index_all})
+    
 D_fc = D_fc.bfill(dim='time')
 #+END_SRC
 
 #+RESULTS: forecast_D
 
-#+BEGIN_SRC jupyter-python
-from matplotlib import rc
-rc('font', size=12)
-rc('text', usetex=False)
-# matplotlib.pyplot.xkcd()
 
-fig = plt.figure(1, figsize=(5,4)) # w,h
+#+BEGIN_SRC jupyter-python
+<<load_D>>
+
+fig = plt.figure(1)
 fig.clf()
-fig.set_tight_layout(True)
 ax = fig.add_subplot(111)
 
-# D_fc['D'].plot(ax=ax)
-# ax.fill_between(D_fc['time'],
-#                 D_fc['D']-D_fc['D_err'],
-#                 D_fc['D']+D_fc['D_err'],
-#                 color='gray', alpha=0.25)
+ROI='NO'
 
-r = 'NO'
-D_fc['D_region'].sel({'region':r}).plot(ax=ax)
-ax.fill_between(D_fc['time'],
-                D_fc['D_region'].sel({'region':r}) - D_fc['err_region'].sel({'region':r}),
-                D_fc['D_region'].sel({'region':r}) + D_fc['err_region'].sel({'region':r}),
-                color='gray', alpha=0.25)
+if ROI != 'GIS':
+    df = D_fc[['D_region','err_region']]\
+        .sel({'region':ROI})\
+        .to_dataframe()[['D_region','err_region']]\
+        .rename(columns={'D_region':'D','err_region':'D_err'})
+else:
+    df = D_fc[['D','D_err']].to_dataframe()
 
+df['D'].plot(ax=ax)
+ax.fill_between(df.index,
+                df['D'] - df['D_err'],
+                df['D'] + df['D_err'],
+                alpha = 0.25)
 #+END_SRC
+
+#+RESULTS:
+: <matplotlib.collections.PolyCollection at 0x7f8a71162370>
 
 ** Load BMB (Karlsson 2021)
 
