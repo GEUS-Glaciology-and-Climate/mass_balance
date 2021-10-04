@@ -163,7 +163,7 @@ We use the following terminology throughout the document:
 #+NAME: fig:overview
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
 #+CAPTION: Annual mass balance (black lines), surface mass balance (blue lines) and discharge plus basal mass balance (dashed grey) in Gt yr^{-1} for each of the seven citet:mouginot_2019_data regions. The map shows both the named regions citep:mouginot_2019_data and the numbered sectors citep:zwally_2012_data. Discharge gates are marked in black. Only recent (post-1986) data are shown because reconstructed data are not separated into regions or sectors. Next week is defined as src_bash{date --iso --date="next week"} based on the date this document was compiled.
-[[./fig/overview_w_plots.png]]
+[[./fig01.png]]
 
 The output of this work is two NetCDF files and one CSV file containing a time series of mass balance and the components used to calculate mass balance. The only difference between the two NetCDF files is the ROI -- one for citet:zwally_2012_data sectors and one for citet:mouginot_2019_data regions. Each NetCDF file includes the ice sheet mass balance (MB), MB per region of interest (ROI; sector or region), MB per ROI per RCM, ice sheet surface mass balance (SMB), SMB per ROI, ice sheet discharge (D), D per ROI, ice sheet basal mass balance (BMB), and BMB per ROI. The CSV file contains a copy of the ice-sheet summed data.
 
@@ -174,7 +174,7 @@ An example of the output is shown in Fig. \ref{fig:mb_ts}, where the top panel s
 #+NAME: fig:mb_ts
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
 #+CAPTION: Mass balance and its major components. Top panel: Annual average surface mass balance (blue line), discharge (gray dashed), and their mass balance sum (black line). Here the discharge and basal mass balance (D + BMB) are shown with sign inverted (e.g. -1 \(\times\) (D+BMB)) Lower panel: Same data at daily resolution and limited to 2019 and 2020.
-[[./fig/mb_ts.png]]
+[[./fig02.png]]
 
 
 * Data sources
@@ -384,7 +384,7 @@ To estimate reconstructed basal mass balance, we treat BMB_{GF} and BMB_{frictio
 #+NAME: fig:reconstructed_adj
 #+ATTR_LATEX: :width 0.4\textwidth :placement [!h]
 #+CAPTION: Comparison between This Study and the reconstructed citep:kjeldsen_2015. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the years for the unadjusted data sets. The matching colored squares show the adjusted data. MB^{*} shown here does not include BMB for either the reconstructed or This Study data. Arrows show statistical properties before and after the adjustment. No adjustment is made to MB^{*}, but it is computed from Eq. \ref{eq:MBstar} both before (numbered) and after (squares) the surface and discharge adjustments.
-[[./fig/K2015_adjusted.png]]
+[[./fig03.png]]
 
 We use the reconstructed and recent surface mass balance (SMB) and discharge (D) overlap from 1986 through 2012 to adjust the reconstructed data. This Study vs reconstructed SMB has a slope of 0.6 and an intercept of 166 Gt yr^{-1} (Fig. \ref{fig:reconstructed_adj} SMB), and This Study vs reconstructed D has a slope of 1.1 and an intercept of -17 Gt yr^{-1} (Fig. \ref{fig:reconstructed_adj} D). The unadjusted reconstructed data slightly underestimates years with high SMB and overestimates years with low SMB (see 1986, 2010, 2011, and 2012 in Fig. \ref{fig:reconstructed_adj} SMB). The unadjusted reconstructed data slightly overestimates years with low D and overestimates years with high D.
 
@@ -423,7 +423,7 @@ BMB_{VHD} comes from the MAR ice domain runoff, but is generated on the BedMachi
 #+NAME: fig:mb_cumsum
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
 #+CAPTION: Comparison between This Study and other mass balance time series. Note that various products do or do not include basal mass balance or peripheral ice masses (see Table \ref{tab_summary}). This Study annual-resolution data prior to 1986 is the citet:kjeldsen_2015 data adjusted as described in Sect. \ref{sec:methods:reconstructed_adjustment}. Sea level rise calculated as -Gt/361.8. Inset highlights changes since 2010. Data product version 50 from src_bash{date --iso} used to generate this graphic.
-[[./fig/mb_cumsum_compare_manual.png]]
+[[./fig04.png]]
 
 We compare to six related data sets (see Table \ref{tab_summary} and Sect. \ref{sec:validation_products}): The most similar and recent IO product citep:mouginot_2019, the previous PROMICE assessment citep:colgan_2019, the two mostly independent methods (GMB citep:barletta_2013 and VC citep:simonsen_2021), IMBIE2 citep:the-imbie-team_2019, and the unadjusted reconstructed/recent overlap citep:kjeldsen_2015.
 
@@ -463,7 +463,7 @@ print(df[[row in i for i in df.index]][col].values[0])
 #+NAME: fig:M2019
 #+ATTR_LATEX: :width 0.4\textwidth :placement [!h]
 #+CAPTION: Comparison of This Study vs citet:mouginot_2019. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the year. Matching colored diamonds show the data when BMB is added to This Study. Printed numbers (r^2, bias, RMSE, slope) compare values without BMB.
-[[./fig/mouginot_2019.png]]
+[[./fig05.png]]
 
 The citet:mouginot_2019 product spans the 1972 through 2018 period. We only use 1986 and onward because This Study has annual resolution prior to 1986 and citet:mouginot_2019 data are provided on a non-calendar year period. The SMB comes from RACMO v2.3p2 downscaled at 1 km, and agrees very well with SMB from This Study (r^{2} call_tso(row="mouginot", col="r") {{{results(=0.94=)}}}, bias call_tso(row="mouginot", col="bias") {{{results(=11=)}}}, RMSE call_tso(row="mouginot", col="RMSE") {{{results(=38=)}}} , slope 1.1). The minor SMB differences are likely due to mask differences, or our use of a three-RCM average SMB estimate.
 
@@ -476,7 +476,7 @@ Because MB^{*} is a linear combination of SMB and D terms (Eq \ref{eq:MBstar}), 
 #+NAME: fig:C2019
 #+ATTR_LATEX: :width 0.4\textwidth :placement [!h]
 #+CAPTION: Comparison of This Study vs citet:colgan_2019. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the year. Matching colored diamonds show the data when BMB is added to This Study. Printed numbers (r^2, bias, RMSE, slope) compare values without BMB.
-[[./fig/colgan_2019.png]]
+[[./fig06.png]]
 
 The citet:colgan_2019 product spans 1995 through 2015. The SMB term is broadly similar to the RCM-averaged SMB term in This Study, although citet:colgan_2019 use only an older version of MAR (Fig. \ref{fig:C2019} top panel). The citet:colgan_2019 SMB is spatially interpolated over the PROMICE ice-sheet ice mask citep:citterio_2013, which contains more detail on the ice sheet periphery, and therefore a larger ablation area than the native coarser MAR ice mask. This Study does not interpolate the SMB field and instead works on the SMB ice domain.
 
@@ -493,7 +493,7 @@ Similar to the comparison with citet:mouginot_2019, the disagreement between Thi
 #+NAME: fig:GMB_VC_IMBIE
 #+ATTR_LATEX: :width 0.4\textwidth :placement [!h]
 #+CAPTION: This Study total mass balance (MB) vs. the gravimetric method (GMB), volume change method (VC) and IMBIE2 estimates of MB. All three include BMB. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the year. GRACE and IMBIE2 include peripheral ice masses.
-[[./fig/this_v_grace_vc_imbie.png]]
+[[./fig07.png]]
 
 Unlike this Study, the GMB method includes mass losses and gains on peripheral ice masses which should introduce a bias of ~10 to 15% citep:colgan_2015_hybrid,bolch_2013. The inclusion of peripheral ice in the GMB product is because the spatial resolution is so low that it cannot distinguish between them and the main ice sheet. There is also signal leakage from other glaciated areas, e.g., the Canadian Arctic. This can have an effect on the estimated signal, especially in sectors 1 and 8 or regions NW and NO. There is also leakage between basins, which becomes a larger issue for smaller basins or where major outlet glaciers are near basin boundaries. GMB may also have an amplified seasonal signal due to changing snow loading in the surrounding land areas that may be mapped as ice sheet mass change variability. This would enhance the seasonal amplitude but not have an impact on the interannual mass change rates. Additionally, different glacial isostatic adjustment (GIA) corrections applied to the gravimetric signal may also lead to differences in GMB estimates on ice sheet scale, but also on sector scale (e.g. citet:sutterley_2014,khan_2016). 
 
@@ -629,7 +629,7 @@ As such, the data products provided in this study present the first operational 
 #+NAME: fig:RCM_compare
 #+ATTR_LATEX: :width 0.8\textwidth :placement [!h]
 #+CAPTION: Comparison of This Study combined RCM product and the HIRHAM/HARMONIE, MAR, and RACMO RCMs. Results shown here are MB, not SMB, but the same D and BMB have been subtracted from each SMB product. Top panel: annual MB for entire time series. Middle panel: Example two years (2019 and 2020) at daily resolution. Bottom panel: Difference between the three RCM MB products and This Study RCM-averaged product, for the same data shown in the middle panel.
-[[./fig/mb_3RCM.png]]
+[[./fig08.png]]
 
 ** Mouginot 2019 by region
 :PROPERTIES:
@@ -639,7 +639,7 @@ As such, the data products provided in this study present the first operational 
 #+NAME: fig:M2019_region
 #+ATTR_LATEX: :width 0.6\textwidth :placement [!h]
 #+CAPTION: Comparison between This Study (excluding BMB) and citet:mouginot_2019. Same data and display as Fig. \ref{fig:M2019} except here displayed by citet:mouginot_2019_data region. Numbers in each graph show r^2, bias, and RMSE, from top to bottom, respectively. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the year.
-[[./fig/mouginot_2019_regions.png]]
+[[./fig09.png]]
 
 
 ** Colgan 2019 by sector
@@ -650,7 +650,7 @@ As such, the data products provided in this study present the first operational 
 #+NAME: fig:C2019_region
 #+ATTR_LATEX: :width 0.6\textwidth :placement [!h]
 #+CAPTION: Comparison between This Study (excluding BMB) and citet:colgan_2019. Same data and display as Fig. \ref{fig:C2019} except here displayed by citet:zwally_2012_data sector. Numbers in each graph show r^2, bias, and RMSE, from top to bottom, respectively. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the year.
-[[./fig/colgan_2019_sectors.png]]
+[[./fig10.png]]
 
 
 ** Reconstructed runoff
@@ -662,7 +662,7 @@ As such, the data products provided in this study present the first operational 
 #+NAME: fig:reconstructed_runoff
 #+ATTR_LATEX: :width 8.3cm :placement [!h]
 #+CAPTION: Comparison between MAR runoff and basal viscous heat dissipation derived from that runoff. The slope is used to estimate the reconstructed BMB_{VHD} from reconstructed runoff (see Sect. \ref{sec:methods:VHD}). Axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the year.
-[[./fig/reconstructed_runoff.png]]
+[[./fig11.png]]
 
 
 #+BEGIN_SRC jupyter-python :exports none
@@ -700,7 +700,7 @@ print(melt_v_new_pct)
 #+NAME: fig:RCM_coverage
 #+ATTR_LATEX: :width 12cm :placement [!h]
 #+CAPTION: HIRHAM RCM coverage by citet:mouginot_2019_data. Coverage of HIRHAM by citet:zwally_2012_data, and MAR and RACMO by citet:mouginot_2019_data and citet:zwally_2012_data is similar to graphic shown here (See section \ref{sec:methods:ROIs} for discussion of RACMO coverage issues). HIRHAM latitude and longitude covers the equator because we work on the native HIRHAM rotated pole coordinate system.
-[[./fig/H_cover_M.png]]
+[[./fig12.png]]
 
 ** Software
 
@@ -710,7 +710,7 @@ This work was performed using only open-source software, primarily =GRASS GIS= c
 
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.5\textwidth]{./fig/credit.png}
+\includegraphics[width=0.5\textwidth]{./fig13.png}
 \caption{\label{fig:credit}Author contributions following the CRediT system \citep{allen_2014,brand_2015,allen_2019}}
 \end{figure}
 
