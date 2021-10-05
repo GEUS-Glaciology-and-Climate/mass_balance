@@ -2206,6 +2206,16 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
 # maybe also some CSV output
 MB[['MB','MB_err','SMB','SMB_err','D','D_err','BMB','BMB_err']].to_dataframe().to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
+
+# daily to annual
+df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
+df = df.resample('1D')\
+       .ffill()\
+       .resample('AS')\
+       .sum()\
+       .iloc[:-1]
+df.index = df.index.year
+df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 #+END_SRC
 
 #+RESULTS:
