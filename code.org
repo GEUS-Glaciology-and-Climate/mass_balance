@@ -5460,7 +5460,7 @@ else:
 adj(ax, ['bottom','left'])
 ax.set_ylim([-500,300])
 ax.set_yticks([-500,-400,-300,-200,-100,0,100,200,300])
-ax.set_ylabel('Hydrologic year\nrunning mass change [Gt]')
+ax.set_ylabel('Hydrologic year cumulative\nmass change [Gt]')
 
 ## https://stackoverflow.com/questions/17158382/
 ax.xaxis.set_major_formatter(ticker.NullFormatter())
@@ -5522,12 +5522,12 @@ def my_fmt(n, dec=2):
 
 tweet_str = ""
 tweet_str += f"Sea level rise (#SLR: 📈=🌊+🧊💧) from 🇬🇱#Greenland"
-tweet_str += f"\n\n  Since 1990 (IPCC FAR): {my_fmt(far['mm'])} ±{my_fmt(far['mm_err'])} mm"
+tweet_str += f"\n\n  Since 1990 (IPCC FAR): ~{my_fmt(far['mm'])} mm"
 tweet_str += f" ({my_fmt(far['MB'], dec=0)} Gt)"
 
 tweet_str += f"\n\n  {this_year} (→️ {today}): "
 if ytd['mm'] > 0.01:
-    tweet_str += f"{my_fmt(ytd['mm'])} ±{my_fmt(ytd['mm_err'])} mm ("
+    tweet_str += f"~{my_fmt(ytd['mm'])} mm ("
 tweet_str += f"{my_fmt(ytd['MB'], dec=0)} Gt"
 if ytd['mm'] > 0.01: tweet_str += f")"
 
