@@ -5451,11 +5451,11 @@ kw_plot['color'] = 'r'
 kw_plot['linewidth'] = 2
 # this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
 if this.index.size > 8:
-    this['MB'].cumsum().iloc[:-10].plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
+    this['MB'].cumsum().iloc[:-10].plot(ax=ax, label='Through '+last_day, **kw_plot)
     kw_plot['alpha'] = 0.8
     this['MB'].cumsum().iloc[-7:].plot(ax=ax, label='_no', **kw_plot)
 else:
-    this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
+    this['MB'].cumsum().plot(ax=ax, label='Through '+last_day, **kw_plot)
     
 adj(ax, ['bottom','left'])
 ax.set_ylim([-500,300])
