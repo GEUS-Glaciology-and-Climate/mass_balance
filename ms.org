@@ -718,14 +718,14 @@ This work was performed using only open-source software, primarily =GRASS GIS= c
 
 * Misc journal sections                                   :ignore:
 
-\authorcontribution{Author contribution is captured following the CRediT system \citep{allen_2014,brand_2015,allen_2019} and shown graphically in Figure \ref{fig:credit}. The following authors contributed in the following ways. Conceptualization: KDM, APA, and RSF. Curation: KDM, XF, PL, MS, KK, NBK, BN, MvdB, AS, and JB. Implementation: KDM, XF, PL, KK, and MKD. Funding: AS, APA, SBA, and RSF. SMB methods: XF, PL, BN, and MvdB. D methods: KDM, WC, AS, MKD, APA, and RSF. BMB methods: NBK and KDM. Validation (general): KDM. Validation GRACE: WC. Validation VC: WC and SS. Reconstruction methods: KK, JB, and KDM. Project admin: KDM, APA, SBA, and RSF. Resources: KDM, XF, PL, MS, KK, NBK, BN, MvdB, AS, and SBA. Software: KDM, XF, PL, AS, and MKD. Visualization: KDM. Writing: KDM, XF, PL, MS, KK, NBK, BN, MvdB, WC, JB, SS, APA, and RSF.}
+\authorcontribution{Author contribution is captured following the CRediT system \citep{allen_2014,brand_2015,allen_2019} and shown graphically in Figure \ref{fig:credit}. The following authors contributed in the following ways. Conceptualization from KDM, APA, and RSF. Curation from KDM, XF, PLL, MS, KKK, NBK, BN, MRvdB, AS, and JEB. Implementation from KDM, XF, PLL, KKK, and MDK. Funding from AS, APA, SBA, and RSF. SMB methods from XF, PLL, BN, and MvdB. D methods from KDM, WC, AS, MDK, APA, and RSF. BMB methods from NBK and KDM. General validation by KDM. GRACE validation from WC. VC validation by WC and SBS. Reconstruction methods from KKK, JEB, and KDM. Project administration by KDM, APA, SBA, and RSF. Resources from KDM, XF, PLL, MS, KKK, NBK, BN, MRvdB, AS, and SBA. Software written by KDM, XF, PLL, AS, and MDK. Visualization by KDM. Writing by KDM, XF, PLL, MS, KKK, NBK, BN, MRvdB, WC, JEB, SBS, APA, and RSF. Editing by KDM, XF, PLL, MS, KKK, NBK, BN, MRvdB, WC, JEB, SBS, MDK, and RSF.}
 
 \competinginterests{The authors declare that they have no conflict of interest.}
 
 #+BEGIN_acknowledgements
 The editor and anonymous reviewers \citep{R1,R2} provided feedback and helped improve this paper.
 
-Financial Support: Funding was provided by the Programme for Monitoring of the Greenland ice sheet (PROMICE). Parts of this work were funded by the INTAROS project under the European Union’s Horizon 2020 research and innovation program under grant agreement no. 727890. B. Noël was funded by NWO VENI grant VI.Veni.192.019. MvdB acknowledges support from the Netherlands Earth System Science Centre (NESSC).
+Financial Support: Funding was provided by the Programme for Monitoring of the Greenland ice sheet (PROMICE). Parts of this work were funded by the INTAROS project under the European Union’s Horizon 2020 research and innovation program under grant agreement no. 727890. Brice Noël was funded by NWO VENI grant VI.Veni.192.019. Michiel R. van den Broeke was funded by the Netherlands Earth System Science Centre (NESSC).
 #+END_acknowledgements
 
 * References                                              :ignore:
