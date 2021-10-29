@@ -1,36 +1,25 @@
 
 * Table of Contents                               :toc_2:noexport:
 - [[#greenland-ice-sheet-mass-balance-from-1840-through-next-week][Greenland ice sheet mass balance from 1840 through next week]]
-- [[#related-work][Related Work]]
 - [[#citation][Citation]]
   - [[#publication][Publication]]
   - [[#data][Data]]
+- [[#related-work][Related Work]]
 - [[#open-science-vs-reproducible-science][Open science vs. reproducible science]]
 
 * Greenland ice sheet mass balance from 1840 through next week
 
 This is the source for "Greenland ice sheet mass balance from 1840 through next week" and previous and subsequent versions.
 
-+ Paper [in review]: [[https://doi.org/10.5194/essd-2021-131][doi:10.5194/essd-2021-131]]
++ Paper: [[https://doi.org/10.5194/essd-13-5001-2021][doi:10.5194/essd-13-5001-2021]]
 + Data: available at https://doi.org/10.22008/FK2/OHI23Z with all daily historical versions archived.
++ Twitter bot with daily updates: https://twitter.com/cryo_data/
 + Code: https://github.com/GEUS-Glaciology-and-Climate/mass_balance/
   + Issues: https://github.com/GEUS-Glaciology-and-Climate/mass_balance/issues
-  + This [[https://github.com/GEUS-Glaciology-and-Climate/mass_balance/compare/submitted...main][diff]] shows changes between the published version of the paper and the current (active) development version.
+  + This [[https://github.com/GEUS-Glaciology-and-Climate/mass_balance/compare/published...main][diff]] shows changes between the published version of the paper and the current (active) development version.
   + Major changes post-publication are tagged [[https://github.com/GEUS-PROMICE/mass_balance/issues?q=label%3Amajor_change]["major_change"]].
 
     
-* Related Work  
-
-+ Companion paper: "Greenland Ice Sheet solid ice discharge from 1986 through March 2020"
-  + Publication: [[https://doi.org/10.5194/essd-12-1367-2020][doi:10.5194/essd-12-1367-2020]]
-  + Source: https://github.com/GEUS-Glaciology-and-Climate/ice_discharge/
-  + Data: [[https://doi.org/10.22008/promice/data/ice_discharge][doi:10.22008/promice/data/ice_discharge]]
-
-+ Companion paper: "Greenland liquid water runoff from 1958 through 2019"
-  + Paper: [[https://doi.org/10.5194/essd-12-2811-2020][doi:10.5194/essd-12-2811-2020]]
-  + Source: https://github.com/GEUS-Glaciology-and-Climate/freshwater/
-  + Data: [[https://doi.org/10.22008/promice/freshwater][doi:10.22008/promice/freshwater]]
-
 * Citation
 
 ** Publication
@@ -46,9 +35,11 @@ This is the source for "Greenland ice sheet mass balance from 1840 through next 
 	       Fausto, Robert S.},
   title     = {{G}reenland ice sheet mass balance from 1840 through next week},
   journal   = {Earth System Science Data},
-  note      = {In review},
   year 	    = 2021,
-  DOI 	    = {10.5194/essd-2021-131},
+  volume    = 13,
+  number    = 10,
+  pages     = {5001--5025},
+  DOI 	    = {10.5194/essd-13-5001-2021},
   publisher = {Copernicus GmbH}}
 #+END_EXAMPLE
 
@@ -68,6 +59,18 @@ This is the source for "Greenland ice sheet mass balance from 1840 through next 
   doi	    = {10.22008/FK2/OHI23Z}}
 #+END_EXAMPLE
     
+* Related Work  
+
++ Companion paper: "Greenland Ice Sheet solid ice discharge from 1986 through March 2020"
+  + Publication: [[https://doi.org/10.5194/essd-12-1367-2020][doi:10.5194/essd-12-1367-2020]]
+  + Source: https://github.com/GEUS-Glaciology-and-Climate/ice_discharge/
+  + Data: [[https://doi.org/10.22008/promice/data/ice_discharge][doi:10.22008/promice/data/ice_discharge]]
+
++ Companion paper: "Greenland liquid water runoff from 1958 through 2019"
+  + Paper: [[https://doi.org/10.5194/essd-12-2811-2020][doi:10.5194/essd-12-2811-2020]]
+  + Source: https://github.com/GEUS-Glaciology-and-Climate/freshwater/
+  + Data: [[https://doi.org/10.22008/promice/freshwater][doi:10.22008/promice/freshwater]]
+
 * Open science vs. reproducible science
 
 + This work is open - every line of code needed to recreate it is include in this git repository, although the ~300 GB of RCM inputs are not included.

@@ -5381,25 +5381,6 @@ Name: 1930-01-01 00:00:00, dtype: float64
 #+end_example
 
 
-* READMEs
-** Dataverse README.txt
-
-#+BEGIN_SRC org :tangle README.txt
-,* Greenland ice sheet mass balance from 1986 through next week
-
-This is the data for "Greenland ice sheet mass balance from 1840 through next week" and previous and subsequent versions.
-
-+ Paper: Accepted
-+ Data: doi:10.22008/FK2/OHI23Z or https://doi.org/10.22008/FK2/OHI23Z
-+ Code: https://github.com/GEUS-Glaciology-and-Climate/mass_balance
-
-+ Contact: kdm (at) geus (dot) dk
-#+END_SRC
-
-** GitHub README.org
-
-See [[./README.org]]
-
 * Twitter
 ** Twitter figure
 :PROPERTIES:
