@@ -5596,6 +5596,8 @@ today = now.isoformat()[0:10]
 tomorrow = str(df.index[-7])[0:10]
 next_week = str(df.index[-1])[0:10]
 
+assert(now.isoformat()[0:10] == str(df.index[-8])[0:10])
+
 def SLR_daterange(t0, t1):
     d = df[(df.index >= t0) & (df.index <= t1)].sum()
     d['mm'] = -1*d['MB'] / 361.8 # Gt to mm
@@ -5613,38 +5615,45 @@ def my_fmt(n, dec=2):
     return str(round(n,dec))
 
 tweet_str = ""
-tweet_str += f"Sea level rise (#SLR: 📈=🌊+🧊💧) from 🇬🇱#Greenland"
-tweet_str += f"\n\n  Since 1990 (IPCC FAR): ~{my_fmt(far['mm'])} mm"
+tweet_str += f"Sea level rise (#SLR: 📈=🌊+🧊💧) from 🇬🇱Greenland"
+tweet_str += f"\n\nSince 1990 (IPCC FAR): ~{my_fmt(far['mm'])} mm"
 tweet_str += f" ({my_fmt(far['MB'], dec=0)} Gt)"
 
-tweet_str += f"\n\n  {this_year} (→️ {today}): "
+tweet_str += f"\n\n{this_year} → today: "
 if ytd['mm'] > 0.01:
     tweet_str += f"~{my_fmt(ytd['mm'])} mm ("
 tweet_str += f"{my_fmt(ytd['MB'], dec=0)} Gt"
 if ytd['mm'] > 0.01: tweet_str += f")"
 
-tweet_str += f"\n\n  Next 7 days ({tomorrow} →️ {next_week})"
+tweet_str += f"\n\nNext 7 days ({tomorrow} →️{next_week})"
 if next7['mm'] < 0: # mass gain
     tweet_str += f"📉: mass gain +{my_fmt(next7['MB'], dec=1)} ±{my_fmt(next7['MB_err'], dec=1)} Gt"
 if next7['mm'] > 0: # mass loss
     tweet_str += f"📈: {my_fmt(next7['mm'])} ±{my_fmt(next7['mm_err'])} mm ({my_fmt(next7['MB'], dec=1)} ±{my_fmt(next7['MB_err'], dec=1)} Gt)"
 
-tweet_str += '\n\n'
-tweet_str += '  https://doi.org/10.5194/essd-2021-131'
+tweet_str += '\n'
+tweet_str += '\nhttps://github.com/GEUS-Glaciology-and-Climate/mass_balance'
+tweet_str += '\nhttps://doi.org/10.5194/essd-13-5001-2021'
+tweet_str += '\nhttps://doi.org/10.22008/FK2/OHI23Z'
 
+# print(len(tweet_str))
 print(tweet_str)
 #+END_SRC
 
 #+RESULTS:
-: Sea level rise (#SLR: 📈=🌊+🧊💧) from 🇬🇱#Greenland
-: 
-:   Since 1990 (IPCC FAR): 14.75 ±7.69 mm (-5338 Gt)
-: 
-:   2021 (→️ 2021-09-08): 0.7 ±0.17 mm (-255 Gt)
-: 
-:   Next 7 days (2021-09-09 →️ 2021-09-15)📉: mass gain +17.7 ±2.8 Gt
-: 
-:   https://doi.org/10.5194/essd-2021-131
+#+begin_example
+Sea level rise (#SLR: 📈=🌊+🧊💧) from 🇬🇱Greenland
+
+Since 1990 (IPCC FAR): ~14.43 mm (-5220 Gt)
+
+2021 → today: ~0.65 mm (-233 Gt)
+
+Next 7 days (2021-11-03 →️2021-11-09)📈: 0.0 ±0.0 mm (-0.4 ±1.5 Gt)
+
+https://github.com/GEUS-Glaciology-and-Climate/mass_balance
+https://doi.org/10.5194/essd-13-5001-2021
+https://doi.org/10.22008/FK2/OHI23Z
+#+end_example
 
 #+BEGIN_SRC jupyter-python
 import secret
