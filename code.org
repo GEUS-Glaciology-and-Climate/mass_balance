@@ -5535,7 +5535,7 @@ for hyr in df['hydro_year'].unique():
         
 
 mean = df[(df['hydro_year'] >= 1991) & (df['hydro_year'] <= 2020)]
-mean = df.groupby(df['hydro_doy']).mean()
+mean = mean.groupby(mean['hydro_doy']).mean()
 mean.index = df['t_repeat'][0:365]
 mean['MB'].cumsum().plot(ax=ax, drawstyle='steps', color='k', linewidth=2, label='1991 through 2020 mean')
 
