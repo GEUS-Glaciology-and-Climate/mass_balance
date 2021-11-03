@@ -5644,9 +5644,9 @@ if next7['mm'] > 0: # mass loss
     tweet_str += f"📈: {my_fmt(next7['mm'])} ±{my_fmt(next7['mm_err'])} mm ({my_fmt(next7['MB'], dec=1)} ±{my_fmt(next7['MB_err'], dec=1)} Gt)"
 
 tweet_str += '\n'
-tweet_str += '\nhttps://github.com/GEUS-Glaciology-and-Climate/mass_balance'
 tweet_str += '\nhttps://doi.org/10.5194/essd-13-5001-2021'
 tweet_str += '\nhttps://doi.org/10.22008/FK2/OHI23Z'
+tweet_str += '\nhttps://github.com/GEUS-Glaciology-and-Climate/mass_balance'
 
 # print(len(tweet_str))
 print(tweet_str)
