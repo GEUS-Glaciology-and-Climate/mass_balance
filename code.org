@@ -5548,7 +5548,19 @@ if this.index.size > 8:
     this['MB'].cumsum().iloc[-7:].plot(ax=ax, label='_no', **kw_plot)
 else:
     this['MB'].cumsum().plot(ax=ax, label='Through '+last_day, **kw_plot)
-    
+
+
+std = df[(df['hydro_year'] >= 1991) & (df['hydro_year'] <= 2020)]
+for hy in std['hydro_year'].unique():
+    idx = (std['hydro_year'] == hy)
+    std = std.where(~idx, other=std[idx].cumsum())
+std = std.groupby(std['hydro_doy']).std()
+std.index = df['t_repeat'][0:365]
+ax.fill_between(std.index,
+                mean['MB'].cumsum()+std['MB'],
+                mean['MB'].cumsum()-std['MB'],
+                color='b', linewidth=2, label='_no', alpha=0.1)
+
 adj(ax, ['bottom','left'])
 ax.set_ylim([-500,300])
 ax.set_yticks([-500,-400,-300,-200,-100,0,100,200,300])
