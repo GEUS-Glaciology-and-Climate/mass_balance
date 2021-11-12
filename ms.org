@@ -438,12 +438,12 @@ In the sections below, we compare This Study to each of the validation data in m
 #+CAPTION: Summary of correlation, bias, and RMSE between different products  during their overlap periods with This Study. Basal mass balance not included in This Study when comparing against citet:mouginot_2019_data, citet:colgan_2019, or citet:kjeldsen_2015. Peripheral ice masses never included in This Study.
 | Other product       |  r^2 | Bias | RMSE | Fig.                        | Overlap      | Notes                                             |
 |---------------------+------+------+------+-----------------------------+--------------+---------------------------------------------------|
-| citet:mouginot_2019 | 0.94 |   11 |   38 | \ref{fig:M2019}             | 1986 -- 2018 | No basal mass balance                             |
+| citet:mouginot_2019 | 0.94 |   12 |   37 | \ref{fig:M2019}             | 1986 -- 2018 | No basal mass balance                             |
 | citet:colgan_2019   | 0.87 |  -32 |   59 | \ref{fig:C2019}             | 1995 -- 2015 | No basal mass balance                             |
 | GMB                 | 0.86 |   32 |   63 | \ref{fig:GMB_VC_IMBIE}      | 2002 -- 2020 | Includes peripheral masses                        |
 | VC                  | 0.62 |  -11 |   86 | \ref{fig:GMB_VC_IMBIE}      | 1992 -- 2019 | Multi-year smooth                                 |
 | IMBIE2              | 0.89 |   -7 |   44 | \ref{fig:GMB_VC_IMBIE}      | 1992 -- 2018 | No BMB when using IO; BMB when using GMB or VC    |
-| citet:kjeldsen_2015 | 0.80 |    5 |   61 | \ref{fig:reconstructed_adj} | 1986 -- 2012 | No basal mass balance; includes peripheral masses |
+| citet:kjeldsen_2015 | 0.80 |    6 |   60 | \ref{fig:reconstructed_adj} | 1986 -- 2012 | No basal mass balance; includes peripheral masses |
 
 
 # TSO = tab_summary_output
@@ -465,7 +465,7 @@ print(df[[row in i for i in df.index]][col].values[0])
 #+CAPTION: Comparison of This Study vs citet:mouginot_2019. All axes units are Gt yr^{-1}. Plotted numbers represent the last two digits of the year. Matching colored diamonds show the data when BMB is added to This Study. Printed numbers (r^2, bias, RMSE, slope) compare values without BMB.
 [[./fig/mouginot_2019.png]]
 
-The citet:mouginot_2019 product spans the 1972 through 2018 period. We only use 1986 and onward because This Study has annual resolution prior to 1986 and citet:mouginot_2019 data are provided on a non-calendar-year period. The SMB comes from RACMO v2.3p2 downscaled at 1 km and agrees very well with SMB from This Study (r^{2} call_tso(row="mouginot", col="r") {{{results(=0.94=)}}}, bias call_tso(row="mouginot", col="bias") {{{results(=11=)}}}, RMSE call_tso(row="mouginot", col="RMSE") {{{results(=38=)}}} , slope 1.1). The minor SMB differences are likely due to mask differences or our use of a three-RCM average SMB estimate.
+The citet:mouginot_2019 product spans the 1972 through 2018 period. We only use 1986 and onward because This Study has annual resolution prior to 1986 and citet:mouginot_2019 data are provided on a non-calendar-year period. The SMB comes from RACMO v2.3p2 downscaled at 1 km and agrees very well with SMB from This Study (r^{2} call_tso(row="mouginot", col="r") {{{results(=0.94=)}}}, bias call_tso(row="mouginot", col="bias") {{{results(=12=)}}}, RMSE call_tso(row="mouginot", col="RMSE") {{{results(=37=)}}} , slope 1.1). The minor SMB differences are likely due to mask differences or our use of a three-RCM average SMB estimate.
 
 citet:mouginot_2019 discharge and our D from citet:mankoff_2020_solid have a -33 Gt yr^{-1} bias. This difference can mainly be attributed to different discharge estimates in the southeastern and central eastern sectors (Appendix: Mouginot regions). When we include BMB in This Study (diamonds in middle panel of Fig. \ref{fig:M2019} shifting values to the right), it adds ~25 Gt yr^{-1} to This Study.
 

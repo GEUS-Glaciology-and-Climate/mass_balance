@@ -821,6 +821,7 @@ for f in ${f_list}; do
     if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
 
     var=smb_rec
+    if [[ ${f} != *"ERA5"* ]]; then var=SMB_rec; fi # 1986 through 1989
 
     r.in.gdal -o input="NetCDF:${f}:${var}" band=${band} output=SMB --o  --q
     r.region map=SMB region=RCM
