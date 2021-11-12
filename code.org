@@ -941,8 +941,8 @@ SMB = bsv2nc(SMB, "RACMO_region", "region")
 
 
 
-err = unumpy.uarray([1,1,1], [0.1, 0.15, 0.7])
-print('{:.4f}'.format(err.sum()))
+err = unumpy.uarray([1,1,1], [15,15,15])
+print('{:.4f}'.format(err.mean()))
 
 ### create SMB from individual SMBs
 # for roi in ['sector','region','basin']:
@@ -971,7 +971,7 @@ SMB.to_netcdf(fn)
 #+END_SRC
 
 #+RESULTS: SMB_bsv2nc
-: 3.0000+/-0.7228
+: 1.0000+/-8.6603
 
 
 Test:
@@ -986,11 +986,11 @@ ds[['SMB','HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_dat
 #+RESULTS:
 | time                |     SMB | HIRHAM_sector | MAR_sector | RACMO_sector |
 |---------------------+---------+---------------+------------+--------------|
-| 1986-01-01 00:00:00 |  2.3474 |       2.41357 |    2.34658 |      2.28207 |
-| 1986-01-02 00:00:00 | 3.20165 |       3.24823 |    3.35151 |      3.00523 |
-| 1986-01-03 00:00:00 | 4.22387 |       4.19169 |     4.1993 |      4.28062 |
-| 1986-01-04 00:00:00 |  1.5914 |       1.66981 |    1.82024 |      1.28414 |
-| 1986-01-05 00:00:00 | 1.97892 |       1.97788 |    2.44208 |      1.51681 |
+| 1986-01-01 00:00:00 | 2.14113 |       2.47361 |    1.80865 |            0 |
+| 1986-01-02 00:00:00 | 2.80569 |       3.32883 |    2.28256 |            0 |
+| 1986-01-03 00:00:00 | 3.93101 |       4.30214 |    3.55987 |            0 |
+| 1986-01-04 00:00:00 |  1.5361 |       1.71647 |    1.35572 |            0 |
+| 1986-01-05 00:00:00 | 1.62315 |       2.03627 |    1.21002 |            0 |
 
 * D to ROI
 
@@ -1589,10 +1589,10 @@ k2015 = k2015.drop(columns=['accumulation', 'accumulation 1sigma',
 <<load_D>>
 
 time = pd.date_range(start = "1986-01-01", end = str(D['time'].values[-1]), freq = "D")
-D = D.reindex({'time':time}).bfill(dim='time')
+D_adj = D.reindex({'time':time}).bfill(dim='time')
 
-SMB = SMB[['SMB','SMB_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
-D = D[['D','D_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
+SMB_adj = SMB[['SMB','SMB_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
+D_adj = D_adj[['D','D_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
 
 k2015_overlap = k2015.loc['1986':'2012']
 #+END_SRC
@@ -1604,17 +1604,17 @@ k2015_overlap = k2015.loc['1986':'2012']
 import scipy as sp
 import scipy.stats as sps
 
-slope, intercept, r_value, p_value, std_err = sps.linregress(SMB['SMB'].values,
+slope, intercept, r_value, p_value, std_err = sps.linregress(SMB_adj['SMB'].values,
                                                              k2015_overlap['SMB'].values)
 k2015 = k2015.rename(columns={'SMB':'SMB_orig'})
 k2015['SMB'] = (k2015['SMB_orig'] - intercept)/slope
-k2015['SMB_err'] = (k2015['SMB_err'] + SMB['SMB_err'].mean())
+k2015['SMB_err'] = (k2015['SMB_err'] + SMB_adj['SMB_err'].mean())
 
-slope, intercept, r_value, p_value, std_err = sps.linregress(D['D'].values,
+slope, intercept, r_value, p_value, std_err = sps.linregress(D_adj['D'].values,
                                                              k2015_overlap['D'].values)
 k2015 = k2015.rename(columns={'D':'D_orig'})
 k2015['D'] = (k2015['D_orig'] - intercept)/slope
-k2015['D_err'] = (k2015['D_err'] + D['D_err'].mean())
+k2015['D_err'] = (k2015['D_err'] + D_adj['D_err'].mean())
 
 #+END_SRC
 
@@ -1849,13 +1849,9 @@ D['D'] = (('time'), D['D_sector'].sum(dim='sector'))
 D['D_err'] = (('time'), D['err_sector'].sum(dim='sector'))
 
 # convert from Gt/year @ misc time-steps -> Gt/day @ daily timestep
-msave = D.copy(deep=True)
 D = (D / 365).resample({"time":"1D"})\
                  .mean()\
-                 .interpolate_na(dim="time")
-
-# I want monotonic cubic interpolation for discharge
-D['D'] = (('time'), (msave['D']/365).resample({'time':'1D'}).mean().to_dataframe().interpolate(method='pchip').values.flatten())
+                 .interpolate_na(dim="time", method='pchip')
 D['region'] = D['region'].astype(str)
 
 <<forecast_D>>
