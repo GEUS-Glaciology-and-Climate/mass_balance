@@ -1842,7 +1842,7 @@ ds_region = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwal
 #                    "err":"err_basin"})
 
 D = ds_sector
-D = D.merge(ds_region)
+D = D.merge(ds_region, compat='override')
 # D = D.merge(ds_basin)
 
 D['D'] = (('time'), D['D_sector'].sum(dim='sector'))
