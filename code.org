@@ -1,4 +1,3 @@
-
 #+PROPERTY: header-args:bash+ :comments both :noweb yes :eval no-export
 #+PROPERTY: header-args:bash+ :session (concat "*" (file-name-sans-extension (buffer-name)) "-shell*")
 #+PROPERTY: header-args:bash+ :tangle-mode (identity #o544) :shebang #!/usr/bin/env bash
@@ -949,21 +948,21 @@ print('{:.4f}'.format(err.sum()))
 for roi in ['sector','region']:
     mean = SMB[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
     s = 'SMB_' + roi
-    SMB[s] = (('time',roi), mean)
+    SMB[s] = (('time',roi), mean.data)
     # SMB[s].attrs["long_name"] = "Surface mass balance (RCM mean)"
     # SMB[s].attrs["standard_name"] = "land_ice_mass_tranport"
     # SMB[s].attrs["units"] = "Gt d-1"
     # SMB[s].attrs["coordinates"] = "time region"
 
     s = s + '_err'
-    SMB[s] = (('time',roi), mean * 0.15)
+    SMB[s] = (('time',roi), mean.data * 0.15)
     # SMB[s].attrs["long_name"] = "Surface mass balance (RCM mean) uncertainty"
     # SMB[s].attrs["standard_name"] = "land_ice_mass_tranport"
     # SMB[s].attrs["units"] = "Gt d-1"
     # SMB[s].attrs["coordinates"] = "time region"
 
-SMB['SMB'] = (('time'), SMB['SMB_sector'].sum(dim='sector'))
-SMB['SMB_err'] = (('time'), SMB['SMB_sector'].sum(dim='sector') * 0.09)
+SMB['SMB'] = (('time'), SMB['SMB_sector'].sum(dim='sector').data)
+SMB['SMB_err'] = (('time'), SMB['SMB_sector'].sum(dim='sector').data * 0.09)
 
 fn = './tmp/SMB.nc'
 if os.path.exists(fn): os.remove(fn)
@@ -1017,6 +1016,7 @@ r.external -o source=NetCDF:${DATADIR}/Karlsson_2021/basalmelt.nc:gfmelt output=
 g.region raster=GF_ann
 
 r.mapcalc "GF = GF_ann / 365"
+
 #+END_SRC
 *** Apply
 
@@ -1200,12 +1200,15 @@ Using =r.stream.basins=, we can get basins for every outlet.
 #+BEGIN_SRC bash :results verbatim
 log_info "r.stream.basins..."
 
+
+g.extension r.stream.basins url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins #  url=https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins branch=grass7
 r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=16384 --verbose
 #+END_SRC
 
 **** Change in head between each cell and its outlet
-
+https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins
 #+BEGIN_SRC bash
+g.extension r.stream.distance url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=head method=downstream difference=delta_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=bed method=downstream difference=delta_z_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=pressure method=downstream difference=delta_p_head
@@ -1317,7 +1320,7 @@ else
 fi
 
 for f in ${f_list}; do
-  dates=$(python ./nc_dates.py ${f})
+  dates=$(python3 ./nc_dates.py ${f})
   band=-1
   d=1986-01-01 # debug
   for d in ${dates}; do
@@ -1459,7 +1462,7 @@ BMB['VHD_region'] = (('time','region'),
 # for roi in ['sector','region','basin']:
 for roi in ['sector','region']:
     v = 'VHD_'+roi
-    BMB[v] = (('time',roi), BMB[v] * 1E-3)
+    BMB[v] = (('time',roi), BMB[v].data * 1E-3)
 
 
 #          grid cells    m^3->kg  kg->Gt
@@ -5474,13 +5477,255 @@ Name: 1930-01-01 00:00:00, dtype: float64
 #+end_example
 
 
+
+* Docker
+  :PROPERTIES:
+  :header-args:docker: :eval no
+  :END:
+** Dockerfile 
+
+
+#+BEGIN_SRC docker :tangle docker/Dockerfile :mkdirp docker
+FROM ubuntu:20.04
+
+LABEL authors="Signe Hillerup Larsen"
+LABEL maintainer="shl@geus.dk"
+
+# system environment
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get -y update && apt-get install -y --no-install-recommends --no-install-suggests \
+      bc \
+      bsdmainutils \
+      datamash \
+      gdal-bin \
+      grass \
+      grass-dev \
+      netcdf-bin \
+      parallel \
+      proj-bin \
+      proj-data \
+      zip \
+      pip \
+      make \
+      gcc \
+      subversion \
+      python-is-python3 \
+      wget \
+  && apt-get autoremove -y \
+  && apt-get clean -y \ 
+  && rm -rf /var/lib/apt/lists/*
+
+RUN echo LANG="en_US.UTF-8" > /etc/default/locale
+
+ENV LANGUAGE en_US.UTF-8
+ENV LANG C
+ENV LC_ALL C
+ENV LC_CTYPE C
+
+ENV SHELL /bin/bash
+
+# create a user
+RUN useradd --create-home user && chmod a+rwx /home/user
+ENV HOME /home/user
+WORKDIR /home/user
+
+RUN mkdir -p /data
+ENV DATADIR /data
+
+
+ENV PATH=/home/user/.local/bin:$PATH
+
+ENV CONDA_DIR /opt/conda
+
+RUN wget --no-check-certificate\
+    https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh 
+
+ENV PATH=$CONDA_DIR/bin:$PATH
+RUN conda --version
+
+
+RUN conda install -c conda-forge \
+  xarray \ 
+  dask \
+  netCDF4 \ 
+  bottleneck \
+  && conda clean -a \
+  && pip install --no-cache-dir \
+  cfchecker \
+  cfunits \
+  grass-session \
+  nc-time-axis \
+  pyshp \
+  semver \
+  uncertainties
+
+
+# switch the user
+USER user
+
+#+END_SRC
+
+#+BEGIN_SRC docker 
+ENV CONDA_DIR /home/user/conda
+
+RUN wget --no-check-certificate\
+    https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /home/user/conda \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh 
+
+ENV PATH=$CONDA_DIR/bin:$PATH
+
+#RUN conda create -n py39 python=3.9
+#RUN echo "source activate py39" > ~/.bashrc
+#ENV PATH $CONDA_DIR/envs/env/bin:$PATH
+
+RUN conda --version
+
+RUN conda install \
+  curl \
+  cython \
+  ipython \
+  jupyter \
+  matplotlib \
+  numpy \
+  pandas \
+  pip \
+  scipy \
+  statsmodels \
+  tabulate \
+  xarray \
+  && conda clean -a \
+  && pip install --no-cache-dir \
+  cfchecker \
+  cfunits \
+  grass-session \
+  nc-time-axis \
+  pyshp \
+  semver \
+  uncertainties
+
+RUN alias python=python3
+
+#RUN echo LANG="en_US.UTF-8" > /etc/default/locale
+
+
+#RUN echo PROJ_LIB="/usr/share/proj" > ~/.bashrc
+
+
+
+
+
+
+#CMD ["/usr/bin/grass", "--version"]
+
+#+END_SRC
+
+#+BEGIN_SRC docker 
+#RUN git clone -c http.sslverify=false https://github.com/OSGeo/grass-addons /usr/local/grass/addons/.
+
+# RUN echo "GRASS_ADDON_PATH=/usr/local/grass/addons/" > ~/.bashrc
+# RUN echo "export GRASS_ADDON_PATH"
+
+#RUN echo ${GRASS_ADDON_PATH}
+
+
+ENV CONDA_DIR /opt/conda
+
+RUN wget --no-check-certificate\
+    https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh 
+
+ENV PATH=$CONDA_DIR/bin:$PATH
+RUN conda --version
+
+#RUN conda create -n py39 python=3.9 pip
+#RUN echo "source activate py39" > ~/.bashrc
+#ENV PATH /opt/conda/envs/env/bin:$PATH
+
+RUN conda install \
+  curl \
+  cython \
+  ipython \
+  jupyter \
+  matplotlib \
+  numpy \
+  pandas \
+  pip \
+  scipy \
+  statsmodels \
+  tabulate \
+  xarray \
+  && conda clean -a \
+  && pip install --no-cache-dir \
+  cfchecker \
+  cfunits \
+  grass-session \
+  nc-time-axis \
+  pyshp \
+  semver \
+  uncertainties
+
+
+RUN echo LANG="en_US.UTF-8" > /etc/default/locale
+RUN python -c "import pandas as pd; print(pd)" 
+
+
+
+
+
+RUN echo PROJ_LIB="/usr/share/proj" > ~/.bashrc
+
+
+
+CMD ["/usr/bin/grass", "--version"]
+#+END_SRC
+
+** Build
+#+BEGIN_SRC bash
+# docker build -f Dockerfile_grass -t ice_discharge_grass .
+cd docker
+docker build -t mass_balance .
+
+
+#+END_SRC
+
+** Test
+
+
+#+BEGIN_SRC bash
+docker run -it mass_balance # run it
+docker run -it mass_balance python -c 'import pandas as pd; print(pd)'
+
+
+docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance grass -e -c EPSG:4326 G_HIRHAM
+
+docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance python -c 'import pandas as pd; print(pd)' 
+
+#+END_SRC
+
+** Deploy
+
+#+BEGIN_SRC bash
+
+# docker tag local-image:tagname new-repo:tagname
+docker tag mass_balance:latest hillerup/mass_balance:latest
+docker push hillerup/mass_balance:latest
+
+#+END_SRC
+
+
+
 * Twitter
 ** Twitter figure
 :PROPERTIES:
 :header-args:jupyter-python+: :tangle twitfig.py
 :END:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC jupyter-python :tangle no
 import matplotlib
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import pandas as pd
@@ -5693,6 +5938,8 @@ media = api.media_upload('twitfig.png')
 # Create a tweet
 api.update_status(tweet_str, media_ids=[media.media_id])
 #+END_SRC
+
+
 
 * Environment
 ** Software
@@ -6260,89 +6507,5 @@ Then switch from system to local library.bib in ms.org
 (setq-local org-latex-title-command "")
 #+END_SRC
 
-
-* Makefile
-:PROPERTIES:
-:CUSTOM_ID: sec:makefile
-:END:
-
-This code, and all code files in this project, are derived products tangled from the sob.org source file.
-
-#+BEGIN_SRC makefile :tangle Makefile :tangle-mode (identity #o444)
-PROMICE_MB: all
-# dist
-
-all: FORCE
-	mkdir -p tmp dat
-
-	# set up
-	grass -e -c EPSG:4326 G_HIRHAM
-	grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
-	grass -e -c XY G_HIRHAM_XY
-	
-	grass -e -c EPSG:3413 G_MAR
-	grass ./G_MAR/PERMANENT --exec ./MAR.sh
-
-	grass -e -c EPSG:3413 G_RACMO
-	grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
-
-	# BMB setup on the MAR grid
-	grass ./G_MAR/PERMANENT --exec ./BMB.sh
-	
-	make SMB
-	make BMB
-	make dist
-
-SMB: FORCE
-	# partition RCM by Zwally sectors, Mouginot basins, and Mouginot regions
-	grass ./G_HIRHAM_XY/PERMANENT --exec ./SMB_HIRHAM_ROI.sh
-	grass ./G_MAR/PERMANENT --exec ./SMB_MAR_ROI.sh
-	grass ./G_RACMO/PERMANENT --exec ./SMB_RACMO_ROI.sh
-	./SMB_merge.sh
-	python ./SMB_bsv2nc.py
-
-BMB: FORCE
-	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
-	./BMB_merge.sh
-	python ./BMB_bsv2nc.py
-
-update: FORCE
-	# remove previously forecasted MAR 
-	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/*_$${d}.bsv; done
-	RECENT=true make SMB
-	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
-	RECENT=true make BMB
-	make dist
-
-
-validate: FORCE
-	grass -e -c EPSG:3413 G
-	
-dist: FORCE
-	mkdir -p TMB
-	# create end-user data product
-	python ./build_TMB_nc.py
-	# python ./upload_to_DV.py
-	python ./twitfig.py
-	# python ./twitbot.py
-
-
-FORCE: # dummy target
-
-clean_30:
-	# Rebuild the last 30 days
-	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/*_$${d}.bsv; done
-	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/RACMO/*_$${d}.bsv; done
-	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
-	make update
-	
-
-clean_all:
-	rm -fR G G_RACMO G_HIRHAM G_HIRHAM_XY G_MAR G_tmp tmp dat TMB
-
-clean_SMB:
-	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
-	
-#+END_SRC
 
 
