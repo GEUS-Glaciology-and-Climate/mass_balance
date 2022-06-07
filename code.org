@@ -1567,9 +1567,9 @@ Adjust SMB and D using 1986 through 2012 overlap
 #+NAME: load_K2015_raw
 #+BEGIN_SRC jupyter-python
 import pandas as pd
-
+<<get_datadir>>
 fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
-k2015 = pd.read_csv('/home/kdm/data/Kjeldsen_2015/' + fname, index_col=0, parse_dates=True)\
+k2015 = pd.read_csv(DATADIR + '/Kjeldsen_2015/' + fname, index_col=0, parse_dates=True)\
           .rename(columns={'discharge from 6 year lagged average runoff' : 'D',
                            'discharge 1sigma' : 'D_err'})
 
@@ -1815,8 +1815,8 @@ SMB['region'] = SMB['region'].astype(str)
 #+NAME: load_D
 #+BEGIN_SRC jupyter-python
 import xarray as xr
-
-ds = xr.open_dataset("/home/kdm/data/Mankoff_2020/ice/latest/gate.nc")
+<<get_datadir>>
+ds = xr.open_dataset(DATADIR + "/Mankoff_2020/ice/latest/gate.nc")
 # ds = xr.open_dataset("/home/kdm/projects/ice_discharge/out/gate.nc")
 
 # rstr = {'NW':11, 'NO':12, 'NE':1, 'CE':3, 'CW':9, 'SE':5, 'SW':7}
@@ -2343,8 +2343,8 @@ df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 #+BEGIN_SRC jupyter-python
 
 ds = xr.Dataset()
-
-df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
+<<get_datadir>>
+df = pd.read_excel(DATADIR + '/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
 
 ## Discharge
 c0 = 15 # Column containing 1972
@@ -2577,7 +2577,8 @@ variables:
 #+NAME: load_vc
 #+BEGIN_SRC jupyter-python
 import xarray as xr
-ds = xr.open_dataset("/home/kdm/data/Simonsen_2021/ds1.nc")
+<<get_datadir>>
+ds = xr.open_dataset(DATADIR + "/Simonsen_2021/ds1.nc")
 # print(ds)
 
 vc = xr.Dataset()
@@ -2602,8 +2603,8 @@ http://products.esa-icesheets-cci.org/products/downloadlist/GMB/
 #+BEGIN_SRC jupyter-python
 import pandas as pd
 from datetime import timedelta, datetime
-
-root = '/home/kdm/data/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
+<<get_datadir>>
+root = DATADIR + '/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
 df = pd.read_csv(root + '/GIS00_grace.dat',
                  delim_whitespace=True,
                  header=None,
@@ -2652,7 +2653,8 @@ This spreadsheet contains the IMBIE-2019 datasets for Greenland, which includes 
 #+NAME: load_imbie
 #+BEGIN_SRC jupyter-python
 import pandas as pd
-imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+<<get_datadir>>
+imbie = pd.read_excel(DATADIR + "/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
        .rename(columns={"Rate of ice sheet mass change (Gt/yr)":"MB",
                         "Rate of ice sheet mass change uncertainty (Gt/yr)":"MB_err",
                         "Cumulative ice sheet mass change (Gt)" : "MB_cum",
@@ -2678,7 +2680,8 @@ imbie = imbie.drop('index', axis='columns')
 #+NAME: load_PROMICE_MB
 #+BEGIN_SRC jupyter-python
 def load_Colgan_2019(sheet=0):
-    df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
+<<get_datadir>>
+    df_all = pd.read_excel(DATADIR + "/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
     
     df_all = df_all.loc[df_all.index.dropna()]\
                    .drop(index='Total')\
@@ -2844,11 +2847,12 @@ What % of SMB changes occur in the uncovered regions?
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
-ds = xr.open_mfdataset('/home/kdm/data/RACMO/daily/SMB_rec.201*.nc', combine='by_coords')
+<<get_datadir>>
+ds = xr.open_mfdataset(DATADIR + '/RACMO/daily/SMB_rec.201*.nc', combine='by_coords')
 ds = ds.resample({'time':'YS'}).sum()
 ds.to_netcdf('./tmp/RACMO_2010s.nc')
 
-ds = xr.open_mfdataset('/home/kdm/data/RACMO/daily/SMB_rec.2020*.nc', combine='by_coords')
+ds = xr.open_mfdataset(DATADIR + '/RACMO/daily/SMB_rec.2020*.nc', combine='by_coords')
 ds = ds.sum(dim='time')
 ds.to_netcdf('./tmp/RACMO_2020.nc')
 #+END_SRC
@@ -3018,12 +3022,13 @@ What % of MAR runoff occurs in the uncovered regions?
 
 #+BEGIN_SRC jupyter-python
 import xarray as xr
-ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
+<<get_datadir>>
+ds = xr.open_mfdataset(DATADIR + '/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
 ds = ds.sel({'sector':1}).resample({'time':'YS'}).mean()
 ds = ds.where(~np.isinf(ds), 0)
 ds.to_netcdf('./tmp/MAR_2010s.nc')
 
-ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
+ds = xr.open_mfdataset(DATADIR + 'MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
 ds = ds.sel({'sector':1}).sum(dim='time')
 ds.to_netcdf('./tmp/MAR_2020.nc')
 #+END_SRC
