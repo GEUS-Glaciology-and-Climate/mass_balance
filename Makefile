@@ -22,6 +22,10 @@ PROMICE_MB: setup_init grass_hirham grass_mar grass_bmb SMB BMB dist
 
 docker: Force
 	docker pull hillerup/mass_balance
+	${container_cmd} ${container_args} mass_balance:latest
+
+tangle: ## Tangle code from source Org file using Emacs
+	emacs -Q --batch --eval "(progn (find-file \"code.org\") (org-babel-tangle))"
 
 setup_init: FORCE
 	mkdir -p tmp dat
@@ -65,7 +69,7 @@ update: FORCE # remove previously forecasted MAR
 
 
 validate: FORCE
-	${container_cmd} ${container_args} mankoff/ice_discharge:grass grass -e -c EPSG:3413 G
+	${container_cmd} ${container_args} mass_balance:latest grass -e -c EPSG:3413 G
 
 dist: FORCE
 	mkdir -p TMB
