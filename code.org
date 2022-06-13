@@ -431,45 +431,6 @@ d.rast regions_e@Mouginot_2019
 cdo sinfov ${DATADIR}/MAR/3.12/MAR-2000.nc | head -n20
 #+END_SRC
 
-#+RESULTS:
-#+begin_example
-Warning (cdfInqContents): Coordinates variable time can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable time can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-   File format : NetCDF4 classic zip
-    -1 : Institut Source   T Steptype Levels Num    Points Num Dtype : Parameter name
-     1 : unknown  unknown  v instant       2   1     10336   1  F32z : smb           
-     2 : unknown  unknown  v instant       2   1     10336   1  F32z : ru            
-     3 : unknown  unknown  c instant       1   2     10336   1  F32z : lon           
-     4 : unknown  unknown  c instant       1   2     10336   1  F32z : lat           
-     5 : unknown  unknown  c instant       1   2     10336   1  F32z : sh            
-     6 : unknown  unknown  c instant       1   2     10336   1  F32z : msk           
-     7 : unknown  unknown  c instant       1   2     10336   1  F32z : srf           
-   Grid coordinates :
-     1 : projection               : points=10336 (76x136)
-                          mapping : polar_stereographic
-                                x : -640 to 860 by 20 km
-                                y : -3347.928 to -647.9277 by 20 km
-   Vertical coordinates :
-     1 : generic                  : levels=2
-                           sector : 1 to 2 level
-     2 : surface                  : levels=1
-   Time coordinate :  366 steps
-     RefTime =  1993-09-01 00:00:00  Units = days  Calendar = standard
-#+end_example
 
 #+BEGIN_SRC bash
 g.region w=-640000 e=860000 s=-3347928 n=-647928 res=20000 -p
@@ -528,7 +489,6 @@ d.rast regions_e@Mouginot_2019
 #+END_SRC
 
 #+RESULTS:
-
 
 
 * RACMO
@@ -1302,6 +1262,10 @@ d.vect outlets_uniq color=cyan
 
 **** MAR daily partitioned to ROI
 
+#+BEGIN_SRC bash :results verbatim :tangle no
+docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance grass ./G_MAR/PERMANENT
+#+END_SRC
+
 #+BEGIN_SRC bash :results verbatim
 g.mapset -c VHD
 
@@ -1310,7 +1274,8 @@ mkdir -p tmp/BMB
 
 dir=${DATADIR}/${RCM}/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
-
+f=$(ls ${dir}/MAR-????.nc|tail -n1) # debug
+f=MAR-2022_datum.nc
 if [ -z ${RECENT+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
@@ -1323,6 +1288,8 @@ for f in ${f_list}; do
   dates=$(python3 ./nc_dates.py ${f})
   band=-1
   d=1986-01-01 # debug
+  d=1991-01-01 # debug   
+  d=2022-01-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 2 ))
 
@@ -1816,6 +1783,7 @@ SMB['region'] = SMB['region'].astype(str)
 #+BEGIN_SRC jupyter-python
 import xarray as xr
 <<get_datadir>>
+
 ds = xr.open_dataset(DATADIR + "/Mankoff_2020/ice/latest/gate.nc")
 # ds = xr.open_dataset("/home/kdm/projects/ice_discharge/out/gate.nc")
 
@@ -1823,14 +1791,14 @@ ds = xr.open_dataset(DATADIR + "/Mankoff_2020/ice/latest/gate.nc")
 # rnum = [rstr[r] for r in ds['region'].values]
 # ds['region'] = (('gate'), rnum)
 
-ds_sector = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","region","coverage"])\
+ds_sector = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","region","coverage", "ID_Moon", "ID_Moon_dist"])\
           .groupby("Zwally_2012")\
           .sum()\
           .rename({"Zwally_2012":"sector",
                    "discharge":"D_sector",
                    "err":"err_sector"})
 
-ds_region = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwally_2012","coverage"])\
+ds_region = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwally_2012","coverage", "ID_Moon", "ID_Moon_dist"])\
           .groupby("region")\
           .sum()\
           .rename({"discharge":"D_region",
@@ -1848,8 +1816,8 @@ D = ds_sector
 D = D.merge(ds_region)
 # D = D.merge(ds_basin)
 
-D['D'] = (('time'), D['D_sector'].sum(dim='sector'))
-D['D_err'] = (('time'), D['err_sector'].sum(dim='sector'))
+D['D'] = (('time'), D['D_sector'].sum(dim='sector').data)
+D['D_err'] = (('time'), D['err_sector'].sum(dim='sector').data)
 
 # convert from Gt/year @ misc time-steps -> Gt/day @ daily timestep
 msave = D.copy(deep=True)
@@ -1865,7 +1833,6 @@ D['region'] = D['region'].astype(str)
 D = D_fc
 #+END_SRC
 
-#+RESULTS: load_D
 
 *** Forecasted discharge
 
@@ -2006,27 +1973,27 @@ BMB['region'] = BMB['region'].astype(str)
 
 BMB['BMB'] = (('time'), (BMB['GF_sector'] \
                          + BMB['vel_sector'] \
-                         + BMB['VHD_sector']).sum(dim='sector'))
+                         + BMB['VHD_sector']).sum(dim='sector').data)
 
 BMB['BMB_err'] = (('time'), ((BMB['GF_sector_err']**2 \
                               + BMB['vel_sector_err']**2 \
-                              + BMB['VHD_sector_err']**2)**0.5).sum(dim='sector'))
+                              + BMB['VHD_sector_err']**2)**0.5).sum(dim='sector').data)
 
-BMB['BMB_sector'] = (('time','sector'), BMB['VHD_sector'] + BMB['GF_sector'] + BMB['vel_sector'])
-BMB['BMB_region'] = (('time','region'), BMB['VHD_region'] + BMB['GF_region'] + BMB['vel_region'])
+BMB['BMB_sector'] = (('time','sector'), BMB['VHD_sector'].data + BMB['GF_sector'].data + BMB['vel_sector'].data)
+BMB['BMB_region'] = (('time','region'), BMB['VHD_region'].data + BMB['GF_region'].data + BMB['vel_region'].data)
 # BMB['BMB_basin'] = BMB['VHD_basin'] + BMB['GF_basin'] + BMB['vel_basin']
 
 BMB['BMB_sector_err'] = (('time','sector'), \
-                         ((BMB['GF_sector_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + (BMB['vel_sector_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + BMB['VHD_sector_err']**2\
+                         ((BMB['GF_sector_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + (BMB['vel_sector_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + BMB['VHD_sector_err'].data**2\
                           )**0.5\
                          )
 
 BMB['BMB_region_err'] = (('time','region'), \
-                         ((BMB['GF_region_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + (BMB['vel_region_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + BMB['VHD_region_err']**2\
+                         ((BMB['GF_region_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + (BMB['vel_region_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + BMB['VHD_region_err'].data**2\
                           )**0.5\
                          )
 
@@ -2194,7 +2161,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB["time"].attrs["standard_name"] = "time"
     MB["time"].attrs["axis"] = "T"
 
-    MB[roi] = ((roi), D[roi])
+    MB[roi] = ((roi), D[roi].data)
     if roi == 'sector':
         MB[roi].attrs["long_name"] = "Zwally 2012 sectors"
     elif roi == 'region':
@@ -2206,7 +2173,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB_hist = (k2015['SMB'] - k2015['D'] - k2015['BMB'])/365
     MB_recent = (SMB['SMB'] - D['D'] - BMB['BMB']).to_dataframe('MB').loc['1986':]['MB']
     MB['MB'] = (('time'), MB_hist.append(MB_recent))
-    MB['MB_err'] = (('time'), (SMB['SMB_err']**2 + D['D_err']**2 + BMB['BMB_err']**2)**0.5)
+    MB['MB_err'] = (('time'), (SMB['SMB_err'].data**2 + D['D_err'].data**2 + BMB['BMB_err'].data**2)**0.5)
 
     v = 'MB'
     MB[v].attrs["long_name"] = "Mass balance"
@@ -2214,18 +2181,18 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB[v].attrs["units"] = "Gt d-1"
     MB[v].attrs["coordinates"] = 'time'
     
-    MB['MB_ROI'] = (('time',roi), SMB['SMB_'+roi] - D['D_'+roi] - BMB['BMB_'+roi])
-    MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_'+roi+'_err']**2 + D['err_'+roi]**2 + BMB['BMB_'+roi+'_err']**2)**0.5)
+    MB['MB_ROI'] = (('time',roi), SMB['SMB_'+roi].data - D['D_'+roi].data - BMB['BMB_'+roi].data)
+    MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
     # MB['MB_ROI'].attrs = MB['MB'].attrs
     # MB['MB_ROI'].attrs["coordinates"] = 'time ROI'
 
     # if roi == 'region':
     #     from IPython import embed; embed()
     
-    MB['SMB'] = (('time'), SMB['SMB'])
-    MB['SMB_err'] = (('time'), SMB['SMB_err'])
-    MB['SMB_ROI'] = (('time',roi), SMB['SMB_'+roi])
-    MB['SMB_ROI_err'] = (('time',roi), SMB['SMB_'+roi+'_err'])
+    MB['SMB'] = (('time'), SMB['SMB'].data)
+    MB['SMB_err'] = (('time'), SMB['SMB_err'].data)
+    MB['SMB_ROI'] = (('time',roi), SMB['SMB_'+roi].data)
+    MB['SMB_ROI_err'] = (('time',roi), SMB['SMB_'+roi+'_err'].data)
     # MB['SMB_HIRHAM'] = (('time',roi), SMB['HIRHAM_'+roi]-D['D_'+roi] )
     # MB['SMB_MAR'] = (('time',roi), SMB['HIRHAM_'+roi]-D['D_'+roi])
     # MB['SMB_RACMO'] = (('time',roi), SMB['HIRHAM_'+roi]-D['D_'+roi])
@@ -2238,10 +2205,10 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         MB[v].attrs["coordinates"] = 'time ' + roi
 
        
-    MB['D'] = (('time'), D['D'])
-    MB['D_err'] = (('time'), D['D_err'])
-    MB['D_ROI'] = (('time',roi), D['D_'+roi])
-    MB['D_ROI_err'] = (('time',roi), D['err_'+roi])
+    MB['D'] = (('time'), D['D'].data)
+    MB['D_err'] = (('time'), D['D_err'].data)
+    MB['D_ROI'] = (('time',roi), D['D_'+roi].data)
+    MB['D_ROI_err'] = (('time',roi), D['err_'+roi].data)
     for v in ['D','D_ROI', 'D_err', 'D_ROI_err']:
         ln = 'Marine mass balance'
         if 'err' in v: ln = ln + ' uncertainty'
@@ -2252,10 +2219,10 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB['D_ROI'].attrs["coordinates"] = 'time ' + roi
 
     
-    MB['BMB'] = (('time'), BMB['BMB'])
-    MB['BMB_err'] = (('time'), BMB['BMB_err'])
-    MB['BMB_ROI'] = (('time',roi), BMB['BMB_'+roi])
-    MB['BMB_ROI_err'] = (('time',roi), BMB['BMB_'+roi+'_err'])
+    MB['BMB'] = (('time'), BMB['BMB'].data)
+    MB['BMB_err'] = (('time'), BMB['BMB_err'].data)
+    MB['BMB_ROI'] = (('time',roi), BMB['BMB_'+roi].data)
+    MB['BMB_ROI_err'] = (('time',roi), BMB['BMB_'+roi+'_err'].data)
     for v in ['BMB','BMB_ROI']:
         ln = 'Basal mass balance'
         if 'err' in v: ln = ln + ' uncertainty'
@@ -2279,7 +2246,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     # MB['BMB_ROI'].attrs["coordinates"] = 'time ' + roi
 
     for RCM in ['HIRHAM','MAR','RACMO']:
-        MB['MB_'+RCM] = (('time',roi), SMB[RCM+'_'+roi]-D['D_'+roi]-BMB['BMB_'+roi] )
+        MB['MB_'+RCM] = (('time',roi), SMB[RCM+'_'+roi].data-D['D_'+roi].data-BMB['BMB_'+roi].data )
         v = 'MB_'+RCM
         MB[v].attrs['long_name'] = 'Mass balance from ' + v.split('_')[1]
         MB[v].attrs["standard_name"] = "land_ice_mass_tranport"
@@ -5500,26 +5467,40 @@ LABEL maintainer="shl@geus.dk"
 ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get -y update && apt-get install -y --no-install-recommends --no-install-suggests \
-      bc \
-      bsdmainutils \
+      bash \
+      cdo \
       datamash \
+      gawk \
       gdal-bin \
-      grass \
-      grass-dev \
+      grass-gui \
+      nco \
       netcdf-bin \
       parallel \
       proj-bin \
-      proj-data \
-      zip \
-      pip \
-      make \
-      gcc \
-      subversion \
+      sed \
       python-is-python3 \
       wget \
+      git \
   && apt-get autoremove -y \
   && apt-get clean -y \ 
   && rm -rf /var/lib/apt/lists/*
+
+#      bc \
+#      bsdmainutils \
+#      datamash \
+#      gdal-bin \
+#      grass \
+#      grass-dev \
+#      netcdf-bin \
+#      parallel \
+#      proj-bin \
+#      proj-data \
+#      zip \
+#      pip \
+#      make \
+#      gcc \
+#      subversion \
+
 
 RUN echo LANG="en_US.UTF-8" > /etc/default/locale
 
@@ -5553,19 +5534,33 @@ RUN conda --version
 
 
 RUN conda install -c conda-forge \
-  xarray \ 
-  dask \
-  netCDF4 \ 
+  xarray \
+  pandas \
+  matplotlib \ 
+  jupyter \
+  tabulate \
+  pint \
   bottleneck \
-  && conda clean -a \
-  && pip install --no-cache-dir \
+  uncertainties \
+  scipy \
   cfchecker \
-  cfunits \
-  grass-session \
-  nc-time-axis \
-  pyshp \
-  semver \
-  uncertainties
+  geopandas
+
+#RUN conda install -c conda-forge \
+#  xarray \ 
+#  dask \
+#  netCDF4 \ 
+#  bottleneck \
+#  scipy \
+#  && conda clean -a \
+#  && pip install --no-cache-dir \
+#  cfchecker \
+#  cfunits \
+#  grass-session \
+#  nc-time-axis \
+#  pyshp \
+#  semver \
+#  uncertainties
 
 
 # switch the user
@@ -5573,121 +5568,6 @@ USER user
 
 #+END_SRC
 
-#+BEGIN_SRC docker 
-ENV CONDA_DIR /home/user/conda
-
-RUN wget --no-check-certificate\
-    https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /home/user/conda \
-    && rm -f Miniconda3-latest-Linux-x86_64.sh 
-
-ENV PATH=$CONDA_DIR/bin:$PATH
-
-#RUN conda create -n py39 python=3.9
-#RUN echo "source activate py39" > ~/.bashrc
-#ENV PATH $CONDA_DIR/envs/env/bin:$PATH
-
-RUN conda --version
-
-RUN conda install \
-  curl \
-  cython \
-  ipython \
-  jupyter \
-  matplotlib \
-  numpy \
-  pandas \
-  pip \
-  scipy \
-  statsmodels \
-  tabulate \
-  xarray \
-  && conda clean -a \
-  && pip install --no-cache-dir \
-  cfchecker \
-  cfunits \
-  grass-session \
-  nc-time-axis \
-  pyshp \
-  semver \
-  uncertainties
-
-RUN alias python=python3
-
-#RUN echo LANG="en_US.UTF-8" > /etc/default/locale
-
-
-#RUN echo PROJ_LIB="/usr/share/proj" > ~/.bashrc
-
-
-
-
-
-
-#CMD ["/usr/bin/grass", "--version"]
-
-#+END_SRC
-
-#+BEGIN_SRC docker 
-#RUN git clone -c http.sslverify=false https://github.com/OSGeo/grass-addons /usr/local/grass/addons/.
-
-# RUN echo "GRASS_ADDON_PATH=/usr/local/grass/addons/" > ~/.bashrc
-# RUN echo "export GRASS_ADDON_PATH"
-
-#RUN echo ${GRASS_ADDON_PATH}
-
-
-ENV CONDA_DIR /opt/conda
-
-RUN wget --no-check-certificate\
-    https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
-    && rm -f Miniconda3-latest-Linux-x86_64.sh 
-
-ENV PATH=$CONDA_DIR/bin:$PATH
-RUN conda --version
-
-#RUN conda create -n py39 python=3.9 pip
-#RUN echo "source activate py39" > ~/.bashrc
-#ENV PATH /opt/conda/envs/env/bin:$PATH
-
-RUN conda install \
-  curl \
-  cython \
-  ipython \
-  jupyter \
-  matplotlib \
-  numpy \
-  pandas \
-  pip \
-  scipy \
-  statsmodels \
-  tabulate \
-  xarray \
-  && conda clean -a \
-  && pip install --no-cache-dir \
-  cfchecker \
-  cfunits \
-  grass-session \
-  nc-time-axis \
-  pyshp \
-  semver \
-  uncertainties
-
-
-RUN echo LANG="en_US.UTF-8" > /etc/default/locale
-RUN python -c "import pandas as pd; print(pd)" 
-
-
-
-
-
-RUN echo PROJ_LIB="/usr/share/proj" > ~/.bashrc
-
-
-
-CMD ["/usr/bin/grass", "--version"]
-#+END_SRC
 
 ** Build
 #+BEGIN_SRC bash
@@ -5708,8 +5588,7 @@ docker run -it mass_balance python -c 'import pandas as pd; print(pd)'
 
 docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance grass -e -c EPSG:4326 G_HIRHAM
 
-docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance python -c 'import pandas as pd; print(pd)' 
-
+docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance 
 #+END_SRC
 
 ** Deploy
@@ -5730,7 +5609,7 @@ docker push hillerup/mass_balance:latest
 :header-args:jupyter-python+: :tangle twitfig.py
 :END:
 
-#+BEGIN_SRC jupyter-python :tangle no
+#+BEGIN_SRC jupyter-python 
 import matplotlib
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import pandas as pd
@@ -5976,7 +5855,7 @@ for tool in gdal-bin parallel sed gawk netcdf-bin proj-bin nco cdo bash grass-gu
 #+END_SRC
 
 #+RESULTS:
-: Org mode version 9.4.6 (9.4.6-4-g093c94-elpa @ /home/kdm/.emacs.d/elpa/org-20210607/)
+: Org mode version 9.3.6 (9.3.6-4-gdfa7a3-elpa @ /home/shl/scimax/elpa/org-20200217/)
 
 *** Python
 
@@ -6203,7 +6082,7 @@ prefix: /home/kdm/local/miniconda3/envs/TMB
 ** Python
 *** Anaconda environment
 
-**** Create
+**** TODO Create
 #+BEGIN_SRC bash
 env=TMB
 conda create -n ${env} python=3.8 xarray pandas matplotlib jupyter tabulate pint uncertainties scipy cfchecker geopandas
