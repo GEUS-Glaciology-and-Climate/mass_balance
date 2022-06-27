@@ -1,7 +1,5 @@
 container_cmd ?= docker
-container_args ?= run -it --user $(shell id -u):$(shell id -g) --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(shell pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1"
-
-# --user $(shell id -u):$(shell id -g) --mount type=bind,src=$${DATADIR},dst=/data --mount type=bind,src=$(shell pwd),dst=/home/user --env PARALLEL="--delay 0.1 -j -1"
+container_args ?= run -it --user $(shell id -u):$(shell id -g) --env RECENT=$$RECENT --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(shell pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1"
 
 org-babel = emacsclient --eval "(progn                  \
         (find-file \"$(1)\")                            \
