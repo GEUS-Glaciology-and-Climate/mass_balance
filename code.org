@@ -1161,15 +1161,14 @@ Using =r.stream.basins=, we can get basins for every outlet.
 #+BEGIN_SRC bash :results verbatim
 log_info "r.stream.basins..."
 
-
-g.extension r.stream.basins url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins #  url=https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins branch=grass7
+#g.extension r.stream.basins url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins #  url=https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins branch=grass7
 r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=16384 --verbose
 #+END_SRC
 
 **** Change in head between each cell and its outlet
 https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins
 #+BEGIN_SRC bash
-g.extension r.stream.distance url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
+#g.extension r.stream.distance url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=head method=downstream difference=delta_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=bed method=downstream difference=delta_z_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=pressure method=downstream difference=delta_p_head
@@ -5553,6 +5552,15 @@ WORKDIR /home/user
 RUN mkdir -p /data
 ENV DATADIR /data
 
+# Install grass addons
+RUN grass -e -c EPSG:3413 $HOME/G_tmp \ 
+  g.extension r.stream.basins \ 
+  url= https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins \ 
+  g.extension r.stream.distance \   
+  url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
+
+RUN rm -r $HOME/G_tmp 
+
 
 ENV PATH=/home/user/.local/bin:$PATH
 
@@ -5627,8 +5635,7 @@ docker run hillerup/mass_balance conda env export -n base | tee environment.yml
 
 #+RESULTS:
 #+begin_example
-
-[00mname: base
+name: base
 channels:
   - conda-forge
   - defaults
