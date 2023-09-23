@@ -1,0 +1,27 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  Greenland ice sheet mass balance from 1840 through next
+  week
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Kenneth
+    family-names: Mankoff
+    email: mankoff@gmail.com
+    affiliation: NASA GISS
+    orcid: 'https://orcid.org/0000-0001-5453-2019'
+identifiers:
+  - type: url
+    value: >-
+      https://github.com/GEUS-Glaciology-and-Climate/mass_balance
+    description: Github repository
+repository-code: >-
+  https://github.com/GEUS-Glaciology-and-Climate/mass_balance
+url: >-
+  https://github.com/GEUS-Glaciology-and-Climate/mass_balance
+license: CC-BY-4.0
