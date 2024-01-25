@@ -19,7 +19,7 @@ PROMICE_MB: docker
 	setup_init grass_hirham grass_mar grass_bmb SMB BMB dist
 # dist
 
-docker: Force
+docker: FORCE
 	docker pull hillerup/mass_balance
 	${container_cmd} ${container_args} mass_balance:latest
 
