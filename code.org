@@ -1,7 +1,7 @@
 #+PROPERTY: header-args:bash+ :comments both :noweb yes :eval no-export
 #+PROPERTY: header-args:bash+ :session (concat "*" (file-name-sans-extension (buffer-name)) "-shell*")
 #+PROPERTY: header-args:bash+ :tangle-mode (identity #o544) :shebang #!/usr/bin/env bash
-#+PROPERTY: header-args:jupyter-python :kernel TMB :session TMB :noweb yes :comments both
+#+PROPERTY: header-args:python :kernel TMB :session TMB :noweb yes :comments both
 
 * Table of contents                               :toc_2:noexport:
 - [[#rois][ROIs]]
@@ -587,7 +587,7 @@ d.rast regions_e@Mouginot_2019
 * SMB to ROIs
 ** Print dates
 
-#+BEGIN_SRC jupyter-python :tangle nc_dates.py
+#+BEGIN_SRC python :tangle nc_dates.py
 import xarray as xr
 import sys
 
@@ -835,7 +835,7 @@ For HIRHAM, resolution is in degrees not meters.
 + 1 degree of latitude @ 10 °N is 110608 m => 110608 * 0.0083333 = 921.7296464 m
 
 #+NAME: SMB_bsv2nc
-#+BEGIN_SRC jupyter-python :tangle SMB_bsv2nc.py
+#+BEGIN_SRC python :tangle SMB_bsv2nc.py
 import pandas as pd
 import xarray as xr
 import numpy as np
@@ -936,7 +936,7 @@ SMB.to_netcdf(fn)
 
 Test:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 ds = xr.open_dataset('./tmp/SMB.nc')
 ds[['SMB','HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_dataframe().plot()
@@ -1366,7 +1366,7 @@ done
 *** BSV to NetCDF
 
 # #+NAME: BMB_bsv2nc
-#+BEGIN_SRC jupyter-python :tangle BMB_bsv2nc.py
+#+BEGIN_SRC python :tangle BMB_bsv2nc.py
 import pandas as pd
 import xarray as xr
 import numpy as np
@@ -1494,7 +1494,7 @@ From citet:karlsson_2021 (Table 1)
 | TOTAL  | 5.3 | 13.0 | 4.1 |  22.3 |
 
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as x
 BMB = xr.open_dataset('./tmp/BMB.nc')
 
@@ -1532,7 +1532,7 @@ Adjust SMB and D using 1986 through 2012 overlap
 ** Load
 
 #+NAME: load_K2015_raw
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import pandas as pd
 <<get_datadir>>
 fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
@@ -1553,7 +1553,7 @@ k2015 = k2015.drop(columns=['accumulation', 'accumulation 1sigma',
 #+END_SRC
 
 #+NAME: K2015_adj_prep
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<load_K2015_raw>>
 <<load_SMB>>
 <<load_D>>
@@ -1568,7 +1568,7 @@ k2015_overlap = k2015.loc['1986':'2012']
 #+END_SRC
 
 #+NAME: load_k2015
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<k2015_adj_prep>>
 
 import scipy as sp
@@ -1592,7 +1592,7 @@ k2015['D_err'] = (k2015['D_err'] + D['D_err'].mean())
 
 ** Plot overlap
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<load_K2015>>
 k2015 = k2015.loc['1986':'2012']
 
@@ -1768,7 +1768,7 @@ Generate a TMB netcdf file from SMB, D, and BMB
 ** Load SMB
 
 #+NAME: load_SMB
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<py_import>>
 SMB = xr.open_dataset("./tmp/SMB.nc")
 SMB['region'] = SMB['region'].astype(str)
@@ -1779,7 +1779,7 @@ SMB['region'] = SMB['region'].astype(str)
 ** Load D (Mankoff 2020)
 
 #+NAME: load_D
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 <<get_datadir>>
 
@@ -1846,7 +1846,7 @@ D = D_fc
   + +7d err is (in this case) cumsum of 25 largest.
 
 #+NAME: forecast_D
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -1916,7 +1916,7 @@ D_fc = D_fc.bfill(dim='time')
 #+RESULTS: forecast_D
 
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<load_D>>
 
 fig = plt.figure(1)
@@ -1964,7 +1964,7 @@ df.describe()
 ** Load BMB (Karlsson 2021)
 
 #+NAME: load_BMB
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<py_import>>
 
 BMB = xr.open_dataset('./tmp/BMB.nc')
@@ -2025,7 +2025,7 @@ BMB[['VHD_sector','GF_sector','vel_sector','BMB']].sum(dim='sector').to_datafram
 :END:
 
 #+NAME: load_and_adjust_K2015
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<load_K2015>>
 
 ## Add BMB
@@ -2081,11 +2081,11 @@ k2015['MB'] = k2015['SMB'] - k2015['D'] - k2015['BMB']
   
 ** Create TMB output
 :PROPERTIES:
-:header-args:jupyter-python+: :tangle build_TMB_nc.py
+:header-args:python+: :tangle build_TMB_nc.py
 :ID:       20210730T084938.500158
 :END:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 <<load_and_adjust_K2015>>
 
 k2015 = k2015.loc['1840':'1986']
@@ -2148,7 +2148,7 @@ D = D.bfill(dim='time')
 : p:  5.267031413783773e-09
 : std_err : 0.003206184032882044
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import subprocess
 import os
 
@@ -2306,7 +2306,7 @@ df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 ** IO (Mouginot)
 
 #+name: load_mouginot
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 
 ds = xr.Dataset()
 <<get_datadir>>
@@ -2541,7 +2541,7 @@ variables:
 *** Load VC
 
 #+NAME: load_vc
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 <<get_datadir>>
 ds = xr.open_dataset(DATADIR + "/Simonsen_2021/ds1.nc")
@@ -2566,7 +2566,7 @@ vc['err'] = (("time","sector"), ds[['VMBer_basin_1','VMBer_basin_2','VMBer_basin
 http://products.esa-icesheets-cci.org/products/downloadlist/GMB/
 
 #+NAME: load_grace
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import pandas as pd
 from datetime import timedelta, datetime
 <<get_datadir>>
@@ -2617,7 +2617,7 @@ grace.head()
 This spreadsheet contains the IMBIE-2019 datasets for Greenland, which includes data on the annual rate of change and cumulative change in Greenland’s ice sheet mass, its surface mass balance and ice discharge anomalies, and their estimated uncertainty. The data are expressed in units of rate of mass change (Gigatons per year – sheet 1, columns B, C, F, G, J and K) mass (Gigatons – sheet 1, columns D, E, H, I, L and M) and in units of equivalent mean global sea level rise (millimetres per year – sheet 2, columns B, C, F, G, J and K, and millimetres – sheet 2, columns D, E, H, I, L and M).
 
 #+NAME: load_imbie
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import pandas as pd
 <<get_datadir>>
 imbie = pd.read_excel(DATADIR + "/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
@@ -2644,7 +2644,7 @@ imbie = imbie.drop('index', axis='columns')
 ** PROMICE MB
 
 #+NAME: load_PROMICE_MB
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 def load_Colgan_2019(sheet=0):
 <<get_datadir>>
     df_all = pd.read_excel(DATADIR + "/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
@@ -2693,7 +2693,7 @@ promice['MB_err'] = (("time","sector"), e.values)
 :ID:       20210413T061118.026153
 :END:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 
 ds = xr.open_dataset('./TMB/MB_region.nc')\
@@ -2811,7 +2811,7 @@ r.report -hi units=k map=RACMO,zwally --q
 
 What % of SMB changes occur in the uncovered regions?
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 <<get_datadir>>
 ds = xr.open_mfdataset(DATADIR + '/RACMO/daily/SMB_rec.201*.nc', combine='by_coords')
@@ -2986,7 +2986,7 @@ r.report -hi units=k map=BedMachine,MAR --q
 
 What % of MAR runoff occurs in the uncovered regions?
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 <<get_datadir>>
 ds = xr.open_mfdataset(DATADIR + '/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
@@ -3372,7 +3372,7 @@ ps.map complete. PostScript file './tmp/overview.eps' successfully written.
 
 ** SMB/D/MB timeseries
 *** GIS
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -3518,7 +3518,7 @@ o ./fig/overview_w_plots.png
 : Bitmap saved as: ./fig/overview_w_plots.png
 
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -3620,7 +3620,7 @@ o ./fig/MB_cumsum_compare_manual.png
 : Bitmap saved as: ./fig/MB_cumsum_compare_manual.png
 
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -3863,7 +3863,7 @@ plt.savefig('fig/MB_cumsum_compare.svg', transparent=False, bbox_inches='tight',
 
 ** This vs. Mouginot (2019): GIS xy
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -4004,7 +4004,7 @@ plt.savefig('fig/mouginot_2019.png', transparent=False, bbox_inches='tight', dpi
 
 ** This vs. Colgan (2019): GIS xy
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -4144,7 +4144,7 @@ plt.savefig('fig/colgan_2019.png', transparent=False, bbox_inches='tight', dpi=3
 
 ** This vs. IMBIE/GRACE/VC GIS XY
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -4306,7 +4306,7 @@ plt.savefig('fig/this_v_grace_vc_imbie.png', transparent=False, bbox_inches='tig
 
 
 ** HIRHAM MAR RACMO timeseries
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -4389,7 +4389,7 @@ plt.savefig('fig/MB_3RCM.png', transparent=False, bbox_inches='tight', dpi=300)
 
 ** This vs. Mouginot (2019): regions xy
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -4525,7 +4525,7 @@ plt.savefig('fig/mouginot_2019_regions.png', transparent=False, bbox_inches='tig
 
 ** This vs. Colgan (2019): Sectors xy
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -4751,7 +4751,7 @@ r.out.gdal input=coverage_M output=./tmp/H_cover_M.tif
 
 See [[id:20210406T102219.348249][Load and adjust Reconstructed K2015]]
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 import numpy as np
 import pandas as pd
@@ -4896,7 +4896,7 @@ df.to_csv('./tmp/credit.csv')
 : None
 
 
-#+BEGIN_SRC jupyter-python :session credit
+#+BEGIN_SRC python :session credit
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -4948,7 +4948,7 @@ plt.savefig('./fig/credit.png', transparent=False, bbox_inches='tight', dpi=150)
 ** Imports
 
 #+NAME: py_import
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import numpy as np
 import xarray as xr
 import datetime
@@ -4957,7 +4957,7 @@ import pandas as pd
 
 ** Adjust Spines
 
-#+BEGIN_SRC jupyter-python :tangle adjust_spines.py
+#+BEGIN_SRC python :tangle adjust_spines.py
 # http://matplotlib.org/examples/pylab_examples/spine_placement_demo.html
 def adjust_spines(ax,spines, offset=10):
     for loc, spine in ax.spines.items():
@@ -5018,7 +5018,7 @@ if __name__ == "__main__":
 
 ** round axes
 #+NAME: round_axes
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 def round_axes(x, y=None):
     x = np.append(x,y) if y is not None else np.array(x)
     # print(x)
@@ -5156,7 +5156,7 @@ python -m pip install --upgrade git+https://github.com/aussda/pyDataverse.git@3b
 
 *** Upload script
 
-#+BEGIN_SRC jupyter-python :session TMB_DV :tangle upload_to_DV.py
+#+BEGIN_SRC python :session TMB_DV :tangle upload_to_DV.py
 from pyDataverse.api import NativeApi
 import os
 import json
@@ -5229,7 +5229,7 @@ curl -H X-Dataverse-key:$API_TOKEN -X POST -F "file=@$FILENAME" -F 'jsonData={"d
 :ID:       20210803T051000.448219
 :END:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 
 MB = xr.open_dataset('./TMB/MB_region.nc')\
@@ -5298,7 +5298,7 @@ max    142.888631  110.238556  583.959367  52.556343  495.130950  52.812337  29.
 
 Years with min & max MB
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 df_yr = df_yr.loc['1986':]
 
 print(df_yr.iloc[df_yr['MB'].argmin()])
@@ -5335,7 +5335,7 @@ Name: 1996-01-01 00:00:00, dtype: float64
 :ID:       20210813T110327.480906
 :END:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import xarray as xr
 
 MB = xr.open_dataset('./TMB/MB_region.nc')\
@@ -5398,7 +5398,7 @@ time
 
 Decades with min & max SMB
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 print(df_yr.iloc[df_yr['SMB'].argmin()])
 print("")
 print(df_yr.iloc[df_yr['SMB'].argmax()])
@@ -5432,7 +5432,7 @@ Name: 1860-01-01 00:00:00, dtype: float64
 
 Decades with min and max D
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 print(df_yr.iloc[df_yr['D'].argmin()])
 print("")
 print(df_yr.iloc[df_yr['D'].argmax()])
@@ -5466,7 +5466,7 @@ Name: 2010-01-01 00:00:00, dtype: float64
 
 Decades with min and max BMB
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 print(df_yr.iloc[df_yr['BMB'].argmin()])
 print("")
 print(df_yr.iloc[df_yr['BMB'].argmax()])
@@ -5937,10 +5937,10 @@ prefix: /opt/conda
 * Twitter
 ** Twitter figure TMB
 :PROPERTIES:
-:header-args:jupyter-python+: :tangle twitfig_tmb.py
+:header-args:python+: :tangle twitfig_tmb.py
 :END:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import matplotlib
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import pandas as pd
@@ -6052,10 +6052,10 @@ plt.savefig('./twitfig.png', dpi=150, bbox_inches='tight')
 
 ** Twitter figure Sermeq Kujalleq
 :PROPERTIES:
-:header-args:jupyter-python+: :tangle twitfig_sermeq_kujalleq.py
+:header-args:python+: :tangle twitfig_sermeq_kujalleq.py
 :END:
 
-#+BEGIN_SRC jupyter-python 
+#+BEGIN_SRC python 
 import matplotlib
 
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
@@ -6176,10 +6176,10 @@ plt.savefig('./Sermeq_Kujalleq_twitfig.png', dpi=150, bbox_inches='tight')
 
 ** Twitter figure Sermeq Kujalleq 2000-present
 :PROPERTIES:
-:header-args:jupyter-python+: :tangle twitfig_sermeq_kujalleq_2000_present.py
+:header-args:python+: :tangle twitfig_sermeq_kujalleq_2000_present.py
 :END:
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import matplotlib
 
 matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
@@ -6302,7 +6302,7 @@ plt.savefig('./Sermeq_Kujalleq_2000_present_twitfig.png', dpi=150, bbox_inches='
 
 ** Twitter bot
 :PROPERTIES:
-:header-args:jupyter-python+: :tangle twitbot.py
+:header-args:python+: :tangle twitbot.py
 :END:
  
 + Graph up :: 📈 (mass loss, SLR up)
@@ -6312,7 +6312,7 @@ plt.savefig('./Sermeq_Kujalleq_2000_present_twitfig.png', dpi=150, bbox_inches='
 + Water drop :: 💧
 + Greenland flag :: 🇬🇱
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import tweepy
 import pandas as pd
 import numpy as np
@@ -6385,7 +6385,7 @@ https://doi.org/10.5194/essd-13-5001-2021
 https://doi.org/10.22008/FK2/OHI23Z
 #+end_example
 
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import secret
 
 # # Authenticate to Twitter
@@ -6449,7 +6449,7 @@ for tool in gdal-bin parallel sed gawk netcdf-bin proj-bin nco cdo bash grass-gu
 
 *** Packages
 #+NAME: init_py
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -6459,7 +6459,7 @@ import xarray as xr
 
 *** Graphics
 #+NAME: init_graphics
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import matplotlib.pyplot as plt
 
 from matplotlib import rc
@@ -6476,13 +6476,13 @@ matplotlib.pyplot.xkcd()
 + This is so that Python babel blocks can also easily get that property.
 
 #+NAME: get_DATADIR
-#+BEGIN_SRC jupyter-python
+#+BEGIN_SRC python
 import os
 DATADIR = os.environ['DATADIR']
 #+END_SRC
 
 Example:
-#+BEGIN_SRC jupyter-python :tangle no
+#+BEGIN_SRC python :tangle no
 <<get_DATADIR>>
 print(DATADIR)
 #+END_SRC
