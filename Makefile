@@ -15,7 +15,8 @@ TANGLED := $(shell grep -Eo ":tangle.*" code.org | cut -d" " -f2 | grep -Ev 'ide
 
 
 
-PROMICE_MB: setup_init grass_hirham grass_mar grass_bmb SMB BMB dist
+PROMICE_MB: docker
+	setup_init grass_hirham grass_mar grass_bmb SMB BMB dist
 # dist
 
 docker: Force
