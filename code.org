@@ -6519,3 +6519,88 @@ Then switch from system to local library.bib in ms.org
 
 
 
+
+
+* Makefile
+:PROPERTIES:
+:CUSTOM_ID: sec:makefile
+:END:
+
+This code, and all code files in this project, are derived products tangled from the sob.org source file.
+
+#+BEGIN_SRC makefile :tangle Makefile :tangle-mode (identity #o444)
+PROMICE_MB: all
+# dist
+
+all: FORCE
+	mkdir -p tmp dat
+
+	# set up
+	grass -e -c EPSG:4326 G_HIRHAM
+	grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
+	grass -e -c XY G_HIRHAM_XY
+	
+	grass -e -c EPSG:3413 G_MAR
+	grass ./G_MAR/PERMANENT --exec ./MAR.sh
+
+	grass -e -c EPSG:3413 G_RACMO
+	grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
+
+	# BMB setup on the MAR grid
+	grass ./G_MAR/PERMANENT --exec ./BMB.sh
+	
+	make SMB
+	make BMB
+	make dist
+
+SMB: FORCE
+	# partition RCM by Zwally sectors, Mouginot basins, and Mouginot regions
+	grass ./G_HIRHAM_XY/PERMANENT --exec ./SMB_HIRHAM_ROI.sh
+	grass ./G_MAR/PERMANENT --exec ./SMB_MAR_ROI.sh
+	grass ./G_RACMO/PERMANENT --exec ./SMB_RACMO_ROI.sh
+	./SMB_merge.sh
+	python ./SMB_bsv2nc.py
+
+BMB: FORCE
+	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
+	./BMB_merge.sh
+	python ./BMB_bsv2nc.py
+
+update: FORCE
+	# remove previously forecasted MAR 
+	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/*_$${d}.bsv; done
+	RECENT=true make SMB
+	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
+	RECENT=true make BMB
+	make dist
+
+
+validate: FORCE
+	grass -e -c EPSG:3413 G
+	
+dist: FORCE
+	mkdir -p TMB
+	# create end-user data product
+	python ./build_TMB_nc.py
+	# python ./upload_to_DV.py
+	python ./twitfig.py
+	# python ./twitbot.py
+
+
+FORCE: # dummy target
+
+clean_30:
+	# Rebuild the last 30 days
+	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/MAR/*_$${d}.bsv; done
+	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/RACMO/*_$${d}.bsv; done
+	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
+	make update
+	
+
+clean_all:
+	rm -fR G G_RACMO G_HIRHAM G_HIRHAM_XY G_MAR G_tmp tmp dat TMB
+
+clean_SMB:
+	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
+	
+#+END_SRC
