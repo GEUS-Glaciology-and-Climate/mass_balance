@@ -1168,7 +1168,7 @@ r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=1
 **** Change in head between each cell and its outlet
 https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins
 #+BEGIN_SRC bash
-#g.extension r.stream.distance url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
+g.extension r.stream.distance url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=head method=downstream difference=delta_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=bed method=downstream difference=delta_z_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=pressure method=downstream difference=delta_p_head
