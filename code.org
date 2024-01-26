@@ -1161,7 +1161,7 @@ Using =r.stream.basins=, we can get basins for every outlet.
 #+BEGIN_SRC bash :results verbatim
 log_info "r.stream.basins..."
 
-#g.extension r.stream.basins url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins #  url=https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins branch=grass7
+g.extension r.stream.basins url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins #  url=https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins branch=grass7
 r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=16384 --verbose
 #+END_SRC
 
