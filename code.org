@@ -2171,7 +2171,9 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     MB_hist = (k2015['SMB'] - k2015['D'] - k2015['BMB'])/365
     MB_recent = (SMB['SMB'] - D['D'] - BMB['BMB']).to_dataframe('MB').loc['1986':]['MB']
-    MB['MB'] = (('time'), MB_hist.append(MB_recent))
+    MB_combined = pd.concat([MB_hist, MB_recent])
+    #MB['MB'] = (('time'), MB_hist.append(MB_recent))
+    MB['MB'] = (('time'), MB_combined))
     MB['MB_err'] = (('time'), (SMB['SMB_err'].data**2 + D['D_err'].data**2 + BMB['BMB_err'].data**2)**0.5)
 
     v = 'MB'
