@@ -5957,7 +5957,7 @@ rc('font', size=8)
 rc('text', usetex=False)
 
 
-df = pd.read_csv('/home/shl/data/promice/TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
+df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
 df = df.resample('1D').ffill()
 
 df = df[df.index.dayofyear <= 365] # drop leap years for simplicity
