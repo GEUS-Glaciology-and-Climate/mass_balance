@@ -5143,7 +5143,7 @@ assert("*" not in hash)
 
 # establish connection
 
-base_url = 'https://dataverse01.geus.dk/'
+base_url = 'https://dataverse.geus.dk/'
 import secret
 api_token = secret.dataverse_api_token
 api = NativeApi(base_url, api_token)
