@@ -6585,7 +6585,7 @@ dist: FORCE
 	# create end-user data product
 	python ./build_TMB_nc.py
 	# python ./upload_to_DV.py
-	python ./twitfig.py
+	# python ./twitfig.py
 	# python ./twitbot.py
 
 
