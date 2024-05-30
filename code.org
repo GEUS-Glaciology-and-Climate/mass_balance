@@ -2282,7 +2282,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     comp = dict(zlib=True, complevel=2, dtype='float32')
     encoding = {var: comp for var in MB.data_vars} # all
-
+    encoding['time'] = dict(dtype='int32')
     fn = './TMB/MB_'+roi+'.nc'
     if os.path.exists(fn): os.remove(fn)
     MB.to_netcdf(fn, mode='w', encoding=encoding)
@@ -6584,6 +6584,7 @@ dist: FORCE
 	mkdir -p TMB
 	# create end-user data product
 	python ./build_TMB_nc.py
+        cp TMB/* /mnt/thredds_fileshare/mass_balance/.
 	# python ./upload_to_DV.py
 	# python ./twitfig.py
 	# python ./twitbot.py
