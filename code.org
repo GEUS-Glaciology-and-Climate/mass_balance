@@ -293,7 +293,8 @@ v.in.ogr -o input=Mouginot_2019_HIRHAM.gpkg output=basins
 # remove peripheral ice caps
 db.execute sql="DELETE FROM basins WHERE name LIKE 'ICE_CAPS_%'"
 
-v.db.addcolumn map=basins columns="SUBREGION1_num INT"
+v.db.addcolumn map=basins columns="SUBREGION1_num INT, cat_ INT"
+db.execute sql="UPDATE basins SET cat_=cat"
 
 # convert NW NO NE CW CE SW SE based on clock
 db.execute sql="UPDATE basins SET SUBREGION1_num=11 WHERE SUBREGION1='NW'"
@@ -388,6 +389,7 @@ In the case of HIRHAM, we want to export the ROIs as rasters for eventual work i
 mkdir -p tmp
 r.out.gdal input=sectors_e@Zwally_2012 output=./tmp/HIRHAM_sectors_e_Zwally_2012.tif
 r.out.gdal input=regions_e@Mouginot_2019 output=./tmp/HIRHAM_regions_e_Mouginot_2019.tif
+r.out.gdal input=basins_e@Mouginot_2019 output=./tmp/HIRHAM_basins_e_Mouginot_2019.tif
 #+END_SRC
 
 
@@ -670,8 +672,10 @@ r.in.gdal -o input="NetCDF:${DATADIR}/HIRHAM/ZwallyMasks_all_SD.nc:cellarea" out
 # Regions and Sectors
 r.in.gdal -o input=./tmp/HIRHAM_sectors_e_Zwally_2012.tif output=sectors_e
 r.in.gdal -o input=./tmp/HIRHAM_regions_e_Mouginot_2019.tif output=regions_e
+r.in.gdal -o input=./tmp/HIRHAM_basins_e_Mouginot_2019.tif output=basins_e
 r.region -c map=sectors_e
 r.region -c map=regions_e
+r.region -c map=basins_e
 
 if [ -z ${RECENT+x} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
@@ -711,11 +715,11 @@ for f in ${f_list}; do
     | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/region_${d}.bsv
 
-    # r.univar -t --q map=SMB zones=basins_e \
-    # | cut -d"|" -f1,13 \
-    # | datamash -t"|" transpose \
-    # | sed s/^sum/${d}/ \
-    # > ./tmp/${RCM}/basin_${d}.bsv
+    r.univar -t --q map=SMB zones=basins_e \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/${RCM}/basin_${d}.bsv
     
   done
 done
@@ -778,11 +782,11 @@ for f in ${f_list}; do
     | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/region_${d}.bsv
 
-    # r.univar -t --q map=SMB zones=basins_e@Mouginot_2019 \
-    # | cut -d"|" -f1,13 \
-    # | datamash -t"|" transpose \
-    # | sed s/^sum/${d}/ \
-    # > ./tmp/${RCM}/basin_${d}.bsv
+    r.univar -t --q map=SMB zones=basins_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/${RCM}/basin_${d}.bsv
     
   done
 done
@@ -838,11 +842,11 @@ for f in ${f_list}; do
     | sed s/^sum/${d}/ \
     > ./tmp/${RCM}/region_${d}.bsv
     
-    # r.univar -t --q map=SMB zones=basins_e@Mouginot_2019 \
-    # | cut -d"|" -f1,13 \
-    # | datamash -t"|" transpose \
-    # | sed s/^sum/${d}/ \
-    # > ./tmp/${RCM}/basin_${d}.bsv
+    r.univar -t --q map=SMB zones=basins_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/${RCM}/basin_${d}.bsv
 
   done
 done
@@ -1033,11 +1037,11 @@ r.univar -t --q map=GF zones=regions_e@Mouginot_2019 \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_GF_region.bsv
 
-# r.univar -t --q map=GF zones=basins_e@Mouginot_2019 \
-#   | cut -d"|" -f1,13 \
-#   | datamash -t"|" transpose \
-#   | sed s/^sum/daily/ \
-#   > ./tmp/BMB_GF_basin.bsv
+r.univar -t --q map=GF zones=basins_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_GF_basin.bsv
 
 
 #+END_SRC
@@ -1070,11 +1074,11 @@ r.univar -t --q map=vel zones=regions_e@Mouginot_2019 \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_vel_region.bsv
 
-# r.univar -t --q map=vel zones=basins_e@Mouginot_2019 \
-#   | cut -d"|" -f1,13 \
-#   | datamash -t"|" transpose \
-#   | sed s/^sum/daily/ \
-#   > ./tmp/BMB_vel_basin.bsv
+r.univar -t --q map=vel zones=basins_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_vel_basin.bsv
 
 
 #+END_SRC
@@ -1345,11 +1349,11 @@ for f in ${f_list}; do
     | sed s/^sum/${d}/ \
     > ./tmp/BMB/region_${d}.bsv
     
-    # r.univar -t --q map=vhd zones=basins_e@Mouginot_2019 \
-    # | cut -d"|" -f1,13 \
-    # | datamash -t"|" transpose \
-    # | sed s/^sum/${d}/ \
-    # > ./tmp/BMB/basin_${d}.bsv
+    r.univar -t --q map=vhd zones=basins_e@Mouginot_2019 \
+    | cut -d"|" -f1,13 \
+    | datamash -t"|" transpose \
+    | sed s/^sum/${d}/ \
+    > ./tmp/BMB/basin_${d}.bsv
 
   done
 done
