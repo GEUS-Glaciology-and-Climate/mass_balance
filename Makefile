@@ -73,7 +73,8 @@ dist: FORCE
 	mkdir -p TMB
         # create end-user data product
 	${container_cmd} ${container_args} mass_balance:latest python ./build_TMB_nc.py
-        # python ./upload_to_DV.py
+	#cp ./TMB/* /mnt/thredds_fileshare/mass_balance/.
+	# python ./upload_to_DV.py
 	${container_cmd} ${container_args} mass_balance:latest python ./twitfig.py
         # python ./twitbot.py
 
@@ -86,6 +87,7 @@ clean_30:
 	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/RACMO/*_$${d}.bsv; done
 	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
 	make update
+
 
 
 clean_all:
