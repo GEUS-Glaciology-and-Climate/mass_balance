@@ -1566,7 +1566,7 @@ Adjust SMB and D using 1986 through 2012 overlap
 import pandas as pd
 
 fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
-k2015 = pd.read_csv('/home/kdm/data/Kjeldsen_2015/' + fname, index_col=0, parse_dates=True)\
+k2015 = pd.read_csv('~/data/Kjeldsen_2015/' + fname, index_col=0, parse_dates=True)\
           .rename(columns={'discharge from 6 year lagged average runoff' : 'D',
                            'discharge 1sigma' : 'D_err'})
 
@@ -1813,7 +1813,7 @@ SMB['region'] = SMB['region'].astype(str)
 #+BEGIN_SRC python
 import xarray as xr
 
-ds = xr.open_dataset("/home/kdm/data/Mankoff_2020/ice/latest/gate.nc")
+ds = xr.open_dataset("~/data/Mankoff_2020/ice/latest/gate.nc")
 # ds = xr.open_dataset("/home/kdm/projects/ice_discharge/out/gate.nc")
 
 # rstr = {'NW':11, 'NO':12, 'NE':1, 'CE':3, 'CW':9, 'SE':5, 'SW':7}
@@ -1845,8 +1845,8 @@ D = ds_sector
 D = D.merge(ds_region, compat='override')
 # D = D.merge(ds_basin)
 
-D['D'] = (('time'), D['D_sector'].sum(dim='sector'))
-D['D_err'] = (('time'), D['err_sector'].sum(dim='sector'))
+D['D'] = (('time'), D['D_sector'].sum(dim='sector').data)
+D['D_err'] = (('time'), D['err_sector'].sum(dim='sector').data)
 
 # convert from Gt/year @ misc time-steps -> Gt/day @ daily timestep
 msave = D.copy(deep=True)
@@ -2003,27 +2003,27 @@ BMB['region'] = BMB['region'].astype(str)
 
 BMB['BMB'] = (('time'), (BMB['GF_sector'] \
                          + BMB['vel_sector'] \
-                         + BMB['VHD_sector']).sum(dim='sector'))
+                         + BMB['VHD_sector']).sum(dim='sector').data)
 
 BMB['BMB_err'] = (('time'), ((BMB['GF_sector_err']**2 \
                               + BMB['vel_sector_err']**2 \
-                              + BMB['VHD_sector_err']**2)**0.5).sum(dim='sector'))
+                              + BMB['VHD_sector_err']**2)**0.5).sum(dim='sector').data)
 
-BMB['BMB_sector'] = (('time','sector'), BMB['VHD_sector'] + BMB['GF_sector'] + BMB['vel_sector'])
-BMB['BMB_region'] = (('time','region'), BMB['VHD_region'] + BMB['GF_region'] + BMB['vel_region'])
+BMB['BMB_sector'] = (('time','sector'), BMB['VHD_sector'].data + BMB['GF_sector'].data + BMB['vel_sector'].data)
+BMB['BMB_region'] = (('time','region'), BMB['VHD_region'].data + BMB['GF_region'].data + BMB['vel_region'].data)
 # BMB['BMB_basin'] = BMB['VHD_basin'] + BMB['GF_basin'] + BMB['vel_basin']
 
 BMB['BMB_sector_err'] = (('time','sector'), \
-                         ((BMB['GF_sector_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + (BMB['vel_sector_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + BMB['VHD_sector_err']**2\
+                         ((BMB['GF_sector_err'].expand_dims({'time':BMB['time'].size})).data**2 \
+                          + (BMB['vel_sector_err'].expand_dims({'time':BMB['time'].size})).data**2 \
+                          + BMB['VHD_sector_err'].data**2\
                           )**0.5\
                          )
 
 BMB['BMB_region_err'] = (('time','region'), \
-                         ((BMB['GF_region_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + (BMB['vel_region_err'].expand_dims({'time':BMB['time'].size}))**2 \
-                          + BMB['VHD_region_err']**2\
+                         ((BMB['GF_region_err'].expand_dims({'time':BMB['time'].size})).data**2 \
+                          + (BMB['vel_region_err'].expand_dims({'time':BMB['time'].size})).data**2 \
+                          + BMB['VHD_region_err'].data**2\
                           )**0.5\
                          )
 
@@ -2135,6 +2135,7 @@ SMB['SMB_err'] = (('time'),
 
 
 
+
 <<load_D>>
 # dt_last_obs = D['time'].values[-1]
 # err = []
@@ -2191,7 +2192,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB["time"].attrs["standard_name"] = "time"
     MB["time"].attrs["axis"] = "T"
 
-    MB[roi] = ((roi), D[roi])
+    MB[roi] = ((roi), D[roi].data)
     if roi == 'sector':
         MB[roi].attrs["long_name"] = "Zwally 2012 sectors"
     elif roi == 'region':
@@ -2202,8 +2203,8 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     MB_hist = (k2015['SMB'] - k2015['D'] - k2015['BMB'])/365
     MB_recent = (SMB['SMB'] - D['D'] - BMB['BMB']).to_dataframe('MB').loc['1986':]['MB']
-    MB['MB'] = (('time'), MB_hist.append(MB_recent))
-    MB['MB_err'] = (('time'), (SMB['SMB_err']**2 + D['D_err']**2 + BMB['BMB_err']**2)**0.5)
+    MB['MB'] = (('time'), MB_hist._append(MB_recent))
+    MB['MB_err'] = (('time'), (SMB['SMB_err'].data**2 + D['D_err'].data**2 + BMB['BMB_err'].data**2)**0.5)
 
     v = 'MB'
     MB[v].attrs["long_name"] = "Mass balance"
@@ -2211,18 +2212,18 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB[v].attrs["units"] = "Gt d-1"
     MB[v].attrs["coordinates"] = 'time'
     
-    MB['MB_ROI'] = (('time',roi), SMB['SMB_'+roi] - D['D_'+roi] - BMB['BMB_'+roi])
-    MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_'+roi+'_err']**2 + D['err_'+roi]**2 + BMB['BMB_'+roi+'_err']**2)**0.5)
+    MB['MB_ROI'] = (('time',roi), (SMB['SMB_'+roi] - D['D_'+roi] - BMB['BMB_'+roi]).data)
+    MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
     # MB['MB_ROI'].attrs = MB['MB'].attrs
     # MB['MB_ROI'].attrs["coordinates"] = 'time ROI'
 
     # if roi == 'region':
     #     from IPython import embed; embed()
     
-    MB['SMB'] = (('time'), SMB['SMB'])
-    MB['SMB_err'] = (('time'), SMB['SMB_err'])
-    MB['SMB_ROI'] = (('time',roi), SMB['SMB_'+roi])
-    MB['SMB_ROI_err'] = (('time',roi), SMB['SMB_'+roi+'_err'])
+    MB['SMB'] = (('time'), SMB['SMB'].data)
+    MB['SMB_err'] = (('time'), SMB['SMB_err'].data)
+    MB['SMB_ROI'] = (('time',roi), SMB['SMB_'+roi].data)
+    MB['SMB_ROI_err'] = (('time',roi), SMB['SMB_'+roi+'_err'].data)
     # MB['SMB_HIRHAM'] = (('time',roi), SMB['HIRHAM_'+roi]-D['D_'+roi] )
     # MB['SMB_MAR'] = (('time',roi), SMB['HIRHAM_'+roi]-D['D_'+roi])
     # MB['SMB_RACMO'] = (('time',roi), SMB['HIRHAM_'+roi]-D['D_'+roi])
@@ -2235,10 +2236,10 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         MB[v].attrs["coordinates"] = 'time ' + roi
 
        
-    MB['D'] = (('time'), D['D'])
-    MB['D_err'] = (('time'), D['D_err'])
-    MB['D_ROI'] = (('time',roi), D['D_'+roi])
-    MB['D_ROI_err'] = (('time',roi), D['err_'+roi])
+    MB['D'] = (('time'), D['D'].data)
+    MB['D_err'] = (('time'), D['D_err'].data)
+    MB['D_ROI'] = (('time',roi), D['D_'+roi].data)
+    MB['D_ROI_err'] = (('time',roi), D['err_'+roi].data)
     for v in ['D','D_ROI', 'D_err', 'D_ROI_err']:
         ln = 'Marine mass balance'
         if 'err' in v: ln = ln + ' uncertainty'
@@ -2249,10 +2250,10 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB['D_ROI'].attrs["coordinates"] = 'time ' + roi
 
     
-    MB['BMB'] = (('time'), BMB['BMB'])
-    MB['BMB_err'] = (('time'), BMB['BMB_err'])
-    MB['BMB_ROI'] = (('time',roi), BMB['BMB_'+roi])
-    MB['BMB_ROI_err'] = (('time',roi), BMB['BMB_'+roi+'_err'])
+    MB['BMB'] = (('time'), BMB['BMB'].data)
+    MB['BMB_err'] = (('time'), BMB['BMB_err'].data)
+    MB['BMB_ROI'] = (('time',roi), BMB['BMB_'+roi].data)
+    MB['BMB_ROI_err'] = (('time',roi), BMB['BMB_'+roi+'_err'].data)
     for v in ['BMB','BMB_ROI']:
         ln = 'Basal mass balance'
         if 'err' in v: ln = ln + ' uncertainty'
@@ -2276,7 +2277,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     # MB['BMB_ROI'].attrs["coordinates"] = 'time ' + roi
 
     for RCM in ['HIRHAM','MAR','RACMO']:
-        MB['MB_'+RCM] = (('time',roi), SMB[RCM+'_'+roi]-D['D_'+roi]-BMB['BMB_'+roi] )
+        MB['MB_'+RCM] = (('time',roi), SMB[RCM+'_'+roi].data-D['D_'+roi].data-BMB['BMB_'+roi].data )
         v = 'MB_'+RCM
         MB[v].attrs['long_name'] = 'Mass balance from ' + v.split('_')[1]
         MB[v].attrs["standard_name"] = "land_ice_mass_tranport"
@@ -2341,7 +2342,7 @@ df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 
 ds = xr.Dataset()
 
-df = pd.read_excel('/home/kdm/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
+df = pd.read_excel('~/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
 
 ## Discharge
 c0 = 15 # Column containing 1972
@@ -2574,7 +2575,7 @@ variables:
 #+NAME: load_vc
 #+BEGIN_SRC python
 import xarray as xr
-ds = xr.open_dataset("/home/kdm/data/Simonsen_2021/ds1.nc")
+ds = xr.open_dataset("~/data/Simonsen_2021/ds1.nc")
 # print(ds)
 
 vc = xr.Dataset()
@@ -2600,7 +2601,7 @@ http://products.esa-icesheets-cci.org/products/downloadlist/GMB/
 import pandas as pd
 from datetime import timedelta, datetime
 
-root = '/home/kdm/data/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
+root = '~/data/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
 df = pd.read_csv(root + '/GIS00_grace.dat',
                  delim_whitespace=True,
                  header=None,
@@ -2649,7 +2650,7 @@ This spreadsheet contains the IMBIE-2019 datasets for Greenland, which includes 
 #+NAME: load_imbie
 #+BEGIN_SRC python
 import pandas as pd
-imbie = pd.read_excel("/home/kdm/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+imbie = pd.read_excel("~/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
        .rename(columns={"Rate of ice sheet mass change (Gt/yr)":"MB",
                         "Rate of ice sheet mass change uncertainty (Gt/yr)":"MB_err",
                         "Cumulative ice sheet mass change (Gt)" : "MB_cum",
@@ -2675,7 +2676,7 @@ imbie = imbie.drop('index', axis='columns')
 #+NAME: load_PROMICE_MB
 #+BEGIN_SRC python
 def load_Colgan_2019(sheet=0):
-    df_all = pd.read_excel("/home/kdm/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
+    df_all = pd.read_excel("~/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
     
     df_all = df_all.loc[df_all.index.dropna()]\
                    .drop(index='Total')\
@@ -2841,11 +2842,11 @@ What % of SMB changes occur in the uncovered regions?
 
 #+BEGIN_SRC python
 import xarray as xr
-ds = xr.open_mfdataset('/home/kdm/data/RACMO/daily/SMB_rec.201*.nc', combine='by_coords')
+ds = xr.open_mfdataset('~/data/RACMO/daily/SMB_rec.201*.nc', combine='by_coords')
 ds = ds.resample({'time':'YS'}).sum()
 ds.to_netcdf('./tmp/RACMO_2010s.nc')
 
-ds = xr.open_mfdataset('/home/kdm/data/RACMO/daily/SMB_rec.2020*.nc', combine='by_coords')
+ds = xr.open_mfdataset('~/DATADIR/RACMO/daily/SMB_rec.2020*.nc', combine='by_coords')
 ds = ds.sum(dim='time')
 ds.to_netcdf('./tmp/RACMO_2020.nc')
 #+END_SRC
@@ -3015,12 +3016,12 @@ What % of MAR runoff occurs in the uncovered regions?
 
 #+BEGIN_SRC python
 import xarray as xr
-ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
+ds = xr.open_mfdataset('~/data/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
 ds = ds.sel({'sector':1}).resample({'time':'YS'}).mean()
 ds = ds.where(~np.isinf(ds), 0)
 ds.to_netcdf('./tmp/MAR_2010s.nc')
 
-ds = xr.open_mfdataset('/home/kdm/data/MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
+ds = xr.open_mfdataset('~/data/MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
 ds = ds.sel({'sector':1}).sum(dim='time')
 ds.to_netcdf('./tmp/MAR_2020.nc')
 #+END_SRC
