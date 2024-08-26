@@ -73,11 +73,11 @@ This is the source for "Greenland ice sheet mass balance from 1840 through next 
 
 * Funding
 
-| Dates        | Organization | Program                                   | Effort                                 |
-|--------------+--------------+-------------------------------------------+----------------------------------------|
-| 2023 --      | NASA GISS    | Modeling Analysis and Prediction program. | Maintenance                            |
-| 2022 --      | GEUS         | PROMICE                                   | Distribution (data hosting)            |
-| 2018 -- 2022 | GEUS         | PROMICE                                   | Development; publication; distribution |
+| Dates        | Organization | Program                                   | Effort                                      |
+|--------------+--------------+-------------------------------------------+---------------------------------------------|
+| 2023 --      | NASA GISS    | Modeling Analysis and Prediction program. | Maintenance                                 |
+| 2022 --      | GEUS         | PROMICE                                   | Distribution (data hosting); maintenance    |
+| 2018 -- 2022 | GEUS         | PROMICE                                   | Development; publication; distribution      |
 
 
 
