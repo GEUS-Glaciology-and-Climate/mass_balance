@@ -2292,15 +2292,15 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 MB_df = MB[['MB','MB_err','SMB','SMB_err','D','D_err','BMB','BMB_err']].to_dataframe()
 # Remove the forecast after september 1st if data after september 1st is only forecast 
 # Determine the last date processed
-last_date = MB_df.index.max()
+# last_date = MB_df.index.max()
 
 # Calculate September 1st of the last year processed
-sep_1_last_year = pd.to_datetime(f'{last_date.year}-09-01')
+# sep_1_last_year = pd.to_datetime(f'{last_date.year}-09-01')
 
 # Check if the difference is less than 7 days
-if (last_date - sep_1_last_year).days < 7:
+# if (last_date - sep_1_last_year).days < 7:
     # Filter the DataFrame to remove dates beyond September 1st
-    MB_df = MB_df[MB_df.index < sep_1_last_year]
+#     MB_df = MB_df[MB_df.index < sep_1_last_year]
 MB_df.to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
 
 # daily to annual
