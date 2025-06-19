@@ -2313,7 +2313,8 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB.attrs['product_version'] = 1.0
 
     comp = dict(zlib=True, complevel=2, dtype='float32')
-    encoding = {var: comp for var in MB.data_vars} # all
+    encoding = {var: comp for var in MB.data_vars} # all variables
+    encoding['time'] = {'dtype':'float64'} #time (to be compatible with openDAP)
 
     fn = './TMB/MB_'+roi+'.nc'
     if os.path.exists(fn): os.remove(fn)
