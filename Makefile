@@ -74,6 +74,7 @@ dist: FORCE
 	# create end-user data product
 	${container_cmd} ${container_args} hillerup/tmb_conda python ./build_TMB_nc.py
 	#cp ./TMB/* /mnt/thredds_fileshare/mass_balance/
+	python upload_client.py --server https://thredds01.geus.dk/upload_mass_balance --token 'signes-hemmelige-token' TMB/*
 	# python ./upload_to_DV.py
 	#python ./twitfig.py
 	# python ./twitbot.py
