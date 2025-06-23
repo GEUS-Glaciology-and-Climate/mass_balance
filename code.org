@@ -2194,7 +2194,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB["time"].attrs["standard_name"] = "time"
     MB["time"].attrs["axis"] = "T"
 
-    MB[roi] = ((roi), D[roi].data)
+    MB[roi] = ((roi), D[roi].astype(str).data)
     if roi == 'sector':
         MB[roi].attrs["long_name"] = "Zwally 2012 sectors"
     elif roi == 'region':
