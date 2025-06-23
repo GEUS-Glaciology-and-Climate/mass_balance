@@ -675,7 +675,7 @@ r.region -c map=sectors_e
 r.region -c map=regions_e
 
 
-if [ "$RECENT" = "false" ] || [ -z ${RECENT+x} ]; then
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -735,7 +735,7 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/MAR/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-if [ "$RECENT" = "false" ] || [ -z ${RECENT+x} ]; then
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -803,7 +803,7 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
-if [ "$RECENT" = "false" ] || [ -z ${RECENT+x} ]; then
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -1310,7 +1310,7 @@ mkdir -p tmp/BMB
 dir=${DATADIR}/${RCM}/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-if [ "$RECENT" = "false" ] || [ -z ${RECENT+x} ]; then
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -2315,7 +2315,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     comp = dict(zlib=True, complevel=2, dtype='float32')
     encoding = {var: comp for var in MB.data_vars} # all variables
     encoding['time'] = {'dtype':'float64'} #time (to be compatible with openDAP)
-    MB = MB.isel(time=slice(None,-4) #The forecast from MAR is now only 3 days
+    MB = MB.isel(time=slice(None,-4)) #The forecast from MAR is now only 3 days
 
     fn = './TMB/MB_'+roi+'.nc'
     if os.path.exists(fn): os.remove(fn)
