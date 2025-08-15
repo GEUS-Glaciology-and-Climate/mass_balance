@@ -1,4 +1,3 @@
-
 #+PROPERTY: header-args:bash+ :comments both :noweb yes :eval no-export
 #+PROPERTY: header-args:bash+ :session (concat "*" (file-name-sans-extension (buffer-name)) "-shell*")
 #+PROPERTY: header-args:bash+ :tangle-mode (identity #o544) :shebang #!/usr/bin/env bash
@@ -96,6 +95,7 @@
   - [[#bibtex-library][BibTeX library]]
   - [[#copernicus-latex-setup][Copernicus LaTeX setup]]
 - [[#makefile][Makefile]]
+
 
 * ROIs
 
@@ -433,45 +433,6 @@ d.rast regions_e@Mouginot_2019
 cdo sinfov ${DATADIR}/MAR/3.12/MAR-2000.nc | head -n20
 #+END_SRC
 
-#+RESULTS:
-#+begin_example
-Warning (cdfInqContents): Coordinates variable time can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable time can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-Warning (cdfInqContents): Coordinates variable y can't be assigned!
-Warning (cdfInqContents): Coordinates variable x can't be assigned!
-   File format : NetCDF4 classic zip
-    -1 : Institut Source   T Steptype Levels Num    Points Num Dtype : Parameter name
-     1 : unknown  unknown  v instant       2   1     10336   1  F32z : smb           
-     2 : unknown  unknown  v instant       2   1     10336   1  F32z : ru            
-     3 : unknown  unknown  c instant       1   2     10336   1  F32z : lon           
-     4 : unknown  unknown  c instant       1   2     10336   1  F32z : lat           
-     5 : unknown  unknown  c instant       1   2     10336   1  F32z : sh            
-     6 : unknown  unknown  c instant       1   2     10336   1  F32z : msk           
-     7 : unknown  unknown  c instant       1   2     10336   1  F32z : srf           
-   Grid coordinates :
-     1 : projection               : points=10336 (76x136)
-                          mapping : polar_stereographic
-                                x : -640 to 860 by 20 km
-                                y : -3347.928 to -647.9277 by 20 km
-   Vertical coordinates :
-     1 : generic                  : levels=2
-                           sector : 1 to 2 level
-     2 : surface                  : levels=1
-   Time coordinate :  366 steps
-     RefTime =  1993-09-01 00:00:00  Units = days  Calendar = standard
-#+end_example
 
 #+BEGIN_SRC bash
 g.region w=-640000 e=860000 s=-3347928 n=-647928 res=20000 -p
@@ -530,7 +491,6 @@ d.rast regions_e@Mouginot_2019
 #+END_SRC
 
 #+RESULTS:
-
 
 
 * RACMO
@@ -1019,6 +979,7 @@ r.external -o source=NetCDF:${DATADIR}/Karlsson_2021/basalmelt.nc:gfmelt output=
 g.region raster=GF_ann
 
 r.mapcalc "GF = GF_ann / 365"
+
 #+END_SRC
 *** Apply
 
@@ -1202,12 +1163,14 @@ Using =r.stream.basins=, we can get basins for every outlet.
 #+BEGIN_SRC bash :results verbatim
 log_info "r.stream.basins..."
 
+g.extension r.stream.basins url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins #  url=https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins branch=grass7
 r.stream.basins -m direction=dir points=outlets_uniq basins=basins_uniq memory=16384 --verbose
 #+END_SRC
 
 **** Change in head between each cell and its outlet
-
+https://github.com/OSGeo/grass-addons/tree/grass7/src/raster/r.stream.basins
 #+BEGIN_SRC bash
+g.extension r.stream.distance url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=head method=downstream difference=delta_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=bed method=downstream difference=delta_z_head
 r.stream.distance -o stream_rast=outlets_1 direction=dir elevation=pressure method=downstream difference=delta_p_head
@@ -1301,6 +1264,10 @@ d.vect outlets_uniq color=cyan
 
 **** MAR daily partitioned to ROI
 
+#+BEGIN_SRC bash :results verbatim :tangle no
+docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance grass ./G_MAR/PERMANENT
+#+END_SRC
+
 #+BEGIN_SRC bash :results verbatim
 g.mapset -c VHD
 
@@ -1309,7 +1276,7 @@ mkdir -p tmp/BMB
 
 dir=${DATADIR}/${RCM}/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
-
+f=MAR-2022_datum.nc
 if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
@@ -1319,9 +1286,11 @@ else
 fi
 
 for f in ${f_list}; do
-  dates=$(python ./nc_dates.py ${f})
+  dates=$(python3 ./nc_dates.py ${f})
   band=-1
   d=1986-01-01 # debug
+  d=1991-01-01 # debug   
+  d=2022-01-01 # debug
   for d in ${dates}; do
     band=$(( ${band} + 2 ))
 
@@ -1566,9 +1535,9 @@ Adjust SMB and D using 1986 through 2012 overlap
 #+NAME: load_K2015_raw
 #+BEGIN_SRC python
 import pandas as pd
-
+<<get_datadir>>
 fname = 'Greenland_mass_balance_totals_1840-2012_ver_20141130_with_uncert_via_Kjeldsen_et_al_2015.csv'
-k2015 = pd.read_csv('~/data/Kjeldsen_2015/' + fname, index_col=0, parse_dates=True)\
+k2015 = pd.read_csv(DATADIR + '/Kjeldsen_2015/' + fname, index_col=0, parse_dates=True)\
           .rename(columns={'discharge from 6 year lagged average runoff' : 'D',
                            'discharge 1sigma' : 'D_err'})
 
@@ -1802,7 +1771,6 @@ Generate a TMB netcdf file from SMB, D, and BMB
 #+NAME: load_SMB
 #+BEGIN_SRC python
 <<py_import>>
-
 SMB = xr.open_dataset("./tmp/SMB.nc")
 SMB['region'] = SMB['region'].astype(str)
 #+END_SRC
@@ -1814,22 +1782,23 @@ SMB['region'] = SMB['region'].astype(str)
 #+NAME: load_D
 #+BEGIN_SRC python
 import xarray as xr
+<<get_datadir>>
+ds = xr.open_dataset(DATADIR + "/Mankoff_2020/ice/latest/gate.nc")
 
-ds = xr.open_dataset("~/data/Mankoff_2020/ice/latest/gate.nc")
 # ds = xr.open_dataset("/home/kdm/projects/ice_discharge/out/gate.nc")
 
 # rstr = {'NW':11, 'NO':12, 'NE':1, 'CE':3, 'CW':9, 'SE':5, 'SW':7}
 # rnum = [rstr[r] for r in ds['region'].values]
 # ds['region'] = (('gate'), rnum)
 
-ds_sector = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","region","coverage"])\
+ds_sector = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","region","coverage", "ID_Moon", "ID_Moon_dist"])\
           .groupby("Zwally_2012")\
           .sum()\
           .rename({"Zwally_2012":"sector",
                    "discharge":"D_sector",
                    "err":"err_sector"})
 
-ds_region = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwally_2012","coverage"])\
+ds_region = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwally_2012","coverage", "ID_Moon", "ID_Moon_dist"])\
           .groupby("region")\
           .sum()\
           .rename({"discharge":"D_region",
@@ -1864,7 +1833,6 @@ D['region'] = D['region'].astype(str)
 D = D_fc
 #+END_SRC
 
-#+RESULTS: load_D
 
 *** Forecasted discharge
 
@@ -2016,15 +1984,15 @@ BMB['BMB_region'] = (('time','region'), BMB['VHD_region'].data + BMB['GF_region'
 # BMB['BMB_basin'] = BMB['VHD_basin'] + BMB['GF_basin'] + BMB['vel_basin']
 
 BMB['BMB_sector_err'] = (('time','sector'), \
-                         ((BMB['GF_sector_err'].expand_dims({'time':BMB['time'].size})).data**2 \
-                          + (BMB['vel_sector_err'].expand_dims({'time':BMB['time'].size})).data**2 \
+                         ((BMB['GF_sector_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + (BMB['vel_sector_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
                           + BMB['VHD_sector_err'].data**2\
                           )**0.5\
                          )
 
 BMB['BMB_region_err'] = (('time','region'), \
-                         ((BMB['GF_region_err'].expand_dims({'time':BMB['time'].size})).data**2 \
-                          + (BMB['vel_region_err'].expand_dims({'time':BMB['time'].size})).data**2 \
+                         ((BMB['GF_region_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + (BMB['vel_region_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
                           + BMB['VHD_region_err'].data**2\
                           )**0.5\
                          )
@@ -2195,6 +2163,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB["time"].attrs["axis"] = "T"
 
     MB[roi] = ((roi), D[roi].astype(str).data)
+
     if roi == 'sector':
         MB[roi].attrs["long_name"] = "Zwally 2012 sectors"
     elif roi == 'region':
@@ -2205,6 +2174,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     MB_hist = (k2015['SMB'] - k2015['D'] - k2015['BMB'])/365
     MB_recent = (SMB['SMB'] - D['D'] - BMB['BMB']).to_dataframe('MB').loc['1986':]['MB']
+
     MB['MB'] = (('time'), MB_hist._append(MB_recent))
     MB['MB_err'] = (('time'), (SMB['SMB_err'].data**2 + D['D_err'].data**2 + BMB['BMB_err'].data**2)**0.5)
 
@@ -2214,7 +2184,10 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB[v].attrs["units"] = "Gt d-1"
     MB[v].attrs["coordinates"] = 'time'
     
+
     MB['MB_ROI'] = (('time',roi), (SMB['SMB_'+roi] - D['D_'+roi] - BMB['BMB_'+roi]).data)
+
+
     MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
     # MB['MB_ROI'].attrs = MB['MB'].attrs
     # MB['MB_ROI'].attrs["coordinates"] = 'time ROI'
@@ -2313,6 +2286,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB.attrs['product_version'] = 1.0
 
     comp = dict(zlib=True, complevel=2, dtype='float32')
+
     encoding = {var: comp for var in MB.data_vars} # all variables
     encoding['time'] = {'dtype':'float64'} #time (to be compatible with openDAP)
     MB = MB.isel(time=slice(None,-4)) #The forecast from MAR is now only 3 days
@@ -2323,7 +2297,19 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
 
 # maybe also some CSV output
-MB[['MB','MB_err','SMB','SMB_err','D','D_err','BMB','BMB_err']].to_dataframe().to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
+MB_df = MB[['MB','MB_err','SMB','SMB_err','D','D_err','BMB','BMB_err']].to_dataframe()
+# Remove the forecast after september 1st if data after september 1st is only forecast 
+# Determine the last date processed
+# last_date = MB_df.index.max()
+
+# Calculate September 1st of the last year processed
+# sep_1_last_year = pd.to_datetime(f'{last_date.year}-09-01')
+
+# Check if the difference is less than 7 days
+# if (last_date - sep_1_last_year).days < 7:
+    # Filter the DataFrame to remove dates beyond September 1st
+#     MB_df = MB_df[MB_df.index < sep_1_last_year]
+MB_df.to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
 
 # daily to annual
 df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
@@ -2344,9 +2330,9 @@ df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 #+name: load_mouginot
 #+BEGIN_SRC python
 
-ds = xr.Dataset()
+<<get_datadir>>
+df = pd.read_excel(DATADIR + '/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
 
-df = pd.read_excel('~/data/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
 
 ## Discharge
 c0 = 15 # Column containing 1972
@@ -2579,7 +2565,10 @@ variables:
 #+NAME: load_vc
 #+BEGIN_SRC python
 import xarray as xr
-ds = xr.open_dataset("~/data/Simonsen_2021/ds1.nc")
+
+<<get_datadir>>
+ds = xr.open_dataset(DATADIR + "/Simonsen_2021/ds1.nc")
+
 # print(ds)
 
 vc = xr.Dataset()
@@ -2605,7 +2594,9 @@ http://products.esa-icesheets-cci.org/products/downloadlist/GMB/
 import pandas as pd
 from datetime import timedelta, datetime
 
-root = '~/data/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
+<<get_datadir>>
+root = DATADIR + '/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
+
 df = pd.read_csv(root + '/GIS00_grace.dat',
                  delim_whitespace=True,
                  header=None,
@@ -2654,7 +2645,8 @@ This spreadsheet contains the IMBIE-2019 datasets for Greenland, which includes 
 #+NAME: load_imbie
 #+BEGIN_SRC python
 import pandas as pd
-imbie = pd.read_excel("~/data/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
+<<get_datadir>>
+imbie = pd.read_excel(DATADIR + "/IMBIE/imbie_dataset_greenland_dynamics-2020_02_28.xlsx", sheet_name=0, index_col=0, usecols=(0,1,2,3,4,5,6,9,10))\
        .rename(columns={"Rate of ice sheet mass change (Gt/yr)":"MB",
                         "Rate of ice sheet mass change uncertainty (Gt/yr)":"MB_err",
                         "Cumulative ice sheet mass change (Gt)" : "MB_cum",
@@ -2680,7 +2672,9 @@ imbie = imbie.drop('index', axis='columns')
 #+NAME: load_PROMICE_MB
 #+BEGIN_SRC python
 def load_Colgan_2019(sheet=0):
-    df_all = pd.read_excel("~/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
+<<get_datadir>>
+    df_all = pd.read_excel(DATADIR + "/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
+
     
     df_all = df_all.loc[df_all.index.dropna()]\
                    .drop(index='Total')\
@@ -2846,11 +2840,13 @@ What % of SMB changes occur in the uncovered regions?
 
 #+BEGIN_SRC python
 import xarray as xr
-ds = xr.open_mfdataset('~/data/RACMO/daily/SMB_rec.201*.nc', combine='by_coords')
+<<get_datadir>>
+ds = xr.open_mfdataset(DATADIR + '/RACMO/daily/SMB_rec.201*.nc', combine='by_coords')
 ds = ds.resample({'time':'YS'}).sum()
 ds.to_netcdf('./tmp/RACMO_2010s.nc')
 
-ds = xr.open_mfdataset('~/DATADIR/RACMO/daily/SMB_rec.2020*.nc', combine='by_coords')
+ds = xr.open_mfdataset(DATADIR + '/RACMO/daily/SMB_rec.2020*.nc', combine='by_coords')
+
 ds = ds.sum(dim='time')
 ds.to_netcdf('./tmp/RACMO_2020.nc')
 #+END_SRC
@@ -3020,12 +3016,15 @@ What % of MAR runoff occurs in the uncovered regions?
 
 #+BEGIN_SRC python
 import xarray as xr
-ds = xr.open_mfdataset('~/data/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
+<<get_datadir>>
+ds = xr.open_mfdataset(DATADIR + '/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
+
 ds = ds.sel({'sector':1}).resample({'time':'YS'}).mean()
 ds = ds.where(~np.isinf(ds), 0)
 ds.to_netcdf('./tmp/MAR_2010s.nc')
 
-ds = xr.open_mfdataset('~/data/MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
+ds = xr.open_mfdataset(DATADIR + 'MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
+
 ds = ds.sel({'sector':1}).sum(dim='time')
 ds.to_netcdf('./tmp/MAR_2020.nc')
 #+END_SRC
@@ -5064,6 +5063,57 @@ def round_axes(x, y=None):
 #+END_SRC
 
 ** cron jobs
+** Bash
+#+NAME: init_bash
+#+BEGIN_SRC bash :results verbatim
+set -o nounset
+set -o pipefail
+
+# set -x
+# set -o errexit
+
+### uncomment the above line when doing initial run. When rerunning and
+### counting on GRASS failing w/ overwrite issues (speed increase), the
+### line above must be commented
+
+red='\033[0;31m'; orange='\033[0;33m'; green='\033[0;32m'; nc='\033[0m' # No Color
+log_info() { echo -e "${green}[$(date --iso-8601=seconds)] [INFO] ${@}${nc}"; }
+log_warn() { echo -e "${orange}[$(date --iso-8601=seconds)] [WARN] ${@}${nc}"; }
+log_err() { echo -e "${red}[$(date --iso-8601=seconds)] [ERR] ${@}${nc}" >&2; }
+
+# trap ctrl_c INT # trap ctrl-c and call ctrl_c()
+# ctrl_c() { log_err "CTRL-C. Cleaning up"; }
+
+debug() { if [[ debug:- == 1 ]]; then log_warn "debug:"; echo $@; fi; }
+
+#+END_SRC
+
+** GRASS config
+
+https://grass.osgeo.org/grass74/manuals/variables.html
+
+| GRASS_VERBOSE |                                                                |
+|---------------+----------------------------------------------------------------|
+|            -1 | complete silence (also errors and warnings are discarded)      |
+|             0 | only errors and warnings are printed                           |
+|             1 | progress and important messages are printed (percent complete) |
+|             2 | all module messages are printed                                |
+|             3 | additional verbose messages are printed                        |
+
+#+NAME: init_grass
+#+BEGIN_SRC bash :results verbatim :tangle no
+export GRASS_VERBOSE=3
+# export GRASS_MESSAGE_FORMAT=silent
+
+if [ -z ${DATADIR+x} ]; then
+    echo "DATADIR environment varible is unset."
+    echo "Fix with: \"export DATADIR=/path/to/data\""
+    exit 255
+fi
+
+# set -x # print commands to STDOUT before running them
+#+END_SRC
+
 
 Then "make update"
 
@@ -5668,8 +5718,443 @@ docker push hillerup/tmb_conda
 #+END_SRC
 
 
+
+* Docker
+  :PROPERTIES:
+  :header-args:docker: :eval no
+  :END:
+** Dockerfile 
+
+
+#+BEGIN_SRC docker :tangle docker/Dockerfile :mkdirp docker
+FROM ubuntu:20.04
+
+LABEL authors="Signe Hillerup Larsen"
+LABEL maintainer="shl@geus.dk"
+
+# system environment
+ENV DEBIAN_FRONTEND noninteractive
+
+RUN apt-get -y update && apt-get install -y --no-install-recommends --no-install-suggests \
+      bash \
+      cdo \
+      datamash \
+      gawk \
+      gdal-bin \
+      grass-gui \
+      nco \
+      netcdf-bin \
+      parallel \
+      proj-bin \
+      sed \
+      python-is-python3 \
+      wget \
+      git \
+  && apt-get autoremove -y \
+  && apt-get clean -y \ 
+  && rm -rf /var/lib/apt/lists/*
+
+RUN echo LANG="en_US.UTF-8" > /etc/default/locale
+
+ENV LANGUAGE en_US.UTF-8
+ENV LANG C
+ENV LC_ALL C
+ENV LC_CTYPE C
+
+ENV SHELL /bin/bash
+
+# create a user
+RUN useradd --create-home user && chmod a+rwx /home/user
+ENV HOME /home/user
+WORKDIR /home/user
+
+RUN mkdir -p /data
+ENV DATADIR /data
+
+# Install grass addons
+RUN grass -e -c EPSG:3413 $HOME/G_tmp \ 
+  g.extension r.stream.basins \ 
+  url= https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.basins \ 
+  g.extension r.stream.distance \   
+  url=https://trac.osgeo.org/grass/browser/grass-addons/grass7/raster/r.stream.distance
+
+RUN rm -r $HOME/G_tmp 
+
+
+ENV PATH=/home/user/.local/bin:$PATH
+
+ENV CONDA_DIR /opt/conda
+
+RUN wget --no-check-certificate\
+    https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda \
+    && rm -f Miniconda3-latest-Linux-x86_64.sh 
+
+ENV PATH=$CONDA_DIR/bin:$PATH
+RUN conda --version
+
+
+RUN conda install -c conda-forge \
+  xarray \
+  pandas \
+  matplotlib \ 
+  jupyter \
+  tabulate \
+  pint \
+  bottleneck \
+  uncertainties \
+  scipy \
+  cfchecker \
+  geopandas
+
+
+# switch the user
+USER user
+
+#+END_SRC
+
+
+** Build
+#+BEGIN_SRC bash
+# docker build -f Dockerfile_grass -t ice_discharge_grass .
+cd docker
+docker build -t mass_balance .
+
+
+#+END_SRC
+
+** Test
+
+
+#+BEGIN_SRC bash
+docker run -it mass_balance # run it
+docker run -it mass_balance python -c 'import pandas as pd; print(pd)'
+
+docker run -it --user "$(id -u)":"$(id -g)" --mount type=bind,src="${DATADIR}",dst=/data --mount type=bind,src="$(pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1" mass_balance 
+#+END_SRC
+
+** Deploy
+
+#+BEGIN_SRC bash
+
+# docker tag local-image:tagname new-repo:tagname
+docker tag mass_balance:latest hillerup/mass_balance:latest
+docker push hillerup/mass_balance:latest
+
+#+END_SRC
+
+
+** enviroment.yml
+
+It is more reproducible to use the Docker image hillerup/mass_balance:latest, but for record-keeping sake, here is the Python environment.
+
+#+BEGIN_SRC bash :results verbatim
+docker run hillerup/mass_balance conda env export -n base | tee environment.yml
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+name: base
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_kmp_llvm
+  - alsa-lib=1.2.6.1=h7f98852_0
+  - argon2-cffi=21.3.0=pyhd8ed1ab_0
+  - argon2-cffi-bindings=21.2.0=py39hb9d737c_2
+  - asttokens=2.0.5=pyhd8ed1ab_0
+  - attr=2.5.1=h166bdaf_0
+  - attrs=21.4.0=pyhd8ed1ab_0
+  - backcall=0.2.0=pyh9f0ad1d_0
+  - backports=1.0=py_2
+  - backports.functools_lru_cache=1.6.4=pyhd8ed1ab_0
+  - beautifulsoup4=4.11.1=pyha770c72_0
+  - bleach=5.0.0=pyhd8ed1ab_0
+  - blosc=1.21.1=h83bc5f7_3
+  - boost-cpp=1.74.0=h75c5d50_8
+  - bottleneck=1.3.4=py39hd257fcd_1
+  - branca=0.5.0=pyhd8ed1ab_0
+  - brotli=1.0.9=h166bdaf_7
+  - brotli-bin=1.0.9=h166bdaf_7
+  - brotlipy=0.7.0=py39h27cfd23_1003
+  - bzip2=1.0.8=h7f98852_4
+  - c-ares=1.18.1=h7f98852_0
+  - ca-certificates=2022.5.18.1=ha878542_0
+  - cairo=1.16.0=ha61ee94_1011
+  - certifi=2022.5.18.1=py39hf3d152e_0
+  - cfchecker=4.1.0=pyhd8ed1ab_0
+  - cffi=1.15.0=py39hd667e15_1
+  - cfitsio=4.1.0=hd9d235c_0
+  - cftime=1.6.0=py39hd257fcd_1
+  - cfunits=3.3.4=pyhd8ed1ab_0
+  - charset-normalizer=2.0.4=pyhd3eb1b0_0
+  - click=8.1.3=py39hf3d152e_0
+  - click-plugins=1.1.1=py_0
+  - cligj=0.7.2=pyhd8ed1ab_1
+  - colorama=0.4.4=pyhd3eb1b0_0
+  - conda=4.13.0=py39hf3d152e_1
+  - conda-content-trust=0.1.1=pyhd3eb1b0_0
+  - conda-package-handling=1.8.1=py39h7f8727e_0
+  - cryptography=36.0.0=py39h9ce1e76_0
+  - curl=7.83.1=h7bff187_0
+  - cycler=0.11.0=pyhd8ed1ab_0
+  - dbus=1.13.6=h5008d03_3
+  - debugpy=1.6.0=py39h5a03fae_0
+  - decorator=5.1.1=pyhd8ed1ab_0
+  - defusedxml=0.7.1=pyhd8ed1ab_0
+  - entrypoints=0.4=pyhd8ed1ab_0
+  - executing=0.8.3=pyhd8ed1ab_0
+  - expat=2.4.8=h27087fc_0
+  - fftw=3.3.10=nompi_h77c792f_102
+  - fiona=1.8.21=py39h54775ec_2
+  - flit-core=3.7.1=pyhd8ed1ab_0
+  - folium=0.12.1.post1=pyhd8ed1ab_1
+  - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
+  - font-ttf-inconsolata=3.000=h77eed37_0
+  - font-ttf-source-code-pro=2.038=h77eed37_0
+  - font-ttf-ubuntu=0.83=hab24e00_0
+  - fontconfig=2.14.0=h8e229c2_0
+  - fonts-conda-ecosystem=1=0
+  - fonts-conda-forge=1=0
+  - fonttools=4.33.3=py39hb9d737c_0
+  - freetype=2.10.4=h0708190_1
+  - freexl=1.0.6=h7f98852_0
+  - future=0.18.2=py39hf3d152e_5
+  - gdal=3.5.0=py39hc691d54_3
+  - geopandas=0.10.2=pyhd8ed1ab_1
+  - geopandas-base=0.10.2=pyha770c72_1
+  - geos=3.10.3=h27087fc_0
+  - geotiff=1.7.1=h509b78c_1
+  - gettext=0.19.8.1=h73d1719_1008
+  - giflib=5.2.1=h36c2ea0_2
+  - gst-plugins-base=1.20.2=hf6a322e_1
+  - gstreamer=1.20.2=hd4edc92_1
+  - hdf4=4.2.15=h10796ff_3
+  - hdf5=1.12.1=nompi_h2386368_104
+  - icu=70.1=h27087fc_0
+  - idna=3.3=pyhd3eb1b0_0
+  - importlib-metadata=4.11.4=py39hf3d152e_0
+  - importlib_metadata=4.11.4=hd8ed1ab_0
+  - importlib_resources=5.7.1=pyhd8ed1ab_1
+  - ipykernel=6.13.1=py39hef51801_0
+  - ipython=8.4.0=py39hf3d152e_0
+  - ipython_genutils=0.2.0=py_1
+  - ipywidgets=7.7.0=pyhd8ed1ab_0
+  - jack=1.9.18=h8c3723f_1002
+  - jedi=0.18.1=py39hf3d152e_1
+  - jinja2=3.1.2=pyhd8ed1ab_1
+  - joblib=1.1.0=pyhd8ed1ab_0
+  - jpeg=9e=h166bdaf_1
+  - json-c=0.16=hc379101_0
+  - jsonschema=4.6.0=pyhd8ed1ab_0
+  - jupyter=1.0.0=py39hf3d152e_7
+  - jupyter_client=7.3.4=pyhd8ed1ab_0
+  - jupyter_console=6.4.3=pyhd8ed1ab_0
+  - jupyter_core=4.10.0=py39hf3d152e_0
+  - jupyterlab_pygments=0.2.2=pyhd8ed1ab_0
+  - jupyterlab_widgets=1.1.0=pyhd8ed1ab_0
+  - kealib=1.4.14=hfe1a663_4
+  - keyutils=1.6.1=h166bdaf_0
+  - kiwisolver=1.4.2=py39hf939315_1
+  - krb5=1.19.3=h3790be6_0
+  - lcms2=2.12=hddcbb42_0
+  - ld_impl_linux-64=2.36.1=hea4e1c9_2
+  - lerc=3.0=h9c3ff4c_0
+  - libblas=3.9.0=15_linux64_openblas
+  - libbrotlicommon=1.0.9=h166bdaf_7
+  - libbrotlidec=1.0.9=h166bdaf_7
+  - libbrotlienc=1.0.9=h166bdaf_7
+  - libcap=2.64=ha37c62d_0
+  - libcblas=3.9.0=15_linux64_openblas
+  - libclang=14.0.5=default_h2e3cab8_0
+  - libclang13=14.0.5=default_h3a83d3e_0
+  - libcups=2.3.3=hf5a7f15_1
+  - libcurl=7.83.1=h7bff187_0
+  - libdap4=3.20.6=hd7c4107_2
+  - libdb=6.2.32=h9c3ff4c_0
+  - libdeflate=1.10=h7f98852_0
+  - libedit=3.1.20191231=he28a2e2_2
+  - libev=4.33=h516909a_1
+  - libevent=2.1.10=h9b69904_4
+  - libffi=3.4.2=h7f98852_5
+  - libflac=1.3.4=h27087fc_0
+  - libgcc-ng=12.1.0=h8d9b700_16
+  - libgdal=3.5.0=he21a14a_3
+  - libgfortran-ng=12.1.0=h69a702a_16
+  - libgfortran5=12.1.0=hdcd56e2_16
+  - libglib=2.70.2=h174f98d_4
+  - libiconv=1.16=h516909a_0
+  - libkml=1.3.0=h238a007_1014
+  - liblapack=3.9.0=15_linux64_openblas
+  - libllvm14=14.0.5=he0ac6c6_0
+  - libnetcdf=4.8.1=nompi_h329d8a1_102
+  - libnghttp2=1.47.0=h727a467_0
+  - libnsl=2.0.0=h7f98852_0
+  - libogg=1.3.4=h7f98852_1
+  - libopenblas=0.3.20=pthreads_h78a6416_0
+  - libopus=1.3.1=h7f98852_1
+  - libpng=1.6.37=h21135ba_2
+  - libpq=14.3=hd77ab85_0
+  - librttopo=1.1.0=h40fdbc5_10
+  - libsndfile=1.0.31=h9c3ff4c_1
+  - libsodium=1.0.18=h36c2ea0_1
+  - libspatialindex=1.9.3=h9c3ff4c_4
+  - libspatialite=5.0.1=h3baac0b_16
+  - libssh2=1.10.0=ha56f1ee_2
+  - libstdcxx-ng=12.1.0=ha89aaad_16
+  - libtiff=4.4.0=h0fcbabc_0
+  - libtool=2.4.6=h9c3ff4c_1008
+  - libudev1=249=h166bdaf_4
+  - libuuid=2.32.1=h7f98852_1000
+  - libvorbis=1.3.7=h9c3ff4c_0
+  - libwebp=1.2.2=h3452ae3_0
+  - libwebp-base=1.2.2=h7f98852_1
+  - libxcb=1.13=h7f98852_1004
+  - libxkbcommon=1.0.3=he3ba5ed_0
+  - libxml2=2.9.14=h22db469_0
+  - libzip=1.8.0=h4de3113_1
+  - libzlib=1.2.12=h166bdaf_0
+  - llvm-openmp=14.0.4=he0ac6c6_0
+  - lz4-c=1.9.3=h9c3ff4c_1
+  - mapclassify=2.4.3=pyhd8ed1ab_0
+  - markupsafe=2.1.1=py39hb9d737c_1
+  - matplotlib=3.5.2=py39hf3d152e_0
+  - matplotlib-base=3.5.2=py39h700656a_0
+  - matplotlib-inline=0.1.3=pyhd8ed1ab_0
+  - mistune=0.8.4=py39h3811e60_1005
+  - munch=2.5.0=py_0
+  - munkres=1.1.4=pyh9f0ad1d_0
+  - mysql-common=8.0.29=haf5c9bc_1
+  - mysql-libs=8.0.29=h28c427c_1
+  - nbclient=0.6.4=pyhd8ed1ab_1
+  - nbconvert=6.5.0=pyhd8ed1ab_0
+  - nbconvert-core=6.5.0=pyhd8ed1ab_0
+  - nbconvert-pandoc=6.5.0=pyhd8ed1ab_0
+  - nbformat=5.4.0=pyhd8ed1ab_0
+  - ncurses=6.3=h7f8727e_2
+  - nest-asyncio=1.5.5=pyhd8ed1ab_0
+  - netcdf4=1.5.8=nompi_py39h64b754b_101
+  - networkx=2.8.3=pyhd8ed1ab_0
+  - notebook=6.4.12=pyha770c72_0
+  - nspr=4.32=h9c3ff4c_1
+  - nss=3.78=h2350873_0
+  - numpy=1.22.4=py39hc58783e_0
+  - openjpeg=2.4.0=hb52868f_1
+  - openssl=1.1.1o=h166bdaf_0
+  - packaging=21.3=pyhd8ed1ab_0
+  - pandas=1.4.2=py39h1832856_2
+  - pandoc=2.18=ha770c72_0
+  - pandocfilters=1.5.0=pyhd8ed1ab_0
+  - parso=0.8.3=pyhd8ed1ab_0
+  - pcre=8.45=h9c3ff4c_0
+  - pexpect=4.8.0=pyh9f0ad1d_2
+  - pickleshare=0.7.5=py_1003
+  - pillow=9.1.1=py39hae2aec6_1
+  - pint=0.19.2=pyhd8ed1ab_0
+  - pip=21.2.4=py39h06a4308_0
+  - pixman=0.40.0=h36c2ea0_0
+  - poppler=22.04.0=h1434ded_1
+  - poppler-data=0.4.11=hd8ed1ab_0
+  - portaudio=19.6.0=h57a0ea0_5
+  - postgresql=14.3=hfdbbde3_0
+  - proj=9.0.0=h93bde94_1
+  - prometheus_client=0.14.1=pyhd8ed1ab_0
+  - prompt-toolkit=3.0.29=pyha770c72_0
+  - prompt_toolkit=3.0.29=hd8ed1ab_0
+  - psutil=5.9.1=py39hb9d737c_0
+  - pthread-stubs=0.4=h36c2ea0_1001
+  - ptyprocess=0.7.0=pyhd3deb0d_0
+  - pulseaudio=14.0=h7f54b18_8
+  - pure_eval=0.2.2=pyhd8ed1ab_0
+  - pycosat=0.6.3=py39h27cfd23_0
+  - pycparser=2.21=pyhd3eb1b0_0
+  - pygments=2.12.0=pyhd8ed1ab_0
+  - pyopenssl=22.0.0=pyhd3eb1b0_0
+  - pyparsing=3.0.9=pyhd8ed1ab_0
+  - pyproj=3.3.1=py39hcadae2f_0
+  - pyqt=5.15.4=py39h18e9c17_1
+  - pyqt5-sip=12.9.0=py39h5a03fae_1
+  - pyrsistent=0.18.1=py39hb9d737c_1
+  - pysocks=1.7.1=py39h06a4308_0
+  - python=3.9.13=h9a8a25e_0_cpython
+  - python-dateutil=2.8.2=pyhd8ed1ab_0
+  - python-fastjsonschema=2.15.3=pyhd8ed1ab_0
+  - python_abi=3.9=2_cp39
+  - pytz=2022.1=pyhd8ed1ab_0
+  - pyzmq=23.1.0=py39headdf64_0
+  - qt-main=5.15.4=ha5833f6_2
+  - qtconsole=5.3.1=pyhd8ed1ab_0
+  - qtconsole-base=5.3.1=pyha770c72_0
+  - qtpy=2.1.0=pyhd8ed1ab_0
+  - readline=8.1.2=h7f8727e_1
+  - requests=2.27.1=pyhd3eb1b0_0
+  - rtree=1.0.0=py39hb102c33_1
+  - ruamel_yaml=0.15.100=py39h27cfd23_0
+  - scikit-learn=1.1.1=py39h4037b75_0
+  - scipy=1.8.1=py39he49c0e8_0
+  - send2trash=1.8.0=pyhd8ed1ab_0
+  - setuptools=61.2.0=py39h06a4308_0
+  - shapely=1.8.2=py39h4fbd0eb_2
+  - sip=6.5.1=py39he80948d_2
+  - six=1.16.0=pyhd3eb1b0_1
+  - snappy=1.1.9=hbd366e4_1
+  - soupsieve=2.3.1=pyhd8ed1ab_0
+  - sqlite=3.38.5=h4ff8645_0
+  - stack_data=0.2.0=pyhd8ed1ab_0
+  - tabulate=0.8.9=pyhd8ed1ab_0
+  - terminado=0.15.0=py39hf3d152e_0
+  - threadpoolctl=3.1.0=pyh8a188c0_0
+  - tiledb=2.9.4=h1e4a385_0
+  - tinycss2=1.1.1=pyhd8ed1ab_0
+  - tk=8.6.12=h27826a3_0
+  - toml=0.10.2=pyhd8ed1ab_0
+  - tornado=6.1=py39hb9d737c_3
+  - tqdm=4.63.0=pyhd3eb1b0_0
+  - traitlets=5.2.2.post1=pyhd8ed1ab_0
+  - typing_extensions=4.2.0=pyha770c72_1
+  - tzcode=2022a=h166bdaf_0
+  - tzdata=2022a=hda174b7_0
+  - udunits2=2.2.28=hc3e0081_0
+  - uncertainties=3.1.6=pyhd8ed1ab_0
+  - unicodedata2=14.0.0=py39hb9d737c_1
+  - urllib3=1.26.8=pyhd3eb1b0_0
+  - wcwidth=0.2.5=pyh9f0ad1d_2
+  - webencodings=0.5.1=py_1
+  - wheel=0.37.1=pyhd3eb1b0_0
+  - widgetsnbextension=3.6.0=py39hf3d152e_0
+  - xarray=2022.3.0=pyhd8ed1ab_0
+  - xcb-util=0.4.0=h166bdaf_0
+  - xcb-util-image=0.4.0=h166bdaf_0
+  - xcb-util-keysyms=0.4.0=h166bdaf_0
+  - xcb-util-renderutil=0.3.9=h166bdaf_0
+  - xcb-util-wm=0.4.1=h166bdaf_0
+  - xerces-c=3.2.3=h55805fa_5
+  - xorg-kbproto=1.0.7=h7f98852_1002
+  - xorg-libice=1.0.10=h7f98852_0
+  - xorg-libsm=1.2.3=hd9c2040_1000
+  - xorg-libx11=1.7.2=h7f98852_0
+  - xorg-libxau=1.0.9=h7f98852_0
+  - xorg-libxdmcp=1.1.3=h7f98852_0
+  - xorg-libxext=1.3.4=h7f98852_1
+  - xorg-libxrender=0.9.10=h7f98852_1003
+  - xorg-renderproto=0.11.1=h7f98852_1002
+  - xorg-xextproto=7.3.0=h7f98852_1002
+  - xorg-xproto=7.0.31=h7f98852_1007
+  - xyzservices=2022.4.0=pyhd8ed1ab_0
+  - xz=5.2.5=h7b6447c_0
+  - yaml=0.2.5=h7b6447c_0
+  - zeromq=4.3.4=h9c3ff4c_1
+  - zipp=3.8.0=pyhd8ed1ab_0
+  - zlib=1.2.12=h166bdaf_0
+  - zstd=1.5.2=h8a70e8d_1
+prefix: /opt/conda
+#+end_example
+
+
 * Twitter
-** Twitter figure
+** Twitter figure TMB
 :PROPERTIES:
 :header-args:python+: :tangle twitfig.py
 :END:
@@ -5777,11 +6262,268 @@ plt.savefig('./twitfig.png', dpi=150, bbox_inches='tight')
 
 #+END_SRC
 
-** Twitter bot
+#+RESULTS:
+:results:
+# Out [8]: 
+:end:
+
+
+
+** Twitter figure Sermeq Kujalleq
 :PROPERTIES:
 :header-args:python+: :tangle twitbot.py
 :END:
 
+#+BEGIN_SRC python 
+import matplotlib
+
+matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
+import xarray as xr
+import pandas as pd
+import numpy as np
+import datetime
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.ticker as ticker
+from adjust_spines import adjust_spines as adj
+from matplotlib import rc
+rc('font', size=8)
+rc('text', usetex=False)
+
+
+with xr.open_dataset('/home/shl/data/promice/TMB/MB_sector.nc') as ds:
+    #print(ds.sel({'sector':71})[['MB','SMB','D','BMB']].to_dataframe().drop(columns='sector').tail(8))
+    df = ds.sel({'sector':71})[['MB_ROI','SMB_ROI','D_ROI','BMB_ROI']].to_dataframe().drop(columns='sector').copy()
+
+df = df.resample('1D').ffill()
+df = df[df.index.dayofyear <= 365] # drop leap years for simplicity
+df = df['1986-09-01':] # hydro years
+
+df = df[df.index.dayofyear <= 365] # drop leap years for simplicity
+df = df['1986-09-01':] # hydro years
+
+# hydro year dates but dropping leap years
+t = pd.date_range(start='1987-01-01', freq='D', periods=df.index.size+100) # hydro year index
+t = t[t.dayofyear <= 365][0:df.index.size]
+df['t_hydro'] = t
+
+df['hydro_year'] = df.set_index('t_hydro').index.year
+df['hydro_doy'] = df.set_index('t_hydro').index.dayofyear
+
+nyear = int(np.ceil(df.index.size/365))
+df['t_repeat'] = (pd.date_range(start='2000-01-01', freq='D', periods=365).to_list() * nyear) [0:df.index.size]
+
+plt.close(1)
+fig = plt.figure(1, figsize=(3.5,2.0)) # w,h
+fig.clf()
+fig.set_tight_layout(True)
+
+ax = fig.add_subplot(111)
+
+kw_plot = {'drawstyle':'steps', 'rot':90, 'color':'k', 'linewidth':0.1}
+this_year = datetime.datetime.now().year
+last_day = df.index[-1].strftime("%b %-d")
+
+for hyr in df['hydro_year'].unique():
+    this = df[df['hydro_year'] == hyr]
+    this = this.set_index('t_repeat')
+
+    this['MB_ROI'].cumsum().plot(ax=ax, label='_no', **kw_plot)
+    if hyr in [1992,1996,2000,2003,2012,2015,2018,2021]:
+        ax.text(this.index[-1], this['MB_ROI'].cumsum().values[-1], str(hyr),
+                fontsize=5,
+                verticalalignment='center')
+
+        
+
+mean = df[(df['hydro_year'] >= 1991) & (df['hydro_year'] <= 2021)]
+mean = mean.groupby(mean['hydro_doy']).mean()
+mean.index = df['t_repeat'][0:365]
+mean['MB_ROI'].cumsum().plot(ax=ax, drawstyle='steps', color='k', linewidth=2, label='1991 through 2021 mean')
+
+kw_plot['color'] = 'r'
+kw_plot['linewidth'] = 2
+# this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
+if this.index.size > 8:
+    this['MB_ROI'].cumsum().iloc[:-10].plot(ax=ax, label='Through '+last_day, **kw_plot)
+    kw_plot['alpha'] = 0.8
+    this['MB_ROI'].cumsum().iloc[-7:].plot(ax=ax, label='_no', **kw_plot)
+else:
+    this['MB_ROI'].cumsum().plot(ax=ax, label='Through '+last_day, **kw_plot)
+
+
+std = df[(df['hydro_year'] >= 1991) & (df['hydro_year'] <= 2021)]
+for hy in std['hydro_year'].unique():
+    idx = (std['hydro_year'] == hy)
+    std = std.where(~idx, other=std[idx].cumsum())
+std = std.groupby(std['hydro_doy']).std()
+std.index = df['t_repeat'][0:365]
+ax.fill_between(std.index,
+                mean['MB_ROI'].cumsum()+std['MB_ROI'],
+                mean['MB_ROI'].cumsum()-std['MB_ROI'],
+                color='b', linewidth=2, label='_no', alpha=0.1)
+
+adj(ax, ['bottom','left'])
+ax.set_ylim([-40,20])
+ax.set_yticks([-40,-30,-20,-10,0,10,20])
+ax.set_ylabel('Hydrologic year cumulative\nmass change [Gt]')
+
+## https://stackoverflow.com/questions/17158382/
+ax.xaxis.set_major_formatter(ticker.NullFormatter())
+ax.xaxis.set_minor_locator(ticker.FixedLocator(ax.get_xticks()+16))
+months = ['Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug']
+ax.xaxis.set_minor_formatter(ticker.FixedFormatter(months))
+ax.set_xlabel('')
+
+plt.setp(ax.xaxis.get_minorticklabels(), rotation=90)
+ax.tick_params(which='minor', length=0)
+plt.xticks(rotation=90)
+plt.legend(fontsize=7)
+
+plt.savefig('./Sermeq_Kujalleq_twitfig.png', dpi=150, bbox_inches='tight')
+
+
+#+END_SRC
+
+#+RESULTS:
+:results:
+# Out [2]: 
+:end:
+
+
+
+
+** Twitter figure Sermeq Kujalleq 2000-present
+:PROPERTIES:
+:header-args:python+: :tangle twitbot.py
+:END:
+
+#+BEGIN_SRC python
+import matplotlib
+
+matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
+import xarray as xr
+import pandas as pd
+import numpy as np
+import datetime
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.ticker as ticker
+from adjust_spines import adjust_spines as adj
+from matplotlib import rc
+rc('font', size=8)
+rc('text', usetex=False)
+
+
+with xr.open_dataset('/home/shl/data/promice/TMB/MB_sector.nc') as ds:
+    #print(ds.sel({'sector':71})[['MB','SMB','D','BMB']].to_dataframe().drop(columns='sector').tail(8))
+    df = ds.sel({'sector':71})[['MB_ROI','SMB_ROI','D_ROI','BMB_ROI']].to_dataframe().drop(columns='sector').copy()
+
+df = df.resample('1D').ffill()
+df = df[df.index.dayofyear <= 365] # drop leap years for simplicity
+df = df['1986-09-01':] # hydro years
+
+df = df[df.index.dayofyear <= 365] # drop leap years for simplicity
+df = df['1986-09-01':] # hydro years
+
+# hydro year dates but dropping leap years
+t = pd.date_range(start='1987-01-01', freq='D', periods=df.index.size+100) # hydro year index
+t = t[t.dayofyear <= 365][0:df.index.size]
+df['t_hydro'] = t
+df = df['1999-09-01':]
+
+df['hydro_year'] = df.set_index('t_hydro').index.year
+df['hydro_doy'] = df.set_index('t_hydro').index.dayofyear
+
+nyear = int(np.ceil(df.index.size/365))
+df['t_repeat'] = (pd.date_range(start='2000-01-01', freq='D', periods=365).to_list() * nyear) [0:df.index.size]
+
+
+
+plt.close(1)
+fig = plt.figure(1, figsize=(3.5,2.0) ) # w,h 
+fig.clf()
+fig.set_tight_layout(True)
+
+ax = fig.add_subplot(111)
+
+kw_plot = {'drawstyle':'steps', 'rot':90, 'color':'k', 'linewidth':0.1}
+this_year = datetime.datetime.now().year
+last_day = df.index[-1].strftime("%b %-d")
+
+for hyr in df['hydro_year'].unique():
+    this = df[df['hydro_year'] == hyr]
+    this = this.set_index('t_repeat')
+
+    this['MB_ROI'].cumsum().plot(ax=ax, label='_no', **kw_plot)
+    if hyr in [2000,2003,2012,2015,2018,2021] : #[2010,2011, 2012, 2021]:
+        ax.text(this.index[-1], this['MB_ROI'].cumsum().values[-1], str(hyr),
+                fontsize=5,
+                verticalalignment='center')
+
+        
+
+mean = df[(df['hydro_year'] >= 2000) & (df['hydro_year'] <= 2021)]
+mean = mean.groupby(mean['hydro_doy']).mean()
+mean.index = df['t_repeat'][0:365]
+mean['MB_ROI'].cumsum().plot(ax=ax, drawstyle='steps', color='k', linewidth=2, label='2000 through 2021 mean')
+
+kw_plot['color'] = 'r'
+kw_plot['linewidth'] = 2
+# this['MB'].cumsum().plot(ax=ax, label='2022 (through '+last_day+')', **kw_plot)
+if this.index.size > 8:
+    this['MB_ROI'].cumsum().iloc[:-10].plot(ax=ax, label='Through '+last_day, **kw_plot)
+    kw_plot['alpha'] = 0.8
+    this['MB_ROI'].cumsum().iloc[-7:].plot(ax=ax, label='_no', **kw_plot)
+else:
+    this['MB_ROI'].cumsum().plot(ax=ax, label='Through '+last_day, **kw_plot)
+
+
+std = df[(df['hydro_year'] >= 2000) & (df['hydro_year'] <= 2021)]
+for hy in std['hydro_year'].unique():
+    idx = (std['hydro_year'] == hy)
+    std = std.where(~idx, other=std[idx].cumsum())
+std = std.groupby(std['hydro_doy']).std()
+std.index = df['t_repeat'][0:365]
+ax.fill_between(std.index,
+                mean['MB_ROI'].cumsum()+std['MB_ROI'],
+                mean['MB_ROI'].cumsum()-std['MB_ROI'],
+                color='b', linewidth=2, label='_no', alpha=0.1)
+
+adj(ax, ['bottom','left'])
+ax.set_ylim([-40,20])
+ax.set_yticks([-40,-30,-20,-10,0,10,20])
+ax.set_ylabel('Hydrologic year cumulative\nmass change [Gt]')
+
+## https://stackoverflow.com/questions/17158382/
+ax.xaxis.set_major_formatter(ticker.NullFormatter())
+ax.xaxis.set_minor_locator(ticker.FixedLocator(ax.get_xticks()+16))
+months = ['Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug']
+ax.xaxis.set_minor_formatter(ticker.FixedFormatter(months))
+ax.set_xlabel('')
+
+plt.setp(ax.xaxis.get_minorticklabels(), rotation=90)
+ax.tick_params(which='minor', length=0)
+plt.xticks(rotation=90)
+plt.legend(fontsize=7)
+
+plt.savefig('./Sermeq_Kujalleq_2000_present_twitfig.png', dpi=150, bbox_inches='tight')
+
+
+#+END_SRC
+
+#+RESULTS:
+:results:
+# Out [9]: 
+:end:
+
+
+
+** Twitter bot
+:PROPERTIES:
+:header-args:python+: :tangle twitbot.py
+:END:
+ 
 + Graph up :: 📈 (mass loss, SLR up)
 + Graph down :: 📉 (mass gain, SLR down)
 + Ocean wave :: 🌊
@@ -5888,11 +6630,15 @@ media = api.media_upload('twitfig.png')
 api.update_status(tweet_str, media_ids=[media.media_id])
 #+END_SRC
 
+
+
 * Environment
 It is more reproducuble to use the docker images =hillerup/tmb_grass= and =hillerup/tmb_conda= but an environment to run the process can be recreated follwing the below steps.
 ** Software
 
-This project uses software - bash, GRASS, Python, etc. The python environment is reproducible if you have Conda installed. Below I provide the version of the software(s) used to create this document in order to support the goal of bit-matching reproducibility. 
+This project uses software - bash, GRASS, Python, etc. Using the Docker image supports the goal of bit-matching reproducibility. 
+
+Below I provide the version of the software(s) used to create this document in order to support the goal of bit-matching reproducibility. 
 
 *** Org Mode
 #+BEGIN_SRC emacs-lisp :eval no-export :exports both
@@ -5900,422 +6646,7 @@ This project uses software - bash, GRASS, Python, etc. The python environment is
 #+END_SRC
 
 #+RESULTS:
-: Org mode version 9.4.6 (9.4.6-4-g093c94-elpa @ /home/kdm/.emacs.d/elpa/org-20210607/)
-
-*** Python
-
-The code below produces [[./environment.yml]] when this file is exported. If that file exists, then =conda env create= and =source activate PROJECTNAME= will install all the python packages used in this document.
-
-#+NAME: conda_env 
-#+BEGIN_SRC bash :cmdline -i :results verbatim :eval no-export :exports both
-conda env export --name TMB | cat | tee environment.yml
-#+END_SRC
-
-#+RESULTS: conda_env
-#+begin_example
-name: TMB
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - _libgcc_mutex=0.1=conda_forge
-  - _openmp_mutex=4.5=1_gnu
-  - argon2-cffi=20.1.0=py38h497a2fe_2
-  - async_generator=1.10=py_0
-  - attrs=20.3.0=pyhd3deb0d_0
-  - backcall=0.2.0=pyh9f0ad1d_0
-  - backports=1.0=py_2
-  - backports.functools_lru_cache=1.6.1=py_0
-  - bleach=3.3.0=pyh44b312d_0
-  - bokeh=2.3.0=py38h578d9bd_0
-  - bzip2=1.0.8=h7f98852_4
-  - c-ares=1.17.1=h7f98852_1
-  - ca-certificates=2020.12.5=ha878542_0
-  - certifi=2020.12.5=py38h578d9bd_1
-  - cfchecker=4.0.0=py_0
-  - cffi=1.14.4=py38ha312104_0
-  - cftime=1.3.1=py38h5c078b8_0
-  - cfunits=3.3.1=pyhd3deb0d_0
-  - click=7.1.2=pyh9f0ad1d_0
-  - cloudpickle=1.6.0=py_0
-  - curl=7.75.0=h979ede3_0
-  - cycler=0.10.0=py_2
-  - cytoolz=0.11.0=py38h497a2fe_3
-  - dask=2021.1.0=pyhd8ed1ab_0
-  - dask-core=2021.1.0=pyhd8ed1ab_0
-  - dbus=1.13.6=hfdff14a_1
-  - decorator=4.4.2=py_0
-  - defusedxml=0.7.1=pyhd8ed1ab_0
-  - distributed=2021.1.1=py38h578d9bd_0
-  - entrypoints=0.3=pyhd8ed1ab_1003
-  - eofs=1.4.0=py_0
-  - et_xmlfile=1.0.1=py_1001
-  - expat=2.2.10=h9c3ff4c_0
-  - fontconfig=2.13.1=hba837de_1004
-  - freetype=2.10.4=h0708190_1
-  - fsspec=0.8.7=pyhd8ed1ab_0
-  - future=0.18.2=py38h578d9bd_3
-  - gettext=0.19.8.1=hf34092f_1004
-  - glib=2.66.2=h58526e2_0
-  - gst-plugins-base=1.14.5=h0935bb2_2
-  - gstreamer=1.14.5=h36ae1b5_2
-  - hdf4=4.2.13=h10796ff_1004
-  - hdf5=1.10.6=nompi_h6a2412b_1114
-  - heapdict=1.0.1=py_0
-  - icu=67.1=he1b5a44_0
-  - importlib-metadata=3.7.3=py38h578d9bd_0
-  - importlib_metadata=3.7.3=hd8ed1ab_0
-  - importlib_resources=5.1.2=py38h578d9bd_0
-  - ipykernel=5.5.0=py38h81c977d_1
-  - ipython=7.21.0=py38h81c977d_0
-  - ipython_genutils=0.2.0=py_1
-  - ipywidgets=7.6.3=pyhd3deb0d_0
-  - jdcal=1.4.1=py_0
-  - jedi=0.18.0=py38h578d9bd_2
-  - jinja2=2.11.3=pyh44b312d_0
-  - jpeg=9d=h36c2ea0_0
-  - jsonschema=3.2.0=pyhd8ed1ab_3
-  - jupyter=1.0.0=py_2
-  - jupyter_client=6.1.12=pyhd8ed1ab_0
-  - jupyter_console=6.4.0=pyhd8ed1ab_0
-  - jupyter_core=4.7.1=py38h578d9bd_0
-  - jupyterlab_pygments=0.1.2=pyh9f0ad1d_0
-  - jupyterlab_widgets=1.0.0=pyhd8ed1ab_1
-  - kiwisolver=1.3.1=py38h1fd1430_1
-  - krb5=1.17.2=h926e7f8_0
-  - lcms2=2.12=hddcbb42_0
-  - ld_impl_linux-64=2.35.1=hea4e1c9_2
-  - libblas=3.9.0=8_openblas
-  - libcblas=3.9.0=8_openblas
-  - libclang=10.0.1=default_hde54327_1
-  - libcurl=7.75.0=hc4aaa36_0
-  - libedit=3.1.20191231=he28a2e2_2
-  - libev=4.33=h516909a_1
-  - libevent=2.1.10=hcdb4288_3
-  - libffi=3.2.1=he1b5a44_1007
-  - libgcc-ng=9.3.0=h2828fa1_18
-  - libgfortran-ng=9.3.0=hff62375_18
-  - libgfortran5=9.3.0=hff62375_18
-  - libglib=2.66.2=hbe7bbb4_0
-  - libgomp=9.3.0=h2828fa1_18
-  - libiconv=1.16=h516909a_0
-  - liblapack=3.9.0=8_openblas
-  - libllvm10=10.0.1=he513fc3_3
-  - libnetcdf=4.7.4=nompi_h56d31a8_107
-  - libnghttp2=1.43.0=h812cca2_0
-  - libopenblas=0.3.12=pthreads_h4812303_1
-  - libpng=1.6.37=h21135ba_2
-  - libpq=12.3=h255efa7_3
-  - libsodium=1.0.18=h36c2ea0_1
-  - libssh2=1.9.0=ha56f1ee_6
-  - libstdcxx-ng=9.3.0=h6de172a_18
-  - libtiff=4.2.0=hdc55705_0
-  - libuuid=2.32.1=h7f98852_1000
-  - libwebp-base=1.2.0=h7f98852_2
-  - libxcb=1.13=h7f98852_1003
-  - libxkbcommon=0.10.0=he1b5a44_0
-  - libxml2=2.9.10=h68273f3_2
-  - locket=0.2.0=py_2
-  - lz4-c=1.9.3=h9c3ff4c_0
-  - markupsafe=1.1.1=py38h497a2fe_3
-  - matplotlib=3.3.4=py38h578d9bd_0
-  - matplotlib-base=3.3.4=py38h0efea84_0
-  - mistune=0.8.4=py38h497a2fe_1003
-  - msgpack-python=1.0.2=py38h1fd1430_1
-  - mysql-common=8.0.21=2
-  - mysql-libs=8.0.21=hf3661c5_2
-  - nbclient=0.5.3=pyhd8ed1ab_0
-  - nbconvert=6.0.7=py38h578d9bd_3
-  - nbformat=5.1.2=pyhd8ed1ab_1
-  - ncurses=6.2=h58526e2_4
-  - nest-asyncio=1.4.3=pyhd8ed1ab_0
-  - netcdf4=1.5.6=nompi_py38h1cdf482_100
-  - notebook=6.3.0=py38h578d9bd_0
-  - nspr=4.30=h9c3ff4c_0
-  - nss=3.63=hb5efdd6_0
-  - numpy=1.20.1=py38h18fd61f_0
-  - olefile=0.46=pyh9f0ad1d_1
-  - openpyxl=3.0.6=pyhd8ed1ab_0
-  - openssl=1.1.1j=h7f98852_0
-  - packaging=20.9=pyh44b312d_0
-  - pandas=1.2.1=py38h51da96c_0
-  - pandoc=2.12=h7f98852_0
-  - pandocfilters=1.4.2=py_1
-  - parso=0.8.1=pyhd8ed1ab_0
-  - partd=1.1.0=py_0
-  - patsy=0.5.1=py_0
-  - pcre=8.44=he1b5a44_0
-  - pexpect=4.8.0=pyh9f0ad1d_2
-  - pickleshare=0.7.5=py_1003
-  - pillow=8.1.2=py38ha0e1e83_0
-  - pint=0.16.1=py_0
-  - pip=21.0.1=pyhd8ed1ab_0
-  - prometheus_client=0.9.0=pyhd3deb0d_0
-  - prompt-toolkit=3.0.18=pyha770c72_0
-  - prompt_toolkit=3.0.18=hd8ed1ab_0
-  - psutil=5.8.0=py38h497a2fe_1
-  - pthread-stubs=0.4=h36c2ea0_1001
-  - ptyprocess=0.7.0=pyhd3deb0d_0
-  - pycparser=2.20=pyh9f0ad1d_2
-  - pygments=2.8.1=pyhd8ed1ab_0
-  - pyparsing=2.4.7=pyh9f0ad1d_0
-  - pyqt=5.12.3=py38h578d9bd_7
-  - pyqt-impl=5.12.3=py38h7400c14_7
-  - pyqt5-sip=4.19.18=py38h709712a_7
-  - pyqtchart=5.12=py38h7400c14_7
-  - pyqtwebengine=5.12.1=py38h7400c14_7
-  - pyrsistent=0.17.3=py38h497a2fe_2
-  - python=3.8.6=h852b56e_0_cpython
-  - python-dateutil=2.8.1=py_0
-  - python_abi=3.8=1_cp38
-  - pytz=2021.1=pyhd8ed1ab_0
-  - pyyaml=5.4.1=py38h497a2fe_0
-  - pyzmq=22.0.3=py38h2035c66_1
-  - qt=5.12.9=h1f2b2cb_0
-  - qtconsole=5.0.3=pyhd8ed1ab_0
-  - qtpy=1.9.0=py_0
-  - readline=8.0=he28a2e2_2
-  - scipy=1.5.3=py38hb2138dd_0
-  - seaborn=0.11.1=ha770c72_0
-  - seaborn-base=0.11.1=pyhd8ed1ab_1
-  - send2trash=1.5.0=py_0
-  - setuptools=49.6.0=py38h578d9bd_3
-  - six=1.15.0=pyh9f0ad1d_0
-  - sortedcontainers=2.3.0=pyhd8ed1ab_0
-  - sqlite=3.35.2=h74cdb3f_0
-  - statsmodels=0.12.2=py38h5c078b8_0
-  - tabulate=0.8.7=pyh9f0ad1d_0
-  - tblib=1.7.0=pyhd8ed1ab_0
-  - terminado=0.9.3=py38h578d9bd_0
-  - testpath=0.4.4=py_0
-  - tk=8.6.10=h21135ba_1
-  - toolz=0.11.1=py_0
-  - tornado=6.1=py38h497a2fe_1
-  - traitlets=5.0.5=py_0
-  - typing_extensions=3.7.4.3=py_0
-  - udunits2=2.2.27.27=h360fe7b_0
-  - uncertainties=3.1.4=py_0
-  - wcwidth=0.2.5=pyh9f0ad1d_2
-  - webencodings=0.5.1=py_1
-  - wheel=0.36.2=pyhd3deb0d_0
-  - widgetsnbextension=3.5.1=py38h578d9bd_4
-  - xarray=0.16.2=pyhd8ed1ab_0
-  - xorg-libxau=1.0.9=h7f98852_0
-  - xorg-libxdmcp=1.1.3=h7f98852_0
-  - xz=5.2.5=h516909a_1
-  - yaml=0.2.5=h516909a_0
-  - zeromq=4.3.4=h9c3ff4c_0
-  - zict=2.0.0=py_0
-  - zipp=3.4.1=pyhd8ed1ab_0
-  - zlib=1.2.11=h516909a_1010
-  - zstd=1.4.9=ha95c52a_0
-  - pip:
-    - bottleneck==1.3.2
-    - chardet==4.0.0
-    - idna==2.10
-    - oauthlib==3.1.1
-    - pydataverse==0.2.1
-    - pyproj==3.0.0.post1
-    - pysocks==1.7.1
-    - requests==2.25.1
-    - requests-oauthlib==1.3.0
-    - tweepy==3.10.0
-    - urllib3==1.26.4
-prefix: /home/kdm/local/miniconda3/envs/TMB
-#+end_example
-
-** Python
-*** Anaconda environment
-
-**** Create
-#+BEGIN_SRC bash
-env=TMB
-conda create -n ${env} python=3.8 xarray pandas matplotlib jupyter tabulate pint uncertainties scipy cfchecker geopandas
-conda activate ${env}
-python -m ipykernel install --user --name=${env}
-
-# anconda install matplotlib xarray rasterio simplekml 
-# pip install uncertainties
-
-#+END_SRC
-**** Share
-
-#+BEGIN_SRC bash :cmdline -i :results drawer verbatim :exports both
-conda env export --name TMB | tee environment.yml
-#+END_SRC
-
-#+RESULTS:
-:results:
-name: TMB
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - _libgcc_mutex=0.1=conda_forge
-  - _openmp_mutex=4.5=1_gnu
-  - argon2-cffi=20.1.0=py38h25fe258_2
-  - async_generator=1.10=py_0
-  - attrs=20.3.0=pyhd3deb0d_0
-  - backcall=0.2.0=pyh9f0ad1d_0
-  - backports=1.0=py_2
-  - backports.functools_lru_cache=1.6.1=py_0
-  - bleach=3.2.1=pyh9f0ad1d_0
-  - bzip2=1.0.8=h516909a_3
-  - c-ares=1.16.1=h516909a_3
-  - ca-certificates=2020.11.8=ha878542_0
-  - certifi=2020.11.8=py38h578d9bd_0
-  - cfchecker=4.0.0=py_0
-  - cffi=1.14.3=py38h1bdcb99_1
-  - cftime=1.3.0=py38h0b5ebd8_0
-  - cfunits=3.3.0=pyh9f0ad1d_0
-  - curl=7.71.1=he644dc0_8
-  - cycler=0.10.0=py_2
-  - dbus=1.13.6=hfdff14a_1
-  - decorator=4.4.2=py_0
-  - defusedxml=0.6.0=py_0
-  - entrypoints=0.3=pyhd8ed1ab_1003
-  - expat=2.2.9=he1b5a44_2
-  - fontconfig=2.13.1=h7e3eb15_1002
-  - freetype=2.10.4=h7ca028e_0
-  - future=0.18.2=py38h578d9bd_2
-  - gettext=0.19.8.1=hf34092f_1004
-  - glib=2.66.2=h58526e2_0
-  - gst-plugins-base=1.14.5=h0935bb2_2
-  - gstreamer=1.14.5=h36ae1b5_2
-  - hdf4=4.2.13=hf30be14_1003
-  - hdf5=1.10.6=nompi_h1022a3e_1110
-  - icu=67.1=he1b5a44_0
-  - importlib-metadata=2.0.0=py_1
-  - importlib_metadata=2.0.0=1
-  - importlib_resources=3.3.0=py38h578d9bd_0
-  - ipykernel=5.3.4=py38h81c977d_1
-  - ipython=7.19.0=py38h81c977d_0
-  - ipython_genutils=0.2.0=py_1
-  - ipywidgets=7.5.1=pyh9f0ad1d_1
-  - jedi=0.17.2=py38h578d9bd_1
-  - jinja2=2.11.2=pyh9f0ad1d_0
-  - jpeg=9d=h36c2ea0_0
-  - jsonschema=3.2.0=py_2
-  - jupyter=1.0.0=py_2
-  - jupyter_client=6.1.7=py_0
-  - jupyter_console=6.2.0=py_0
-  - jupyter_core=4.6.3=py38h578d9bd_2
-  - jupyterlab_pygments=0.1.2=pyh9f0ad1d_0
-  - kiwisolver=1.3.1=py38h82cb98a_0
-  - krb5=1.17.1=hfafb76e_3
-  - lcms2=2.11=hcbb858e_1
-  - ld_impl_linux-64=2.35.1=hed1e6ac_0
-  - libblas=3.9.0=2_openblas
-  - libcblas=3.9.0=2_openblas
-  - libclang=10.0.1=default_hde54327_1
-  - libcurl=7.71.1=hcdd3856_8
-  - libedit=3.1.20191231=he28a2e2_2
-  - libev=4.33=h516909a_1
-  - libevent=2.1.10=hcdb4288_3
-  - libffi=3.2.1=he1b5a44_1007
-  - libgcc-ng=9.3.0=h5dbcf3e_17
-  - libgfortran-ng=9.3.0=he4bcb1c_17
-  - libgfortran5=9.3.0=he4bcb1c_17
-  - libglib=2.66.2=hbe7bbb4_0
-  - libgomp=9.3.0=h5dbcf3e_17
-  - libiconv=1.16=h516909a_0
-  - liblapack=3.9.0=2_openblas
-  - libllvm10=10.0.1=he513fc3_3
-  - libnetcdf=4.7.4=nompi_hefab0ff_106
-  - libnghttp2=1.41.0=h8cfc5f6_2
-  - libopenblas=0.3.12=pthreads_h4812303_1
-  - libpng=1.6.37=h21135ba_2
-  - libpq=12.3=h5513abc_2
-  - libsodium=1.0.18=h36c2ea0_1
-  - libssh2=1.9.0=hab1572f_5
-  - libstdcxx-ng=9.3.0=h2ae2ef3_17
-  - libtiff=4.1.0=h4f3a223_6
-  - libuuid=2.32.1=h14c3975_1000
-  - libwebp-base=1.1.0=h36c2ea0_3
-  - libxcb=1.13=h14c3975_1002
-  - libxkbcommon=0.10.0=he1b5a44_0
-  - libxml2=2.9.10=h68273f3_2
-  - lz4-c=1.9.2=he1b5a44_3
-  - markupsafe=1.1.1=py38h8df0ef7_2
-  - matplotlib=3.3.3=py38h578d9bd_0
-  - matplotlib-base=3.3.3=py38h5c7f4ab_0
-  - mistune=0.8.4=py38h25fe258_1002
-  - mysql-common=8.0.21=2
-  - mysql-libs=8.0.21=hf3661c5_2
-  - nbclient=0.5.1=py_0
-  - nbconvert=6.0.7=py38h578d9bd_3
-  - nbformat=5.0.8=py_0
-  - ncurses=6.2=h58526e2_4
-  - nest-asyncio=1.4.3=pyhd8ed1ab_0
-  - netcdf4=1.5.4=nompi_py38hec8b9af_103
-  - notebook=6.1.5=py38h578d9bd_0
-  - nspr=4.29=he1b5a44_1
-  - nss=3.59=h2c00c37_0
-  - numpy=1.19.4=py38hf0fd68c_1
-  - olefile=0.46=pyh9f0ad1d_1
-  - openssl=1.1.1h=h516909a_0
-  - packaging=20.4=pyh9f0ad1d_0
-  - pandas=1.1.4=py38h0ef3d22_0
-  - pandoc=2.11.1.1=h36c2ea0_0
-  - pandocfilters=1.4.2=py_1
-  - parso=0.7.1=pyh9f0ad1d_0
-  - pcre=8.44=he1b5a44_0
-  - pexpect=4.8.0=pyh9f0ad1d_2
-  - pickleshare=0.7.5=py_1003
-  - pillow=8.0.1=py38h70fbd49_0
-  - pint=0.16.1=py_0
-  - pip=20.2.4=py_0
-  - prometheus_client=0.9.0=pyhd3deb0d_0
-  - prompt-toolkit=3.0.8=pyha770c72_0
-  - prompt_toolkit=3.0.8=hd8ed1ab_0
-  - pthread-stubs=0.4=h14c3975_1001
-  - ptyprocess=0.6.0=py_1001
-  - pycparser=2.20=pyh9f0ad1d_2
-  - pygments=2.7.2=py_0
-  - pyparsing=2.4.7=pyh9f0ad1d_0
-  - pyqt=5.12.3=py38ha8c2ead_4
-  - pyrsistent=0.17.3=py38h25fe258_1
-  - python=3.8.6=h852b56e_0_cpython
-  - python-dateutil=2.8.1=py_0
-  - python_abi=3.8=1_cp38
-  - pytz=2020.4=pyhd8ed1ab_0
-  - pyzmq=20.0.0=py38h1d1b12f_1
-  - qt=5.12.9=h1f2b2cb_0
-  - qtconsole=4.7.7=pyh9f0ad1d_0
-  - qtpy=1.9.0=py_0
-  - readline=8.0=he28a2e2_2
-  - scipy=1.5.3=py38hb2138dd_0
-  - send2trash=1.5.0=py_0
-  - setuptools=49.6.0=py38h924ce5b_2
-  - six=1.15.0=pyh9f0ad1d_0
-  - sqlite=3.33.0=h4cf870e_1
-  - tabulate=0.8.7=pyh9f0ad1d_0
-  - terminado=0.9.1=py38h32f6830_1
-  - testpath=0.4.4=py_0
-  - tk=8.6.10=hed695b0_1
-  - tornado=6.1=py38h25fe258_0
-  - traitlets=5.0.5=py_0
-  - udunits2=2.2.27.6=h4e0c4b3_1001
-  - uncertainties=3.1.4=py_0
-  - wcwidth=0.2.5=pyh9f0ad1d_2
-  - webencodings=0.5.1=py_1
-  - wheel=0.35.1=pyh9f0ad1d_0
-  - widgetsnbextension=3.5.1=py38h578d9bd_4
-  - xarray=0.16.1=py_0
-  - xorg-libxau=1.0.9=h14c3975_0
-  - xorg-libxdmcp=1.1.3=h516909a_0
-  - xz=5.2.5=h516909a_1
-  - zeromq=4.3.3=h58526e2_2
-  - zipp=3.4.0=py_0
-  - zlib=1.2.11=h516909a_1010
-  - zstd=1.4.5=h6597ccf_2
-  - pip:
-    - pyqt5-sip==4.19.18
-    - pyqtchart==5.12
-    - pyqtwebengine==5.12.1
-prefix: /home/kdm/local/miniconda3/envs/TMB
-
-:end:
+: Org mode version 9.3.6 (9.3.6-4-gdfa7a3-elpa @ /home/shl/scimax/elpa/org-20200217/)
 
 *** Packages
 #+NAME: init_py
@@ -6357,56 +6688,7 @@ Example:
 print(DATADIR)
 #+END_SRC
 
-** Bash
-#+NAME: init_bash
-#+BEGIN_SRC bash :results verbatim
-set -o nounset
-set -o pipefail
 
-# set -x
-# set -o errexit
-
-### uncomment the above line when doing initial run. When rerunning and
-### counting on GRASS failing w/ overwrite issues (speed increase), the
-### line above must be commented
-
-red='\033[0;31m'; orange='\033[0;33m'; green='\033[0;32m'; nc='\033[0m' # No Color
-log_info() { echo -e "${green}[$(date --iso-8601=seconds)] [INFO] ${@}${nc}"; }
-log_warn() { echo -e "${orange}[$(date --iso-8601=seconds)] [WARN] ${@}${nc}"; }
-log_err() { echo -e "${red}[$(date --iso-8601=seconds)] [ERR] ${@}${nc}" >&2; }
-
-# trap ctrl_c INT # trap ctrl-c and call ctrl_c()
-# ctrl_c() { log_err "CTRL-C. Cleaning up"; }
-
-debug() { if [[ debug:- == 1 ]]; then log_warn "debug:"; echo $@; fi; }
-
-#+END_SRC
-
-** GRASS config
-
-https://grass.osgeo.org/grass74/manuals/variables.html
-
-| GRASS_VERBOSE |                                                                |
-|---------------+----------------------------------------------------------------|
-|            -1 | complete silence (also errors and warnings are discarded)      |
-|             0 | only errors and warnings are printed                           |
-|             1 | progress and important messages are printed (percent complete) |
-|             2 | all module messages are printed                                |
-|             3 | additional verbose messages are printed                        |
-
-#+NAME: init_grass
-#+BEGIN_SRC bash :results verbatim :tangle no
-export GRASS_VERBOSE=3
-# export GRASS_MESSAGE_FORMAT=silent
-
-if [ -z ${DATADIR+x} ]; then
-    echo "DATADIR environment varible is unset."
-    echo "Fix with: \"export DATADIR=/path/to/data\""
-    exit 255
-fi
-
-# set -x # print commands to STDOUT before running them
-#+END_SRC
 
 * Manuscript
 ** BibTeX library
@@ -6439,7 +6721,9 @@ Then switch from system to local library.bib in ms.org
 
 
 
-* Makefile                                                                                                                                                                               
+
+* Makefile
+
 :PROPERTIES:
 :CUSTOM_ID: sec:makefile                                                                                                                                                                 
 :END:                                                                                                                                                                      
@@ -6528,7 +6812,6 @@ dist: FORCE
         #python ./twitfig.py
         # python ./twitbot.py
 
-
 FORCE: # dummy target
 
 clean_30:
@@ -6543,9 +6826,11 @@ clean_all:
         rm -fR G G_RACMO G_HIRHAM G_HIRHAM_XY G_MAR G_tmp tmp dat TMB
 
 clean_SMB:
+
         rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
 
 
 
 
 #+END_SRC  
+
