@@ -6723,7 +6723,6 @@ Then switch from system to local library.bib in ms.org
 
 
 * Makefile
-
 :PROPERTIES:
 :CUSTOM_ID: sec:makefile                                                                                                                                                                 
 :END:                                                                                                                                                                      
@@ -6733,7 +6732,8 @@ This code, and all code files in this project, are derived products tangled from
 #+BEGIN_SRC makefile :tangle Makefile :tangle-mode (identity #o444)                                                                                                                      
 RECENT ?= false
 container_cmd ?= docker
-container_args ?= run --user $(shell id -u):$(shell id -g) --env RECENT=${RECENT} --mount type=bind,src=${DATADIR},dst=/home/user/data --mount type=bind,src="$(shell pwd)",dst=/home/us$
+container_args ?= run --user $(shell id -u):$(shell id -g) --env RECENT=${RECENT} --mount type=bind,src=${DATADIR},dst=/home/user/data --mount type=bind,src="$(shell pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1"
+
 
 org-babel = emacsclient --eval "(progn                  \
 (find-file \"$(1)\")                            \
