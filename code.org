@@ -28,6 +28,7 @@
   - [[#sectors-1][Sectors]]
   - [[#test-location-alignment-2][Test location alignment]]
 - [[#smb-to-rois][SMB to ROIs]]
+
   - [[#print-dates][Print dates]]
   - [[#hirham-1][HIRHAM]]
   - [[#mar-1][MAR]]
@@ -633,7 +634,8 @@ r.in.gdal -o input=./tmp/HIRHAM_regions_e_Mouginot_2019.tif output=regions_e
 r.region -c map=sectors_e
 r.region -c map=regions_e
 
-if [ -z ${RECENT+x} ]; then
+
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -693,7 +695,7 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/MAR/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
 
-if [ -z ${RECENT+x} ]; then
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -761,7 +763,7 @@ mkdir -p tmp/${RCM}
 dir=${DATADIR}/${RCM}/daily
 f=$(ls ${dir}/*.nc|head -n1) # debug
 
-if [ -z ${RECENT+x} ]; then
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -1274,9 +1276,8 @@ mkdir -p tmp/BMB
 
 dir=${DATADIR}/${RCM}/3.12
 f=$(ls ${dir}/MAR-????.nc|head -n1) # debug
-f=$(ls ${dir}/MAR-????.nc|tail -n1) # debug
 f=MAR-2022_datum.nc
-if [ -z ${RECENT+x} ]; then
+if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc) ## initial
   log_info "Initial run. Processing all files"
 else
@@ -1435,12 +1436,12 @@ for roi in ['sector','region']:
 #          grid cells    m^3->kg  kg->Gt
 BMB = BMB * 1000 * 1000 * 1E3    / 1E12
 
-BMB['GF_sector_err'] = BMB['GF_sector'] * 0.5
-BMB['vel_sector_err'] = BMB['vel_sector'] * 0.333
-BMB['VHD_sector_err'] = BMB['VHD_sector'] * 0.15
-BMB['GF_region_err'] = BMB['GF_region'] * 0.5
-BMB['vel_region_err'] = BMB['vel_region'] * 0.333
-BMB['VHD_region_err'] = BMB['VHD_region'] * 0.15
+BMB['GF_sector_err'] = (('sector'), BMB['GF_sector'].data * 0.5)
+BMB['vel_sector_err'] = (('sector'), BMB['vel_sector'].data * 0.333)
+BMB['VHD_sector_err'] = (('time', 'sector'), BMB['VHD_sector'].data * 0.15)
+BMB['GF_region_err'] = (('region'), BMB['GF_region'].data * 0.5)
+BMB['vel_region_err'] = (('region'), BMB['vel_region'].data * 0.333)
+BMB['VHD_region_err'] = (('time', 'region'), BMB['VHD_region'].data * 0.15)
 
 fn = './tmp/BMB.nc'
 if os.path.exists(fn): os.remove(fn)
@@ -1782,8 +1783,8 @@ SMB['region'] = SMB['region'].astype(str)
 #+BEGIN_SRC python
 import xarray as xr
 <<get_datadir>>
-
 ds = xr.open_dataset(DATADIR + "/Mankoff_2020/ice/latest/gate.nc")
+
 # ds = xr.open_dataset("/home/kdm/projects/ice_discharge/out/gate.nc")
 
 # rstr = {'NW':11, 'NO':12, 'NE':1, 'CE':3, 'CW':9, 'SE':5, 'SW':7}
@@ -2104,6 +2105,7 @@ SMB['SMB_err'] = (('time'),
 
 
 
+
 <<load_D>>
 # dt_last_obs = D['time'].values[-1]
 # err = []
@@ -2160,7 +2162,8 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB["time"].attrs["standard_name"] = "time"
     MB["time"].attrs["axis"] = "T"
 
-    MB[roi] = ((roi), D[roi].data)
+    MB[roi] = ((roi), D[roi].astype(str).data)
+
     if roi == 'sector':
         MB[roi].attrs["long_name"] = "Zwally 2012 sectors"
     elif roi == 'region':
@@ -2171,9 +2174,8 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     MB_hist = (k2015['SMB'] - k2015['D'] - k2015['BMB'])/365
     MB_recent = (SMB['SMB'] - D['D'] - BMB['BMB']).to_dataframe('MB').loc['1986':]['MB']
-    MB_combined = pd.concat([MB_hist, MB_recent])
-    #MB['MB'] = (('time'), MB_hist.append(MB_recent))
-    MB['MB'] = (('time'), MB_combined)
+
+    MB['MB'] = (('time'), MB_hist._append(MB_recent))
     MB['MB_err'] = (('time'), (SMB['SMB_err'].data**2 + D['D_err'].data**2 + BMB['BMB_err'].data**2)**0.5)
 
     v = 'MB'
@@ -2182,7 +2184,10 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB[v].attrs["units"] = "Gt d-1"
     MB[v].attrs["coordinates"] = 'time'
     
-    MB['MB_ROI'] = (('time',roi), SMB['SMB_'+roi].data - D['D_'+roi].data - BMB['BMB_'+roi].data)
+
+    MB['MB_ROI'] = (('time',roi), (SMB['SMB_'+roi] - D['D_'+roi] - BMB['BMB_'+roi]).data)
+
+
     MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
     # MB['MB_ROI'].attrs = MB['MB'].attrs
     # MB['MB_ROI'].attrs["coordinates"] = 'time ROI'
@@ -2281,8 +2286,11 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB.attrs['product_version'] = 1.0
 
     comp = dict(zlib=True, complevel=2, dtype='float32')
-    encoding = {var: comp for var in MB.data_vars} # all
-    encoding['time'] = dict(dtype='int32')
+
+    encoding = {var: comp for var in MB.data_vars} # all variables
+    encoding['time'] = {'dtype':'float64'} #time (to be compatible with openDAP)
+    MB = MB.isel(time=slice(None,-4)) #The forecast from MAR is now only 3 days
+
     fn = './TMB/MB_'+roi+'.nc'
     if os.path.exists(fn): os.remove(fn)
     MB.to_netcdf(fn, mode='w', encoding=encoding)
@@ -2322,9 +2330,9 @@ df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 #+name: load_mouginot
 #+BEGIN_SRC python
 
-ds = xr.Dataset()
 <<get_datadir>>
 df = pd.read_excel(DATADIR + '/Mouginot_2019/pnas.1904242116.sd02.xlsx', sheet_name=1)
+
 
 ## Discharge
 c0 = 15 # Column containing 1972
@@ -2557,8 +2565,10 @@ variables:
 #+NAME: load_vc
 #+BEGIN_SRC python
 import xarray as xr
+
 <<get_datadir>>
 ds = xr.open_dataset(DATADIR + "/Simonsen_2021/ds1.nc")
+
 # print(ds)
 
 vc = xr.Dataset()
@@ -2583,8 +2593,10 @@ http://products.esa-icesheets-cci.org/products/downloadlist/GMB/
 #+BEGIN_SRC python
 import pandas as pd
 from datetime import timedelta, datetime
+
 <<get_datadir>>
 root = DATADIR + '/CCI/GMB/greenland_gravimetric_mass_balance_rl06_dtuspace_v2_0-170820/time_series'
+
 df = pd.read_csv(root + '/GIS00_grace.dat',
                  delim_whitespace=True,
                  header=None,
@@ -2662,6 +2674,7 @@ imbie = imbie.drop('index', axis='columns')
 def load_Colgan_2019(sheet=0):
 <<get_datadir>>
     df_all = pd.read_excel(DATADIR + "/data/Colgan_2019/MassBalance_07022019.xlsx", index_col=0, sheet_name=sheet)
+
     
     df_all = df_all.loc[df_all.index.dropna()]\
                    .drop(index='Total')\
@@ -2833,6 +2846,7 @@ ds = ds.resample({'time':'YS'}).sum()
 ds.to_netcdf('./tmp/RACMO_2010s.nc')
 
 ds = xr.open_mfdataset(DATADIR + '/RACMO/daily/SMB_rec.2020*.nc', combine='by_coords')
+
 ds = ds.sum(dim='time')
 ds.to_netcdf('./tmp/RACMO_2020.nc')
 #+END_SRC
@@ -3004,11 +3018,13 @@ What % of MAR runoff occurs in the uncovered regions?
 import xarray as xr
 <<get_datadir>>
 ds = xr.open_mfdataset(DATADIR + '/MAR/3.12/MAR-201*.nc', combine='by_coords')['ru']
+
 ds = ds.sel({'sector':1}).resample({'time':'YS'}).mean()
 ds = ds.where(~np.isinf(ds), 0)
 ds.to_netcdf('./tmp/MAR_2010s.nc')
 
 ds = xr.open_mfdataset(DATADIR + 'MAR/3.12/MAR-2020.nc', combine='by_coords')['ru']
+
 ds = ds.sel({'sector':1}).sum(dim='time')
 ds.to_netcdf('./tmp/MAR_2020.nc')
 #+END_SRC
@@ -5512,6 +5528,195 @@ BMB_err     15.615669
 Name: 1930-01-01 00:00:00, dtype: float64
 #+end_example
 
+* Docker
+  :PROPERTIES:
+  :header-args:docker: :eval no
+  :END:
+
+
+** GRASS
+:PROPERTIES:
+:header-args:docker: :eval no
+:END:
+**** Dockerfile
+
+#+BEGIN_SRC docker :tangle docker/grass/Dockerfile :mkdirp docker/grass
+FROM ubuntu:20.04
+
+LABEL authors="Signe Hillerup Larsen"
+LABEL maintainer="shl@geus.dk"
+
+# system environment
+ENV DEBIAN_FRONTEND noninteractive
+
+
+RUN apt-get -y update && apt-get install -y --no-install-recommends --no-install-suggests \
+      bash \
+      cdo \
+      datamash \
+      gawk \
+      gdal-bin \
+      grass-core \
+      grass-dev \
+      grass-gui \
+      nco \
+      netcdf-bin \
+      parallel \
+      proj-bin \
+      sed \
+      python3 \
+      python3-pip \
+      python3-distutils \
+      build-essential \
+      subversion \
+      ca-certificates \
+      git \
+  && apt-get autoremove -y \
+  && apt-get clean -y \ 
+  && rm -rf /var/lib/apt/lists/*
+
+# Set the default Python version
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Upgrade pip to ensure compatibility with the latest packages
+RUN pip3 install --no-cache-dir --upgrade pip
+
+# Install a compatible version of numpy, pandas, and xarray
+RUN pip3 install --no-cache-dir numpy>=1.20 netcdf4 scipy h5netcdf pandas xarray
+
+RUN echo LANG="en_US.UTF-8" > /etc/default/locale
+
+ENV LANGUAGE en_US.UTF-8
+ENV LANG C
+ENV LC_ALL C
+ENV LC_CTYPE C
+
+ENV SHELL /bin/bash
+
+# create a user
+RUN useradd --create-home user && chmod a+rwx /home/user
+ENV HOME /home/user
+WORKDIR /home/user
+RUN mkdir -p /home/user/data && chown user:user /home/user/data
+ENV DATADIR /home/user/data
+
+# Clone grass-addons and list directory structure
+RUN git clone https://github.com/OSGeo/grass-addons.git \
+  && ls -R grass-addons \
+  && cd grass-addons/src/raster/r.stream.basins || echo "Directory not found" \
+  && grass --config path \
+  && MODULE_TOPDIR=/usr/lib/grass78 \
+  && make MODULE_TOPDIR=$MODULE_TOPDIR \
+  && cd ../r.stream.distance \
+  && make MODULE_TOPDIR=$MODULE_TOPDIR \
+  && rm -rf /home/user/grass-addons
+
+# switch the user
+USER user
+
+CMD ["/usr/bin/grass", "--version"]
+#+END_SRC
+
+**** Build
+#+BEGIN_SRC bash
+# docker build -f Dockerfile_grass -t ice_discharge_grass .
+cd docker/grass
+docker build -t hillerup/tmb_grass .
+docker run -it hillerup/tmb_grass # run it
+#+END_SRC
+
+
+**** Deploy
+
+#+BEGIN_SRC bash
+# docker tag local-image:tagname new-repo:tagname
+docker tag tmb_grass hillerup/tmb_grass:latest
+docker push hillerup/tmb_grass
+#+END_SRC
+
+
+** Python
+:PROPERTIES:
+:header-args:docker: :eval no
+:END:
+
+**** Dockerfile and supporting files
+
+#+BEGIN_SRC docker :tangle docker/conda/Dockerfile :mkdirp docker/conda
+FROM continuumio/miniconda3
+
+RUN conda install \
+  curl \
+  cython \
+  ipython \
+  jupyter \
+  matplotlib \
+  numpy \
+  pandas \
+  pip \
+  scipy \
+  statsmodels \
+  tabulate \
+  xarray \
+  && conda clean -a \
+  && pip install --no-cache-dir \
+  cfchecker \
+  cfunits \
+  grass-session \
+  nc-time-axis \
+  pyshp \
+  semver \
+  uncertainties 
+ 
+# create a user
+RUN useradd --create-home user && chmod a+rwx /home/user
+ENV HOME /home/user
+WORKDIR /home/user
+
+RUN mkdir -p /home/user/data
+ENV DATADIR /home/user/data
+
+# switch the user
+USER user
+
+
+# create a user
+# RUN useradd -m -U user
+
+# RUN chmod a+rwx /home/user
+# ENV HOME /home/user
+# RUN mkdir -p /data /work
+# WORKDIR /work
+
+# switch the user
+# USER user
+
+# RUN mkdir -p /data /work
+# WORKDIR /work
+
+# The code to run when container is started:
+# ENTRYPOINT ["conda", "run", "-n", "ice_discharge", "python3"]
+
+# For interactive shell
+# RUN conda init bash
+# RUN echo "conda activate ice_discharge" >> /root/.bashrc
+#+END_SRC
+
+**** Build
+#+BEGIN_SRC bash
+cd docker/conda
+docker build -t hillerup/tmb_conda .
+#docker run -it --mount type=bind,src=$(pwd),dst=/work hillerup/tmb:conda python -c 'import pandas as pd; print(pd)'
+#+END_SRC
+
+**** Deploy
+
+#+BEGIN_SRC bash
+# docker tag local-image:tagname new-repo:tagname
+docker tag tmb_conda hillerup/tmb_conda:latest
+docker push hillerup/tmb_conda
+#+END_SRC
+
 
 
 * Docker
@@ -6066,7 +6271,7 @@ plt.savefig('./twitfig.png', dpi=150, bbox_inches='tight')
 
 ** Twitter figure Sermeq Kujalleq
 :PROPERTIES:
-:header-args:python+: :tangle twitfig_sermeq_kujalleq.py
+:header-args:python+: :tangle twitbot.py
 :END:
 
 #+BEGIN_SRC python 
@@ -6428,30 +6633,12 @@ api.update_status(tweet_str, media_ids=[media.media_id])
 
 
 * Environment
+It is more reproducuble to use the docker images =hillerup/tmb_grass= and =hillerup/tmb_conda= but an environment to run the process can be recreated follwing the below steps.
 ** Software
 
 This project uses software - bash, GRASS, Python, etc. Using the Docker image supports the goal of bit-matching reproducibility. 
 
 Below I provide the version of the software(s) used to create this document in order to support the goal of bit-matching reproducibility. 
-
-*** Os installed
-#+BEGIN_SRC bash :results table
-for tool in gdal-bin parallel sed gawk netcdf-bin proj-bin nco cdo bash grass-gui datamash; do dpkg -l | grep "ii  ${tool} " | cut -c5-90; done| sort
-#+END_SRC
-
-#+RESULTS:
-| bash       | 5.0-6ubuntu1.1     |
-| cdo        | 1.9.9~rc1-1        |
-| datamash   | 1.4-1              |
-| gawk       | 1:5.0.1+dfsg-1     |
-| gdal-bin   | 3.0.4+dfsg-1build3 |
-| grass-gui  | 7.8.2-1build3      |
-| nco        | 4.9.1-1build2      |
-| netcdf-bin | 1:4.7.3-1          |
-| parallel   | 20161222-1.1       |
-| proj-bin   | 6.3.1-1            |
-| sed        | 4.7-1              |
-
 
 *** Org Mode
 #+BEGIN_SRC emacs-lisp :eval no-export :exports both
@@ -6537,48 +6724,71 @@ Then switch from system to local library.bib in ms.org
 
 * Makefile
 :PROPERTIES:
-:CUSTOM_ID: sec:makefile
-:END:
+:CUSTOM_ID: sec:makefile                                                                                                                                                                 
+:END:                                                                                                                                                                      
+                                                                                                                                                                                         
+This code, and all code files in this project, are derived products tangled from the sob.org source file.                                                                                
+                                                                                                                                                                                         
+#+BEGIN_SRC makefile :tangle Makefile :tangle-mode (identity #o444)                                                                                                                      
+RECENT ?= false
+container_cmd ?= docker
+container_args ?= run --user $(shell id -u):$(shell id -g) --env RECENT=${RECENT} --mount type=bind,src=${DATADIR},dst=/home/user/data --mount type=bind,src="$(shell pwd)",dst=/home/user --env PARALLEL="--delay 0.1 -j -1"
 
-This code, and all code files in this project, are derived products tangled from the sob.org source file.
 
-#+BEGIN_SRC makefile :tangle Makefile :tangle-mode (identity #o444)
+org-babel = emacsclient --eval "(progn                  \
+(find-file \"$(1)\")                            \
+        (org-babel-goto-named-src-block \"$(2)\")       \
+        (org-babel-execute-src-block)                   \
+        (save-buffer))"
+# Usage: $(call org-babel,<file.org>,<named_babel_block>)
+
+
 PROMICE_MB: all
 # dist
 
+docker: FORCE
+	docker pull hillerup/tmb_grass:latest
+	${container_cmd} ${container_args} hillerup/tmb_grass
+	docker pull hillerup/tmb_conda:latest
+	${container_cmd} ${container_args} hillerup/tmb_conda conda env export -n base
+
 all: FORCE
+	make docker
 	mkdir -p tmp dat
+	# set up 
+	${container_cmd} ${container_args} hillerup/tmb_grass grass -e -c EPSG:4326 G_HIRHAM
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
+	${container_cmd} ${container_args} hillerup/tmb_grass grass -e -c XY G_HIRHAM_XY
+	${container_cmd} ${container_args} hillerup/tmb_grass grass -e -c EPSG:3413 G_MAR
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_MAR/PERMANENT --exec ./MAR.sh
 
-	# set up
-	grass -e -c EPSG:4326 G_HIRHAM
-	grass ./G_HIRHAM/PERMANENT/ --exec ./HIRHAM.sh
-	grass -e -c XY G_HIRHAM_XY
-	
-	grass -e -c EPSG:3413 G_MAR
-	grass ./G_MAR/PERMANENT --exec ./MAR.sh
-
-	grass -e -c EPSG:3413 G_RACMO
-	grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
+	${container_cmd} ${container_args} hillerup/tmb_grass grass -e -c EPSG:3413 G_RACMO
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_RACMO/PERMANENT --exec ./RACMO.sh
 
 	# BMB setup on the MAR grid
-	grass ./G_MAR/PERMANENT --exec ./BMB.sh
-	
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_MAR/PERMANENT --exec ./BMB.sh
+
 	make SMB
 	make BMB
 	make dist
 
 SMB: FORCE
 	# partition RCM by Zwally sectors, Mouginot basins, and Mouginot regions
-	grass ./G_HIRHAM_XY/PERMANENT --exec ./SMB_HIRHAM_ROI.sh
-	grass ./G_MAR/PERMANENT --exec ./SMB_MAR_ROI.sh
-	grass ./G_RACMO/PERMANENT --exec ./SMB_RACMO_ROI.sh
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_HIRHAM_XY/PERMANENT --exec ./SMB_HIRHAM_ROI.sh
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_MAR/PERMANENT --exec ./SMB_MAR_ROI.sh
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_RACMO/PERMANENT --exec ./SMB_RACMO_ROI.sh
 	./SMB_merge.sh
-	python ./SMB_bsv2nc.py
+	${container_cmd} ${container_args} hillerup/tmb_conda python ./SMB_bsv2nc.py
 
 BMB: FORCE
-	grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
+	${container_cmd} ${container_args} hillerup/tmb_grass grass ./G_MAR/PERMANENT --exec ./BMB_MAR.sh
 	./BMB_merge.sh
-	python ./BMB_bsv2nc.py
+	${container_cmd} ${container_args} hillerup/tmb_conda python ./BMB_bsv2nc.py
+
+
+test_tmp: FORCE
+	./BMB_merge.sh
+	${container_cmd} ${container_args} hillerup/tmb_conda python ./BMB_bsv2nc.py
 
 update: FORCE
 	# remove previously forecasted MAR 
@@ -6590,18 +6800,17 @@ update: FORCE
 
 
 validate: FORCE
-	grass -e -c EPSG:3413 G
-	
+	${container_cmd} ${container_args} hillerup/tmb_grass grass -e -c EPSG:3413 G
+
 dist: FORCE
 	mkdir -p TMB
 	# create end-user data product
-	python ./build_TMB_nc.py
-        python upload_client.py --server https://thredds01.geus.dk/upload_mass_balance --token 'signes-hemmelige-token' TMB/*
-	# cp TMB/* /mnt/thredds_fileshare/mass_balance/.
+	${container_cmd} ${container_args} hillerup/tmb_conda python ./build_TMB_nc.py
+	#cp ./TMB/* /mnt/thredds_fileshare/mass_balance/
+	python upload_client.py --server https://thredds01.geus.dk/upload_mass_balance --token 'signes-hemmelige-token' TMB/*
 	# python ./upload_to_DV.py
-	# python ./twitfig.py
+	#python ./twitfig.py
 	# python ./twitbot.py
-
 
 FORCE: # dummy target
 
@@ -6611,12 +6820,17 @@ clean_30:
 	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/RACMO/*_$${d}.bsv; done
 	for n in $$(seq -10 30); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
 	make update
-	
+
 
 clean_all:
 	rm -fR G G_RACMO G_HIRHAM G_HIRHAM_XY G_MAR G_tmp tmp dat TMB
 
 clean_SMB:
+
 	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO 
-	
-#+END_SRC
+
+
+
+
+#+END_SRC  
+
