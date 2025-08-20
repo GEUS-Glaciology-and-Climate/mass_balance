@@ -2166,7 +2166,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     # First make the mean MB columns (index only time not roi)
     for RCM in ['mean', 'HIRHAM', 'MAR']:
-        MB_hist = (k2015['SMB_'+RCM] - k2015['D'] - k2015['BMB'])/365
+        MB_hist = (k2015['SMB'] - k2015['D'] - k2015['BMB'])/365
         MB_recent = (SMB['SMB_'+RCM] - D['D'] - BMB['BMB']).to_dataframe('MB').loc['1986':]['MB']
 
         MB['MB_'+RCM] = (('time'), MB_hist._append(MB_recent))
