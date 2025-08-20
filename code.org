@@ -1580,7 +1580,7 @@ slope, intercept, r_value, p_value, std_err = sps.linregress(SMB['SMB_mean'].val
                                                              k2015_overlap['SMB'].values)
 k2015 = k2015.rename(columns={'SMB':'SMB_orig'})
 k2015['SMB'] = (k2015['SMB_orig'] - intercept)/slope
-k2015['SMB_err'] = (k2015['SMB_err'] + SMB['SMB_err'].mean())
+k2015['SMB_err'] = (k2015['SMB_err'] + SMB['SMB_mean_err'].mean())
 
 slope, intercept, r_value, p_value, std_err = sps.linregress(D['D'].values,
                                                              k2015_overlap['D'].values)
