@@ -909,7 +909,7 @@ print('{:.4f}'.format(err.sum()))
 ### create SMB from individual SMBs
 # for roi in ['sector','region','basin']:
 for roi in ['sector','region']:
-    mean = SMB[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
+    mean = SMB[['HIRHAM_'+roi, 'MAR_'+roi]].to_array(dim='m').mean('m') # add RACMO if it starts to become regularly updated: , 'RACMO_'+roi
     s = 'SMB_' + roi
     SMB[s] = (('time',roi), mean.data)
     # SMB[s].attrs["long_name"] = "Surface mass balance (RCM mean)"
@@ -941,8 +941,8 @@ Test:
 #+BEGIN_SRC python
 import xarray as xr
 ds = xr.open_dataset('./tmp/SMB.nc')
-ds[['SMB','HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_dataframe().plot()
-ds[['SMB','HIRHAM_sector','MAR_sector','RACMO_sector']].sum(dim='sector').to_dataframe().head()
+ds[['SMB','HIRHAM_sector','MAR_sector']].sum(dim='sector').to_dataframe().plot() # add RACMO if it starts to become regularly updated: , 'RACMO_'+roi
+ds[['SMB','HIRHAM_sector','MAR_sector']].sum(dim='sector').to_dataframe().head() # add RACMO if it starts to become regularly updated: , 'RACMO_'+roi
 #+END_SRC
 
 #+RESULTS:
@@ -2297,7 +2297,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
 
 # maybe also some CSV output
-MB_df = MB[['MB','MB_err','SMB','SMB_err','D','D_err','BMB','BMB_err']].to_dataframe()
+MB_df = MB[['MB','MB_err', 'MB_MAR', 'MB_HIRHAM','SMB','SMB_err', 'SMB_MAR', 'SMB_HIRHAM','D','D_err','BMB','BMB_err']].to_dataframe()
 # Remove the forecast after september 1st if data after september 1st is only forecast 
 # Determine the last date processed
 # last_date = MB_df.index.max()
