@@ -2101,9 +2101,9 @@ time = np.append(k2015.index, SMB['time'].values)
 SMB = SMB.reindex({'time':time})
 for RCM in ['mean', 'HIRHAM', 'MAR']:
     SMB['SMB_' + RCM] = (('time'),
-              np.append(k2015['SMB_'+RCM].values/365, SMB['SMB_'+RCM].sel({'time':slice('1986','2200')}).values))
+              np.append(k2015['SMB'].values/365, SMB['SMB_'+RCM].sel({'time':slice('1986','2200')}).values))
     SMB['SMB_'+RCM+'_err'] = (('time'),
-                  np.append(k2015['SMB_'+RCM+'_err'].values/365, SMB['SMB_'+RCM+'_err'].sel({'time':slice('1986','2200')}).values))
+                  np.append(k2015['SMB_err'].values/365, SMB['SMB_'+RCM+'_err'].sel({'time':slice('1986','2200')}).values))
 
 
 
