@@ -1563,7 +1563,7 @@ k2015 = k2015.drop(columns=['accumulation', 'accumulation 1sigma',
 time = pd.date_range(start = "1986-01-01", end = str(D['time'].values[-1]), freq = "D")
 D = D.reindex({'time':time}).bfill(dim='time')
 
-SMB = SMB[['SMB','SMB_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
+SMB = SMB[['SMB_mean','SMB_mean_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
 D = D[['D','D_err']].resample({'time':'YS'}).sum().sel({'time':slice('1986','2012')}).to_dataframe()
 
 k2015_overlap = k2015.loc['1986':'2012']
