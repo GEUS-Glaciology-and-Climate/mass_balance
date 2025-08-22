@@ -1360,9 +1360,9 @@ done
 
 #+RESULTS:
 : 
-: $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ > > > > [0;32m[2021-02-03T13:54:26-08:00] [INFO] MAR sector[0m
-: [0;32m[2021-02-03T13:54:26-08:00] [INFO] MAR region[0m
-: [0;32m[2021-02-03T13:54:26-08:00] [INFO] MAR basin[0m
+: $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ > > > > [2021-02-03T13:54:26-08:00] [INFO] MAR sector
+: [2021-02-03T13:54:26-08:00] [INFO] MAR region
+: [2021-02-03T13:54:26-08:00] [INFO] MAR basin
 
 
 *** BSV to NetCDF
@@ -2195,7 +2195,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_mean_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
 
     v = 'MB'
-    MB[v].attrs['long_name'] = 'Mass balance from ' + v.split('_')[1]
+    MB[v].attrs['long_name'] = 'Mass balance mean of HIRHAM and MAR'
     MB[v].attrs["standard_name"] = "land_ice_mass_transport"
     MB[v].attrs["units"] = "Gt d-1"
     MB[v].attrs["coordinates"] = 'time ' + roi
