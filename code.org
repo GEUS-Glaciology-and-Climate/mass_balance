@@ -2204,7 +2204,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         MB['MB_'+RCM+'_ROI'] = (('time',roi), (SMB[RCM+'_'+roi] - D['D_'+roi] - BMB['BMB_'+roi]).data)
         MB['MB_'+RCM+'_ROI_err'] = (('time',roi), (SMB[RCM+'_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
         
-    for v = in ['MB', 'MB_ROI', 'MB_err', 'MB_ROI_err', 'MB_HIRHAM', 'MB_HIRHAM_ROI', 'MB_HIRHAM_err', 'MB_HIRHAM_ROI_err','MB_MAR', 'MB_MAR_ROI', 'MB_MAR_err', 'MB_MAR_ROI_err']:
+    for v in ['MB', 'MB_ROI', 'MB_err', 'MB_ROI_err', 'MB_HIRHAM', 'MB_HIRHAM_ROI', 'MB_HIRHAM_err', 'MB_HIRHAM_ROI_err','MB_MAR', 'MB_MAR_ROI', 'MB_MAR_err', 'MB_MAR_ROI_err']:
         ln = 'Mass balance'
         if 'err' in v: ln = ln + ' uncertainty'
         MB[v].attrs['long_name'] = 'Mass balance'
