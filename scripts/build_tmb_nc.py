@@ -255,6 +255,9 @@ import datetime
 import pandas as pd
 SMB = xr.open_dataset("./tmp/SMB.nc")
 SMB['region'] = SMB['region'].astype(str)
+# Trim trailing zero-filled forecast days (MAR provides timestamps beyond real data)
+last_real = int(np.where(SMB['SMB_MAR'].values != 0)[0][-1])
+SMB = SMB.isel(time=slice(None, last_real + 1))
 time = np.append(k2015.index, SMB['time'].values)
 SMB = SMB.reindex({'time':time})
 for RCM in ['mean', 'HIRHAM', 'MAR']:
