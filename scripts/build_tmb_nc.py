@@ -619,8 +619,6 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     encoding = {var: comp for var in MB.data_vars} # all variables
     encoding['time'] = {'dtype':'float64'} #time (to be compatible with openDAP)
-    MB = MB.isel(time=slice(None,-4)) #The forecast from MAR is now only 3 days
-
     fn = './TMB/MB_'+roi+'.nc'
     if os.path.exists(fn): os.remove(fn)
     MB.to_netcdf(fn, mode='w', encoding=encoding)
