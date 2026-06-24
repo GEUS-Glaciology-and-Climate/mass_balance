@@ -652,14 +652,14 @@ df = df.resample('1D')\
 df.index = df.index.year
 df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 
-# daily to hydrological year (Sep 1 – Aug 31, labelled by start year)
+# daily to hydrological year (Sep 1 – Aug 31, labelled by end year)
 df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
 df = df.resample('1D')\
        .ffill()\
        .resample('YS-SEP')\
        .sum()\
        .iloc[:-1]
-df.index = df.index.year
+df.index = df.index.year + 1
 df.to_csv('./TMB/MB_SMB_D_BMB_ann_hydro.csv', float_format='%.6f')
 
 # cumulative MB from 1986-01-01 (daily)
