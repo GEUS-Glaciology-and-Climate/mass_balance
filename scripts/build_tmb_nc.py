@@ -646,8 +646,34 @@ MB_df.to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
 df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
 df = df.resample('1D')\
        .ffill()\
-       .resample('AS')\
+       .resample('YS')\
        .sum()\
        .iloc[:-1]
 df.index = df.index.year
 df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
+
+# daily to hydrological year (Sep 1 – Aug 31, labelled by start year)
+df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
+df = df.resample('1D')\
+       .ffill()\
+       .resample('YS-SEP')\
+       .sum()\
+       .iloc[:-1]
+df.index = df.index.year
+df.to_csv('./TMB/MB_SMB_D_BMB_ann_hydro.csv', float_format='%.6f')
+
+# cumulative MB from 1986-01-01 (daily)
+df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
+df = df.resample('1D').ffill().loc['1986':]
+cum = pd.DataFrame(index=df.index)
+cum['MB_cumulative']     = df['MB'].cumsum()
+cum['MB_cumulative_err'] = np.sqrt((df['MB_err']**2).cumsum())
+cum.to_csv('./TMB/MB_cumulative.csv', float_format='%.6f')
+
+# cumulative MB — end-of-year snapshot (annual)
+cum_ann = cum.resample('YE').last().iloc[:-1]
+cum_ann.index = cum_ann.index.year
+GT_TO_SLE = 0.0028  # mm SLE per Gt
+cum_ann['SLE_cumulative']     = cum_ann['MB_cumulative']     * GT_TO_SLE
+cum_ann['SLE_cumulative_err'] = cum_ann['MB_cumulative_err'] * GT_TO_SLE
+cum_ann.to_csv('./TMB/MB_cumulative_ann.csv', float_format='%.6f')
