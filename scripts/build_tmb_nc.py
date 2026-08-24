@@ -680,6 +680,10 @@ cum_ann.index = cum_ann.index.year
 # per year. Years are independent instead, so their errors add in
 # quadrature using the actual per-year MB_err.
 ann_err = pd.read_csv('./TMB/MB_SMB_D_BMB_ann.csv', index_col=0)['MB_err']
+ann_err = ann_err.loc[1986:]  # match MB_cumulative's start; the full series
+                              # goes back to 1840 (Kjeldsen reconstruction)
+                              # and would otherwise bake ~150 years of
+                              # pre-1986 error into the 1986 starting point
 cum_ann['MB_cumulative_err'] = np.sqrt((ann_err**2).cumsum()).reindex(cum_ann.index)
 
 GT_TO_SLE = 0.0028  # mm SLE per Gt
