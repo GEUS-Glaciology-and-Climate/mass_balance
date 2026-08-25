@@ -260,7 +260,7 @@ last_real = int(np.where(SMB['SMB_MAR'].values != 0)[0][-1])
 SMB = SMB.isel(time=slice(None, last_real + 1))
 time = np.append(k2015.index, SMB['time'].values)
 SMB = SMB.reindex({'time':time})
-for RCM in ['mean', 'HIRHAM', 'MAR']:
+for RCM in ['mean', 'HIRHAM', 'MAR', 'RACMO']:
     SMB['SMB_' + RCM] = (('time'),
               np.append(k2015['SMB'].values/365, SMB['SMB_'+RCM].sel({'time':slice('1986','2200')}).values))
     SMB['SMB_'+RCM+'_err'] = (('time'),
@@ -475,7 +475,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB["time"].attrs["axis"] = "T"
 
     # First make the mean MB columns (index only time not roi)
-    for RCM in ['mean', 'HIRHAM', 'MAR']:
+    for RCM in ['mean', 'HIRHAM', 'MAR', 'RACMO']:
         MB_hist = (k2015['SMB'] - k2015['D'] - k2015['BMB'])/365
         MB_recent = (SMB['SMB_'+RCM] - D['D'] - BMB['BMB']).to_dataframe('MB').loc['1986':]['MB']
 
@@ -505,16 +505,16 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_mean_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
 
     v = 'MB'
-    MB[v].attrs['long_name'] = 'Mass balance mean of HIRHAM and MAR'
+    MB[v].attrs['long_name'] = 'Mass balance mean of HIRHAM, MAR and RACMO'
     MB[v].attrs["standard_name"] = "land_ice_mass_transport"
     MB[v].attrs["units"] = "Gt d-1"
     MB[v].attrs["coordinates"] = 'time ' + roi
         
-    for RCM in ['HIRHAM', 'MAR']:
+    for RCM in ['HIRHAM', 'MAR', 'RACMO']:
         MB['MB_'+RCM+'_ROI'] = (('time',roi), (SMB[RCM+'_'+roi] - D['D_'+roi] - BMB['BMB_'+roi]).data)
         MB['MB_'+RCM+'_ROI_err'] = (('time',roi), (SMB[RCM+'_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
         
-    for v in ['MB', 'MB_ROI', 'MB_err', 'MB_ROI_err', 'MB_HIRHAM', 'MB_HIRHAM_ROI', 'MB_HIRHAM_err', 'MB_HIRHAM_ROI_err','MB_MAR', 'MB_MAR_ROI', 'MB_MAR_err', 'MB_MAR_ROI_err']:
+    for v in ['MB', 'MB_ROI', 'MB_err', 'MB_ROI_err', 'MB_HIRHAM', 'MB_HIRHAM_ROI', 'MB_HIRHAM_err', 'MB_HIRHAM_ROI_err','MB_MAR', 'MB_MAR_ROI', 'MB_MAR_err', 'MB_MAR_ROI_err', 'MB_RACMO', 'MB_RACMO_err', 'MB_RACMO_ROI', 'MB_RACMO_ROI_err']:
         ln = 'Mass balance'
         if 'err' in v: ln = ln + ' uncertainty'
         MB[v].attrs['long_name'] = 'Mass balance'
@@ -534,15 +534,19 @@ for roi in ['sector', 'region']: # TODO: 'basin'
     MB['SMB_HIRHAM_err'] = (('time'), SMB['SMB_HIRHAM_err'].data)
     MB['SMB_MAR'] = (('time'), SMB['SMB_MAR'].data)
     MB['SMB_MAR_err'] = (('time'), SMB['SMB_MAR_err'].data)
+    MB['SMB_RACMO'] = (('time'), SMB['SMB_RACMO'].data)
+    MB['SMB_RACMO_err'] = (('time'), SMB['SMB_RACMO_err'].data)
     MB['SMB_ROI'] = (('time',roi), SMB['SMB_mean_'+roi].data)
     MB['SMB_ROI_err'] = (('time',roi), SMB['SMB_mean_'+roi+'_err'].data)
     MB['SMB_HIRHAM_ROI'] = (('time',roi), SMB['SMB_HIRHAM_'+roi].data)
     MB['SMB_HIRHAM_ROI_err'] = (('time',roi), SMB['SMB_HIRHAM_'+roi+'_err'].data)
     MB['SMB_MAR_ROI'] = (('time',roi), SMB['SMB_MAR_'+roi].data)
     MB['SMB_MAR_ROI_err'] = (('time',roi), SMB['SMB_MAR_'+roi+'_err'].data)
+    MB['SMB_RACMO_ROI'] = (('time',roi), SMB['SMB_RACMO_'+roi].data)
+    MB['SMB_RACMO_ROI_err'] = (('time',roi), SMB['SMB_RACMO_'+roi+'_err'].data)
 
     
-    for v in ['SMB', 'SMB_ROI', 'SMB_err', 'SMB_ROI_err', 'SMB_HIRHAM', 'SMB_HIRHAM_ROI', 'SMB_HIRHAM_err', 'SMB_HIRHAM_ROI_err','SMB_MAR', 'SMB_MAR_ROI', 'SMB_MAR_err', 'SMB_MAR_ROI_err']:
+    for v in ['SMB', 'SMB_ROI', 'SMB_err', 'SMB_ROI_err', 'SMB_HIRHAM', 'SMB_HIRHAM_ROI', 'SMB_HIRHAM_err', 'SMB_HIRHAM_ROI_err','SMB_MAR', 'SMB_MAR_ROI', 'SMB_MAR_err', 'SMB_MAR_ROI_err','SMB_RACMO', 'SMB_RACMO_ROI', 'SMB_RACMO_err', 'SMB_RACMO_ROI_err']:
         ln = 'Surface mass balance'
         if 'err' in v: ln = ln + ' uncertainty'
         MB[v].attrs['long_name'] = ln
@@ -628,7 +632,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
 
 # maybe also some CSV output
-MB_df = MB[['MB','MB_err', 'MB_MAR', 'MB_HIRHAM','SMB','SMB_err', 'SMB_MAR', 'SMB_HIRHAM','D','D_err','BMB','BMB_err']].to_dataframe()
+MB_df = MB[['MB','MB_err', 'MB_HIRHAM', 'MB_MAR', 'MB_RACMO', 'SMB','SMB_err', 'SMB_HIRHAM', 'SMB_MAR', 'SMB_RACMO','D','D_err','BMB','BMB_err']].to_dataframe()
 # Remove the forecast after september 1st if data after september 1st is only forecast 
 # Determine the last date processed
 # last_date = MB_df.index.max()
