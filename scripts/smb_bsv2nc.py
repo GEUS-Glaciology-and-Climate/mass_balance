@@ -70,16 +70,16 @@ print('{:.4f}'.format(err.sum()))
 
 # Ensemble mean across HIRHAM and MAR (RACMO excluded until regularly updated)
 for roi in ['sector', 'region']:
-    mean = SMB[['HIRHAM_'+roi, 'MAR_'+roi]].to_array(dim='m').mean('m')
+    mean = SMB[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
     s = 'SMB_mean_' + roi
     SMB[s] = (('time', roi), mean.data)
     SMB[s + '_err'] = (('time', roi), mean.data * 0.15)
-    for RCM in ['HIRHAM', 'MAR']:
+    for RCM in ['HIRHAM', 'MAR', 'RACMO']:
         s = 'SMB_'+RCM+'_' + roi
         SMB[s] = (('time', roi), SMB[RCM+'_'+roi].data)
         SMB[s + '_err'] = (('time', roi), SMB[RCM+'_'+roi].data * 0.15)
 
-for RCM in ['mean', 'HIRHAM', 'MAR']:
+for RCM in ['mean', 'HIRHAM', 'MAR', 'RACMO']:
     SMB['SMB_'+RCM] = (('time'), SMB['SMB_'+RCM+'_sector'].sum(dim='sector').data)
     SMB['SMB_'+RCM+'_err'] = (('time'), SMB['SMB_'+RCM+'_sector'].sum(dim='sector').data * 0.09)
 
