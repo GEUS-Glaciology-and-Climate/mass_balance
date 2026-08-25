@@ -16,12 +16,12 @@ conda_run       = ${container_cmd} ${container_args} hillerup/tmb_conda python
 SHELL  = bash
 STAMPS = .stamps
 .DEFAULT_GOAL := help
-.PHONY: help all docker setup SMB BMB dist update clean_30 clean_SMB clean_all
+.PHONY: help all docker setup SMB BMB build_TMB dist update clean_30 clean_SMB clean_all
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-all: docker setup SMB BMB dist ## Full pipeline from scratch
+all: docker setup SMB BMB build_TMB dist ## Full pipeline from scratch
 
 docker: ## Pull Docker images
 	docker pull hillerup/tmb_grass:latest
@@ -85,11 +85,15 @@ BMB: ## Compute basal melt from MAR runoff, merge, and convert to NetCDF
 	${conda_run} scripts/bmb_bsv2nc.py
 
 
+## --- TMB ---
+
+build_TMB: ## Build TMB NetCDF
+	mkdir -p TMB
+	${conda_run} scripts/build_tmb_nc.py
+
 ## --- Distribution ---
 
 dist: ## Build TMB NetCDF and upload to THREDDS
-	mkdir -p TMB
-	${conda_run} scripts/build_tmb_nc.py
 	/home/shl/miniconda3/envs/TMB/bin/python upload_cli.py \
 		--url https://thredds01.geus.dk/thredds_upload \
 		--destination tmb \
@@ -104,6 +108,7 @@ update: ## Reprocess recent data (~30 days) and upload
 	RECENT=true make SMB
 	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
 	RECENT=true make BMB
+	make TMB
 	make dist
 
 
