@@ -671,12 +671,25 @@ df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
 df = df.resample('1D').ffill().loc['1986':]
 cum = pd.DataFrame(index=df.index)
 cum['MB_cumulative']     = df['MB'].cumsum()
-cum['MB_cumulative_err'] = np.sqrt((df['MB_err']**2).cumsum())
 cum.to_csv('./TMB/MB_cumulative.csv', float_format='%.6f')
 
 # cumulative MB — end-of-year snapshot (annual)
 cum_ann = cum.resample('YE').last().iloc[:-1]
 cum_ann.index = cum_ann.index.year
+
+# Cumulative error: MB_err in the daily frame above is each year's total
+# error spread evenly over ~365 days (a rate, so that summing it back up
+# recovers the annual total) — squaring and cumsum-ing that rate treats one
+# year's error as ~365 independent daily draws, understating it by ~1/365
+# per year. Years are independent instead, so their errors add in
+# quadrature using the actual per-year MB_err.
+ann_err = pd.read_csv('./TMB/MB_SMB_D_BMB_ann.csv', index_col=0)['MB_err']
+ann_err = ann_err.loc[1986:]  # match MB_cumulative's start; the full series
+                              # goes back to 1840 (Kjeldsen reconstruction)
+                              # and would otherwise bake ~150 years of
+                              # pre-1986 error into the 1986 starting point
+cum_ann['MB_cumulative_err'] = np.sqrt((ann_err**2).cumsum()).reindex(cum_ann.index)
+
 GT_TO_SLE = 0.0028  # mm SLE per Gt
 cum_ann['SLE_cumulative']     = cum_ann['MB_cumulative']     * GT_TO_SLE
 cum_ann['SLE_cumulative_err'] = cum_ann['MB_cumulative_err'] * GT_TO_SLE
