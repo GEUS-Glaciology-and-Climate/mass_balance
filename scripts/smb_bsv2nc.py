@@ -68,7 +68,9 @@ SMB = bsv2nc(SMB, "RACMO_region", "region")
 err = unumpy.uarray([1, 1, 1], [0.1, 0.15, 0.7])
 print('{:.4f}'.format(err.sum()))
 
-# Ensemble mean across HIRHAM and MAR (RACMO excluded until regularly updated)
+# Ensemble mean across HIRHAM, MAR and RACMO. Members that have not been
+# updated yet are NaN (reindexed above), and mean() skips them, so the mean
+# degrades to HIRHAM+MAR once RACMO lags, and to MAR alone in the forecast week.
 for roi in ['sector', 'region']:
     mean = SMB[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
     s = 'SMB_mean_' + roi
@@ -79,9 +81,13 @@ for roi in ['sector', 'region']:
         SMB[s] = (('time', roi), SMB[RCM+'_'+roi].data)
         SMB[s + '_err'] = (('time', roi), SMB[RCM+'_'+roi].data * 0.15)
 
+# min_count=1 keeps a day where the RCM has no data at all as NaN. Without it
+# xarray's sum returns 0.0 for an all-NaN day, which is indistinguishable from a
+# real zero-SMB day and propagates into MB_<RCM> as a spurious -(D+BMB).
 for RCM in ['mean', 'HIRHAM', 'MAR', 'RACMO']:
-    SMB['SMB_'+RCM] = (('time'), SMB['SMB_'+RCM+'_sector'].sum(dim='sector').data)
-    SMB['SMB_'+RCM+'_err'] = (('time'), SMB['SMB_'+RCM+'_sector'].sum(dim='sector').data * 0.09)
+    total = SMB['SMB_'+RCM+'_sector'].sum(dim='sector', min_count=1)
+    SMB['SMB_'+RCM] = (('time'), total.data)
+    SMB['SMB_'+RCM+'_err'] = (('time'), total.data * 0.09)
 
 fn = './tmp/SMB.nc'
 if os.path.exists(fn): os.remove(fn)
