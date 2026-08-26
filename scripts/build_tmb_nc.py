@@ -255,8 +255,8 @@ import datetime
 import pandas as pd
 SMB = xr.open_dataset("./tmp/SMB.nc")
 SMB['region'] = SMB['region'].astype(str)
-# Trim trailing zero-filled forecast days (MAR provides timestamps beyond real data)
-last_real = int(np.where(SMB['SMB_MAR'].values != 0)[0][-1])
+# Trim trailing empty forecast days (MAR provides timestamps beyond real data)
+last_real = int(np.where(np.isfinite(SMB['SMB_MAR'].values))[0][-1])
 SMB = SMB.isel(time=slice(None, last_real + 1))
 time = np.append(k2015.index, SMB['time'].values)
 SMB = SMB.reindex({'time':time})
@@ -646,12 +646,15 @@ MB_df = MB[['MB','MB_err', 'MB_HIRHAM', 'MB_MAR', 'MB_RACMO', 'SMB','SMB_err', '
 #     MB_df = MB_df[MB_df.index < sep_1_last_year]
 MB_df.to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
 
+# ffill expands the annual pre-1986 reconstruction rows to daily; it leaves the
+# already-daily post-1986 rows (incl. the NaN days an RCM has not covered yet)
+# untouched. min_count=1 then keeps a year with no data at all as NaN, not 0.
 # daily to annual
 df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
 df = df.resample('1D')\
        .ffill()\
        .resample('YS')\
-       .sum()\
+       .sum(min_count=1)\
        .iloc[:-1]
 df.index = df.index.year
 df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
@@ -661,7 +664,7 @@ df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
 df = df.resample('1D')\
        .ffill()\
        .resample('YS-SEP')\
-       .sum()\
+       .sum(min_count=1)\
        .iloc[:-1]
 df.index = df.index.year + 1
 df.to_csv('./TMB/MB_SMB_D_BMB_ann_hydro.csv', float_format='%.6f')
