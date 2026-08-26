@@ -646,26 +646,36 @@ MB_df = MB[['MB','MB_err', 'MB_HIRHAM', 'MB_MAR', 'MB_RACMO', 'SMB','SMB_err', '
 #     MB_df = MB_df[MB_df.index < sep_1_last_year]
 MB_df.to_csv('./TMB/MB_SMB_D_BMB.csv', float_format='%.6f')
 
-# ffill expands the annual pre-1986 reconstruction rows to daily; it leaves the
-# already-daily post-1986 rows (incl. the NaN days an RCM has not covered yet)
-# untouched. min_count=1 then keeps a year with no data at all as NaN, not 0.
+def to_annual(df, freq):
+    """Sum daily values to annual totals, per column, masking any year a column
+    does not cover in full.
+
+    ffill expands the annual pre-1986 reconstruction rows to daily so they sum
+    correctly; it leaves the already-daily post-1986 rows untouched, including
+    the NaN days an RCM has not covered yet. Those NaN days would otherwise sum
+    to a plausible-looking but too-small annual total: RACMO lags by months, so
+    its most recent year is short, and a summed-as-if-complete year is
+    indistinguishable from a genuinely low-SMB year. Coverage is counted per
+    column, so a short RACMO year does not mask MAR, the ensemble mean, D or BMB
+    in the same row.
+    """
+    daily = df.resample('1D').ffill()
+    grp = daily.resample(freq)
+    total = grp.sum(min_count=1)
+    n_days = pd.Series((total.index + pd.DateOffset(years=1) - total.index).days,
+                       index=total.index)
+    return total.where(grp.count().eq(n_days, axis=0)).iloc[:-1]
+
+
 # daily to annual
 df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
-df = df.resample('1D')\
-       .ffill()\
-       .resample('YS')\
-       .sum(min_count=1)\
-       .iloc[:-1]
+df = to_annual(df, 'YS')
 df.index = df.index.year
 df.to_csv('./TMB/MB_SMB_D_BMB_ann.csv', float_format='%.6f')
 
 # daily to hydrological year (Sep 1 – Aug 31, labelled by end year)
 df = pd.read_csv('./TMB/MB_SMB_D_BMB.csv', index_col=0, parse_dates=True)
-df = df.resample('1D')\
-       .ffill()\
-       .resample('YS-SEP')\
-       .sum(min_count=1)\
-       .iloc[:-1]
+df = to_annual(df, 'YS-SEP')
 df.index = df.index.year + 1
 df.to_csv('./TMB/MB_SMB_D_BMB_ann_hydro.csv', float_format='%.6f')
 
