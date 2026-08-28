@@ -108,7 +108,7 @@ update: ## Reprocess recent data (~30 days) and upload
 	RECENT=true make SMB
 	for n in $$(seq -10 10); do d=$$(date --date="$${n} days ago" --iso-8601); rm -f ./tmp/BMB/*_$${d}.bsv; done
 	RECENT=true make BMB
-	make TMB
+	make build_TMB
 	make dist
 
 
