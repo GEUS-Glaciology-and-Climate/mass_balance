@@ -18,7 +18,7 @@ log_info "Loading Mouginot 2019"
 g.mapset -c Mouginot_2019
 v.in.ogr -o input=Mouginot_2019_HIRHAM.gpkg output=basins
 db.execute sql="DELETE FROM basins WHERE name LIKE 'ICE_CAPS_%'"
-v.db.addcolumn map=basins columns="SUBREGION1_num INT"
+v.db.addcolumn map=basins columns="SUBREGION1_num INT,basin_num INT"
 db.execute sql="UPDATE basins SET SUBREGION1_num=11 WHERE SUBREGION1='NW'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=12 WHERE SUBREGION1='NO'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=1 WHERE SUBREGION1='NE'"
@@ -26,6 +26,7 @@ db.execute sql="UPDATE basins SET SUBREGION1_num=3 WHERE SUBREGION1='CE'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=9 WHERE SUBREGION1='CW'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=5 WHERE SUBREGION1='SE'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=7 WHERE SUBREGION1='SW'"
+number_basins HIRHAM
 g.mapset PERMANENT
 
 # Ice mask: main ice sheet only (largest cluster), no peripheral glaciers
@@ -48,7 +49,7 @@ r.to.vect input=sectors_e output=sectors_e type=area
 log_info "Expanding Mouginot basins to cover RCM domain"
 g.mapset Mouginot_2019
 g.region region=sectors
-v.to.rast input=basins output=basins use=attr attribute_column=cat_ labelcolumn=SUBREGION1
+v.to.rast input=basins output=basins use=attr attribute_column=basin_num labelcolumn=NAME
 r.grow.distance input=basins value=value_b
 r.mapcalc "basins_e = if(mask_ice, int(value_b), null())"
 r.category map=basins separator=":" > ./tmp/basins_cats
@@ -66,3 +67,4 @@ r.to.vect input=regions_e output=regions_e type=area
 mkdir -p tmp
 r.out.gdal input=sectors_e@Zwally_2012 output=./tmp/HIRHAM_sectors_e_Zwally_2012.tif
 r.out.gdal input=regions_e@Mouginot_2019 output=./tmp/HIRHAM_regions_e_Mouginot_2019.tif
+r.out.gdal input=basins_e@Mouginot_2019 output=./tmp/HIRHAM_catchments_e_Mouginot_2019.tif

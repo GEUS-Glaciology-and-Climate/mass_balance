@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Extract daily SMB from MAR and aggregate to Zwally sectors and Mouginot regions.
+# Extract daily SMB from MAR and aggregate to Zwally sectors, Mouginot regions
+# and Mouginot catchments.
 # Runs in G_MAR (EPSG:3413). MAR NetCDF has dimensions (time, sector, y, x) where
 # sector k=1 is permanent ice and k=2 is tundra; GRASS exposes these as odd/even bands.
 source ./scripts/common.sh
+
+declare -A ZONES=([sector]=sectors_e@Zwally_2012 [region]=regions_e@Mouginot_2019 [catchment]=basins_e@Mouginot_2019)
 
 RCM=MAR
 mkdir -p tmp/${RCM}
@@ -28,23 +31,24 @@ for f in ${f_list}; do
 
     log_info "${RCM}: ${d}"
 
-    if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
+    # Skip the day only once every ROI has its BSV, so adding an ROI back-fills it
+    todo=""
+    for ROI in ${!ZONES[@]}; do
+      [[ -e ./tmp/${RCM}/${ROI}_${d}.bsv ]] || todo="${todo} ${ROI}"
+    done
+    if [[ -z ${todo} ]]; then continue; fi
 
     r.in.gdal -o input="NetCDF:${f}:smb" band=${band} output=SMB_raw --o --q
     r.region map=SMB_raw region=RCM
     r.mapcalc "SMB = if(mask > 50, SMB_raw * (mask/100), null())" --o
 
-    r.univar -t --q map=SMB zones=sectors_e@Zwally_2012 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/sector_${d}.bsv
-
-    r.univar -t --q map=SMB zones=regions_e@Mouginot_2019 \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/region_${d}.bsv
+    for ROI in ${todo}; do
+      r.univar -t --q map=SMB zones=${ZONES[$ROI]} \
+      | cut -d"|" -f1,13 \
+      | datamash -t"|" transpose \
+      | sed s/^sum/${d}/ \
+      > ./tmp/${RCM}/${ROI}_${d}.bsv
+    done
 
   done
 done

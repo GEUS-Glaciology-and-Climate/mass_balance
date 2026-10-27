@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # Assemble Total Mass Balance (TMB) from SMB, D (ice discharge), BMB, and the
 # Kjeldsen 2015 historical reconstruction. Forecasts D 7 days forward.
-# Outputs NetCDF files to TMB/ for each ROI type (sector, region).
+# Outputs NetCDF files to TMB/ for each ROI type (sector, region, catchment).
+# Catchment D is read per Mouginot 2019 catchment from Mankoff_2020/ice/latest/mask/;
+# sector and region D are still summed from the gates in latest/gate.nc.
 
 import pandas as pd
 import os
@@ -294,19 +296,22 @@ ds_region = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","sector","Zwal
                    "err":"err_region"})
 
 
-# ds_basin = ds.drop_vars(["mean_x","mean_y","mean_lon","mean_lat","Zwally_2012","region","coverage"])\
-#           .groupby("sector")\
-#           .sum()\
-#           .rename({"sector":"basin",
-#                    "discharge":"D_basin",
-#                    "err":"err_basin"})
-
 D = ds_sector
 D = D.merge(ds_region, compat='override')
-# D = D.merge(ds_basin)
 
 D['D'] = (('time'), D['D_sector'].sum(dim='sector').data)
 D['D_err'] = (('time'), D['err_sector'].sum(dim='sector').data)
+
+# Catchment D is already summed per catchment, on its own (SID run's) time
+# steps. Merged only after D and D_err are summed, so its extra time steps are
+# NaN for the gate-based variables and disappear in the daily resample below.
+D_catchment_file = DATADIR + "/Mankoff_2020/ice/latest/mask/D_catchment.nc"
+ds_catchment = xr.open_dataset(D_catchment_file)\
+          .drop_vars(["coverage"])\
+          .rename({"discharge":"D_catchment",
+                   "err":"err_catchment"})
+catchments_with_D = ds_catchment['catchment'].astype(str).values
+D = D.merge(ds_catchment)
 
 # convert from Gt/year @ misc time-steps -> Gt/day @ daily timestep
 msave = D.copy(deep=True)
@@ -317,6 +322,13 @@ D = (D / 365).resample({"time":"1D"})\
 # I want monotonic cubic interpolation for discharge
 D['D'] = (('time'), (msave['D']/365).resample({'time':'1D'}).mean().to_dataframe().interpolate(method='pchip').values.flatten())
 D['region'] = D['region'].astype(str)
+D['catchment'] = D['catchment'].astype(str)
+
+# The catchment record can end before the gate record (different SID runs);
+# hold its last value to the common last observation so the forecast below
+# starts from a number rather than NaN.
+for v in ['D_catchment', 'err_catchment']:
+    D[v] = D[v].ffill(dim='time')
 
 import numpy as np
 import pandas as pd
@@ -347,7 +359,7 @@ def detrend_dim(da, dim, deg=1):
     fit = xr.polyval(da[dim], p.polyfit_coefficients)
     return fit,p
 
-for v in ['D_sector','D_region','D']:
+for v in ['D_sector','D_region','D_catchment','D']:
     # trend is linear long term trend of last 3 years of observations.
     last3_plus_forecast = D_fc[v].sel({'time':slice(time_index_last3y[0],time_forecast_end)})
     trend, _ = detrend_dim(last3_plus_forecast, 'time')
@@ -373,7 +385,7 @@ for v in ['D_sector','D_region','D']:
     forecast = forecast + season_trend
     D_fc[v] = xr.concat([D[v],forecast], dim='time') # .interp(time=time_index_all)
 
-    vv = {'D':'D_err', 'D_sector':'err_sector', 'D_region':'err_region'}[v]
+    vv = {'D':'D_err', 'D_sector':'err_sector', 'D_region':'err_region', 'D_catchment':'err_catchment'}[v]
     e = xr.ones_like(D_fc[vv].sel({'time':time_index_forecast})).cumsum(dim='time')/100
     baseline_err = D_fc[vv].dropna(dim='time').mean(dim='time')
     e = baseline_err * e
@@ -420,7 +432,7 @@ BMB['BMB_err'] = (('time'), ((BMB['GF_sector_err']**2 \
 
 BMB['BMB_sector'] = (('time','sector'), BMB['VHD_sector'].data + BMB['GF_sector'].data + BMB['vel_sector'].data)
 BMB['BMB_region'] = (('time','region'), BMB['VHD_region'].data + BMB['GF_region'].data + BMB['vel_region'].data)
-# BMB['BMB_basin'] = BMB['VHD_basin'] + BMB['GF_basin'] + BMB['vel_basin']
+BMB['BMB_catchment'] = (('time','catchment'), BMB['VHD_catchment'].data + BMB['GF_catchment'].data + BMB['vel_catchment'].data)
 
 BMB['BMB_sector_err'] = (('time','sector'), \
                          ((BMB['GF_sector_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
@@ -436,8 +448,16 @@ BMB['BMB_region_err'] = (('time','region'), \
                           )**0.5\
                          )
 
+BMB['BMB_catchment_err'] = (('time','catchment'), \
+                         ((BMB['GF_catchment_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + (BMB['vel_catchment_err'].expand_dims({'time':BMB['time'].size}).data)**2 \
+                          + BMB['VHD_catchment_err'].data**2\
+                          )**0.5\
+                         )
+
 # print(BMB)
 BMB[['VHD_sector','GF_sector','vel_sector','BMB']].sum(dim='sector').to_dataframe().resample('MS').sum().head(12)
+BMB = BMB.reindex({'catchment': SMB['catchment']})
 BMB = BMB.reindex({'time':time}).fillna(0)
 BMB['BMB'] = (('time'),
               np.append(k2015['BMB'].values/365, BMB['BMB'].sel({'time':slice('1986','2200')}).values))
@@ -447,11 +467,23 @@ BMB['BMB_err'] = (('time'),
 
 # add the sectors from SMB to D (14 and 21(?) don't have any D)
 D = D.reindex({'sector': SMB['sector']})# .fillna(0)
-# D = D.reindex({'basin': SMB['basin']})# .fillna(0)
+D = D.reindex({'catchment': SMB['catchment']})
 D = D.reindex({'region': SMB['region']})# .fillna(0)
 D['region'] = D['region'].astype(str)
 D = D.ffill(dim='time')
 D = D.bfill(dim='time')
+
+# Catchments with no SID estimate get D = 0, so their MB is defined; the flag
+# says why it is zero. Glacier type is from the Mouginot 2019 attributes.
+import sqlite3
+gpkg = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'Mouginot_2019_HIRHAM.gpkg')
+gl_type = dict(sqlite3.connect(gpkg).execute('SELECT DISTINCT NAME, GL_TYPE FROM M').fetchall())
+D_flag = np.array([0 if c in catchments_with_D else (1 if gl_type.get(c) == 'LT' else 2)
+                   for c in D['catchment'].values], dtype='int8')
+for v in ['D_catchment', 'err_catchment']:
+    D[v] = D[v].fillna(0)
+print('catchment D source: {} SID, {} land-terminating (D=0), {} marine-terminating without SID (D=0)'
+      .format(*np.bincount(D_flag, minlength=3)))
 
 
 
@@ -466,7 +498,7 @@ D = D.bfill(dim='time')
 import subprocess
 import os
 
-for roi in ['sector', 'region']: # TODO: 'basin'
+for roi in ['sector', 'region', 'catchment']:
     MB = xr.Dataset()
     
     MB["time"] = (("time"), time)
@@ -498,8 +530,8 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         MB[roi].attrs["long_name"] = "Zwally 2012 sectors"
     elif roi == 'region':
         MB[roi].attrs["long_name"] = "Mouginot 2019 regions"
-    elif roi == 'basin':
-        MB[roi].attrs["long_name"] = "Mouginot 2019 basins"
+    elif roi == 'catchment':
+        MB[roi].attrs["long_name"] = "Mouginot 2019 catchments"
        
     MB['MB_ROI'] = (('time',roi), (SMB['SMB_mean_' + roi] - D['D_'+roi] - BMB['BMB_'+roi]).data)
     MB['MB_ROI_err'] = (('time',roi), (SMB['SMB_mean_'+roi+'_err'].data**2 + D['err_'+roi].data**2 + BMB['BMB_'+roi+'_err'].data**2)**0.5)
@@ -567,6 +599,12 @@ for roi in ['sector', 'region']: # TODO: 'basin'
         MB[v].attrs["units"] = "Gt d-1"
     MB['D'].attrs["coordinates"] = 'time'
     MB['D_ROI'].attrs["coordinates"] = 'time ' + roi
+    if roi == 'catchment':
+        MB['D_ROI'].attrs['source'] = D_catchment_file + ' (sector and region D: latest/gate.nc)'
+        MB['D_ROI_flag'] = ((roi), D_flag)
+        MB['D_ROI_flag'].attrs['long_name'] = 'Source of D_ROI'
+        MB['D_ROI_flag'].attrs['flag_values'] = np.array([0, 1, 2], dtype='int8')
+        MB['D_ROI_flag'].attrs['flag_meanings'] = 'solid_ice_discharge land_terminating_zero marine_terminating_no_estimate_zero'
 
     
     MB['BMB'] = (('time'), BMB['BMB'].data)
@@ -626,7 +664,7 @@ for roi in ['sector', 'region']: # TODO: 'basin'
 
     comp = dict(zlib=True, complevel=2, dtype='float32')
 
-    encoding = {var: comp for var in MB.data_vars} # all variables
+    encoding = {var: comp for var in MB.data_vars if var != 'D_ROI_flag'} # all variables
     encoding['time'] = {'dtype':'float64'} #time (to be compatible with openDAP)
     fn = './TMB/MB_'+roi+'.nc'
     if os.path.exists(fn): os.remove(fn)

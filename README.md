@@ -68,11 +68,15 @@ One-time setup, tracked with stamp files in `.stamps/`. Creates four GRASS datab
 
 ROI expansion: for each model domain cell not covered by a sector/basin polygon, the cell is assigned to the nearest ROI via `r.grow.distance`. This ensures no ice is left unaccounted.
 
+Three ROI types: Zwally 2012 sectors, Mouginot 2019 regions, and Mouginot 2019 catchments (the basins themselves, ice caps excluded; they nest exactly inside the regions). Catchments are numbered per model grid, one id per basin `NAME` in C-locale name order, and each setup writes the id → name table to `tmp/{RCM}_catchment_names.bsv` for the BSV-to-NetCDF step.
+
+The setup scripts are not re-runnable over an existing GRASS database. After changing an ROI, `make clean_setup` (removes `G_*` and `.stamps/`, keeps `tmp/`) and then `make setup`.
+
 `setup_bmb.sh` also runs in G_MAR and computes the static BMB components (geothermal flux, velocity-based melt) and a `scale` raster for the VHD calculation.
 
 #### Stage 2 — SMB extraction (`scripts/smb_*.sh`)
 
-For each RCM, loops over all (or recent) NetCDF files and extracts daily SMB aggregated to Zwally 2012 sectors and Mouginot 2019 regions via `r.univar`. Each day produces a pair of pipe-separated BSV files in `tmp/{RCM}/`.
+For each RCM, loops over all (or recent) NetCDF files and extracts daily SMB aggregated to Zwally 2012 sectors, Mouginot 2019 regions and Mouginot 2019 catchments via `r.univar`. Each day produces one pipe-separated BSV file per ROI type in `tmp/{RCM}/`. A day is skipped only when all of them exist, so adding an ROI type back-fills it without recomputing the others.
 
 | Script | GRASS DB | Notes |
 |---|---|---|
@@ -86,7 +90,7 @@ Concatenates daily BSVs into `tmp/{RCM}_{ROI}.bsv`, then converts to `tmp/SMB.nc
 
 #### Stage 4 — BMB extraction (`scripts/bmb_mar.sh`)
 
-For each MAR file and day, multiplies the runoff (`ru`) field by the pre-computed `scale` raster to get daily VHD melt, then aggregates to sectors/regions. Output: `tmp/BMB/{sector,region}_YYYY-MM-DD.bsv`.
+For each MAR file and day, multiplies the runoff (`ru`) field by the pre-computed `scale` raster to get daily VHD melt, then aggregates to sectors/regions/catchments. Output: `tmp/BMB/{sector,region,catchment}_YYYY-MM-DD.bsv`.
 
 #### Stage 5 — BMB merge and NetCDF (`scripts/bmb_merge.sh`, `scripts/bmb_bsv2nc.py`)
 
@@ -96,7 +100,7 @@ Same pattern as SMB. Combines GF (static) + velocity melt (static) + VHD (time-v
 
 Combines:
 - SMB (`tmp/SMB.nc`) — ensemble mean of HIRHAM and MAR
-- D — ice discharge from [Mankoff 2020](https://doi.org/10.22008/promice/data/ice_discharge), loaded from `$DATADIR/Mankoff_2020/ice/latest/gate.nc`
+- D — ice discharge from [Mankoff 2020](https://doi.org/10.22008/promice/data/ice_discharge). Sector and region D are summed from the gates in `$DATADIR/Mankoff_2020/ice/latest/gate.nc`; catchment D is read per catchment from `$DATADIR/Mankoff_2020/ice/latest/mask/D_catchment.nc` (an SID `catchment.nc`). Catchments without an SID estimate get D = 0, recorded in `D_ROI_flag`
 - BMB (`tmp/BMB.nc`) — geothermal + velocity + VHD
 - Historical reconstruction — [Kjeldsen 2015](https://doi.org/10.1038/nature16183) for 1840–1985, scaled to match the RCM-era observations
 
@@ -105,6 +109,7 @@ D is forecasted 7 days forward using the trend + seasonality of the previous 3 y
 Outputs to `TMB/`:
 - `MB_sector.nc` — mass balance by Zwally 2012 sector
 - `MB_region.nc` — mass balance by Mouginot 2019 region
+- `MB_catchment.nc` — mass balance by Mouginot 2019 catchment, with `D_ROI_flag` (0 SID, 1 land-terminating with D = 0, 2 marine-terminating with no SID estimate, D = 0)
 - `MB_SMB_D_BMB.csv` — daily totals
 - `MB_SMB_D_BMB_ann.csv` — annual totals
 
@@ -129,11 +134,13 @@ G_MAR/              GRASS database (generated, not in repo)
 G_RACMO/            GRASS database (generated, not in repo)
 tmp/
   {RCM}/            daily BSV files per RCM
-  SMB.nc            SMB aggregated to sectors and regions
-  BMB.nc            BMB (GF + vel + VHD) per sector and region
+  {RCM}_catchment_names.bsv   catchment id -> basin NAME, per model grid
+  SMB.nc            SMB aggregated to sectors, regions and catchments
+  BMB.nc            BMB (GF + vel + VHD) per sector, region and catchment
 TMB/
   MB_sector.nc      total mass balance by Zwally sector
   MB_region.nc      total mass balance by Mouginot region
+  MB_catchment.nc   total mass balance by Mouginot catchment
   MB_SMB_D_BMB.csv  daily SMB, D, BMB, MB totals
 ```
 

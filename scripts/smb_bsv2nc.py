@@ -24,12 +24,24 @@ rstr = {11:'NW', 12:'NO', 1:'NE', 3:'CE', 9:'CW', 5:'SE', 7:'SW'}
 rnum = pd.read_csv("./tmp/HIRHAM_region.bsv", delimiter="|", nrows=0, index_col=0).columns.astype(int)
 SMB["region"] = [rstr[n] for n in rnum]
 
+# Catchment BSVs are keyed by basin ids that each setup_*.sh numbers for its own
+# model grid; its tmp/<RCM>_catchment_names.bsv maps them back to NAME. The
+# coordinate is every name any model has cells in, so a catchment too small to
+# reach one model's grid is NaN for that model only.
+cnames = {RCM: pd.read_csv("./tmp/" + RCM + "_catchment_names.bsv", delimiter="|", index_col=0).iloc[:, 0]
+          for RCM in ["HIRHAM", "MAR", "RACMO"]}
+SMB["catchment"] = sorted(set().union(*[set(n.values) for n in cnames.values()]))
+
 
 def bsv2nc(SMB, bsv, dim):
     df = pd.read_csv("./tmp/" + bsv + ".bsv", delimiter="|", index_col=0, parse_dates=True).reindex(time)
     df.columns = df.columns.astype(np.int64)
     if dim == "region":
         df.columns = [rstr[n] for n in df.columns]
+    if dim == "catchment":
+        df.columns = cnames[bsv.split("_")[0]][df.columns].values
+        print(bsv, "catchments with no cells:", ", ".join(sorted(set(SMB[dim].values.astype(str)) - set(df.columns))) or "none")
+        df = df.reindex(columns=SMB[dim].values)
     missing = SMB[dim].values[~pd.Series(SMB[dim].values).isin(df.columns)]
     if len(missing) > 0:
         df[missing] = np.nan
@@ -57,12 +69,15 @@ def bsv2nc(SMB, bsv, dim):
 
 SMB = bsv2nc(SMB, "HIRHAM_sector", "sector")
 SMB = bsv2nc(SMB, "HIRHAM_region", "region")
+SMB = bsv2nc(SMB, "HIRHAM_catchment", "catchment")
 
 SMB = bsv2nc(SMB, "MAR_sector", "sector")
 SMB = bsv2nc(SMB, "MAR_region", "region")
+SMB = bsv2nc(SMB, "MAR_catchment", "catchment")
 
 SMB = bsv2nc(SMB, "RACMO_sector", "sector")
 SMB = bsv2nc(SMB, "RACMO_region", "region")
+SMB = bsv2nc(SMB, "RACMO_catchment", "catchment")
 
 
 err = unumpy.uarray([1, 1, 1], [0.1, 0.15, 0.7])
@@ -71,7 +86,7 @@ print('{:.4f}'.format(err.sum()))
 # Ensemble mean across HIRHAM, MAR and RACMO. Members that have not been
 # updated yet are NaN (reindexed above), and mean() skips them, so the mean
 # degrades to HIRHAM+MAR once RACMO lags, and to MAR alone in the forecast week.
-for roi in ['sector', 'region']:
+for roi in ['sector', 'region', 'catchment']:
     mean = SMB[['HIRHAM_'+roi, 'MAR_'+roi, 'RACMO_'+roi]].to_array(dim='m').mean('m')
     s = 'SMB_mean_' + roi
     SMB[s] = (('time', roi), mean.data)

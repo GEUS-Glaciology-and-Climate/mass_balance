@@ -32,7 +32,7 @@ log_info "Loading Mouginot 2019"
 g.mapset -c Mouginot_2019
 v.import input=${DATADIR}/Mouginot_2019/Greenland_Basins_PS_v1.4.2.shp output=basins snap=1
 db.execute sql="DELETE FROM basins WHERE name LIKE 'ICE_CAPS_%'"
-v.db.addcolumn map=basins columns="SUBREGION1_num INT,cat_ INT"
+v.db.addcolumn map=basins columns="SUBREGION1_num INT,cat_ INT,basin_num INT"
 db.execute sql="UPDATE basins SET cat_=cat"
 db.execute sql="UPDATE basins SET SUBREGION1_num=11 WHERE SUBREGION1='NW'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=12 WHERE SUBREGION1='NO'"
@@ -41,11 +41,12 @@ db.execute sql="UPDATE basins SET SUBREGION1_num=3 WHERE SUBREGION1='CE'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=9 WHERE SUBREGION1='CW'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=5 WHERE SUBREGION1='SE'"
 db.execute sql="UPDATE basins SET SUBREGION1_num=7 WHERE SUBREGION1='SW'"
+number_basins RACMO
 
 log_info "Expanding Mouginot basins to cover RCM domain"
 g.mapset Mouginot_2019
 g.region region=sectors
-v.to.rast input=basins output=basins use=attr attribute_column=cat_ labelcolumn=SUBREGION1
+v.to.rast input=basins output=basins use=attr attribute_column=basin_num labelcolumn=NAME
 r.grow.distance input=basins value=value_b
 r.mapcalc "basins_e = if(mask_ice, int(value_b), null())"
 r.category map=basins separator=":" > ./tmp/basins_cats

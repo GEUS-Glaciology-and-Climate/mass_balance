@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time BMB setup: computes static GF and velocity basal melt per ROI,
 # then builds the hydropotential 'scale' raster used by bmb_mar.sh.
-# Runs in G_MAR (EPSG:3413) using the sectors/regions established by setup_mar.sh.
+# Runs in G_MAR (EPSG:3413) using the sectors/regions/catchments established by setup_mar.sh.
 source ./scripts/common.sh
 
 # --- Geothermal flux (GF) — static, from Karlsson 2021 ---
@@ -22,6 +22,12 @@ r.univar -t --q map=GF zones=regions_e@Mouginot_2019 \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_GF_region.bsv
 
+r.univar -t --q map=GF zones=basins_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_GF_catchment.bsv
+
 # --- Velocity-based melt — static, from Karlsson 2021 ---
 g.mapset -c vel
 r.external -o source=NetCDF:${DATADIR}/Karlsson_2021/basalmelt.nc:fricmelt output=vel_ann
@@ -40,6 +46,12 @@ r.univar -t --q map=vel zones=regions_e@Mouginot_2019 \
   | datamash -t"|" transpose \
   | sed s/^sum/daily/ \
   > ./tmp/BMB_vel_region.bsv
+
+r.univar -t --q map=vel zones=basins_e@Mouginot_2019 \
+  | cut -d"|" -f1,13 \
+  | datamash -t"|" transpose \
+  | sed s/^sum/daily/ \
+  > ./tmp/BMB_vel_catchment.bsv
 
 # --- Viscous heat dissipation (VHD) setup — BedMachine v4 (Morlighem 2017) ---
 log_info "Importing BedMachine"

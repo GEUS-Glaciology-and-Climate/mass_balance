@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Extract daily SMB from HIRHAM and aggregate to Zwally sectors and Mouginot regions.
-# Runs in G_HIRHAM_XY (XY domain). Requires HIRHAM_sectors_e and HIRHAM_regions_e
+# Extract daily SMB from HIRHAM and aggregate to Zwally sectors, Mouginot regions
+# and Mouginot catchments.
+# Runs in G_HIRHAM_XY (XY domain). Requires the HIRHAM_{sectors,regions,catchments}_e
 # TIFs exported by setup_hirham.sh.
 source ./scripts/common.sh
+
+declare -A ZONES=([sector]=sectors_e [region]=regions_e [catchment]=catchments_e)
 
 log_info "HIRHAM ROI areas"
 
@@ -17,8 +20,10 @@ r.in.gdal -o input="NetCDF:${DATADIR}/HIRHAM/ZwallyMasks_all_SD.nc:cellarea" out
 
 r.in.gdal -o input=./tmp/HIRHAM_sectors_e_Zwally_2012.tif output=sectors_e
 r.in.gdal -o input=./tmp/HIRHAM_regions_e_Mouginot_2019.tif output=regions_e
+r.in.gdal -o input=./tmp/HIRHAM_catchments_e_Mouginot_2019.tif output=catchments_e
 r.region -c map=sectors_e
 r.region -c map=regions_e
+r.region -c map=catchments_e
 
 if [ "$RECENT" = "false" ] || [ -z ${RECENT} ]; then
   f_list=$(ls ${dir}/*.nc)
@@ -36,7 +41,12 @@ for f in ${f_list}; do
 
     log_info "HIRHAM: ${d}"
 
-    if [[ -e ./tmp/${RCM}/sector_${d}.bsv ]]; then continue; fi
+    # Skip the day only once every ROI has its BSV, so adding an ROI back-fills it
+    todo=""
+    for ROI in ${!ZONES[@]}; do
+      [[ -e ./tmp/${RCM}/${ROI}_${d}.bsv ]] || todo="${todo} ${ROI}"
+    done
+    if [[ -z ${todo} ]]; then continue; fi
 
     var=smb
     if [[ ${f} == *"SMBmodel"* ]]; then var=gld; fi
@@ -44,17 +54,13 @@ for f in ${f_list}; do
     r.in.gdal -o input="NetCDF:${f}:${var}" band=${band} output=SMB_raw --o --q
     r.mapcalc "SMB = SMB_raw * area_HIRHAM" --o
 
-    r.univar -t --q map=SMB zones=sectors_e \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/sector_${d}.bsv
-
-    r.univar -t --q map=SMB zones=regions_e \
-    | cut -d"|" -f1,13 \
-    | datamash -t"|" transpose \
-    | sed s/^sum/${d}/ \
-    > ./tmp/${RCM}/region_${d}.bsv
+    for ROI in ${todo}; do
+      r.univar -t --q map=SMB zones=${ZONES[$ROI]} \
+      | cut -d"|" -f1,13 \
+      | datamash -t"|" transpose \
+      | sed s/^sum/${d}/ \
+      > ./tmp/${RCM}/${ROI}_${d}.bsv
+    done
 
   done
 done

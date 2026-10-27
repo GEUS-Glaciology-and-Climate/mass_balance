@@ -16,7 +16,7 @@ conda_run       = ${container_cmd} ${container_args} hillerup/tmb_conda python
 SHELL  = bash
 STAMPS = .stamps
 .DEFAULT_GOAL := help
-.PHONY: help all docker setup SMB BMB build_TMB dist update clean_30 clean_SMB clean_all
+.PHONY: help all docker setup SMB BMB build_TMB dist update clean_30 clean_SMB clean_setup clean_all
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -122,6 +122,9 @@ clean_30: ## Rebuild the last 30 days of SMB and BMB
 
 clean_SMB: ## Remove SMB intermediate files (forces re-extraction)
 	rm -fR tmp/HIRHAM tmp/MAR tmp/RACMO
+
+clean_setup: ## Remove GRASS databases and setup stamps but keep tmp/ (re-run setup after an ROI change)
+	rm -fR G_HIRHAM G_HIRHAM_XY G_MAR G_RACMO .stamps
 
 clean_all: ## Remove all generated files including GRASS databases and stamps
 	rm -fR G_HIRHAM G_HIRHAM_XY G_MAR G_RACMO tmp dat TMB .stamps
