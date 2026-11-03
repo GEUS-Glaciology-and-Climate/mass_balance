@@ -305,7 +305,7 @@ D['D_err'] = (('time'), D['err_sector'].sum(dim='sector').data)
 # Catchment D is already summed per catchment, on its own (SID run's) time
 # steps. Merged only after D and D_err are summed, so its extra time steps are
 # NaN for the gate-based variables and disappear in the daily resample below.
-D_catchment_file = DATADIR + "/Mankoff_2020/ice/latest/mask/catchment_D.nc"
+D_catchment_file = DATADIR + "/Mankoff_2020/ice/latest/mask/catchment.nc"
 ds_catchment = xr.open_dataset(D_catchment_file)\
           .drop_vars(["coverage"])\
           .rename({"discharge":"D_catchment",

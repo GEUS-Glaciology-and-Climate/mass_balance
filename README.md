@@ -100,7 +100,7 @@ Same pattern as SMB. Combines GF (static) + velocity melt (static) + VHD (time-v
 
 Combines:
 - SMB (`tmp/SMB.nc`) — ensemble mean of HIRHAM and MAR
-- D — ice discharge from [Mankoff 2020](https://doi.org/10.22008/promice/data/ice_discharge). Sector and region D are summed from the gates in `$DATADIR/Mankoff_2020/ice/latest/gate.nc`; catchment D is read per catchment from `$DATADIR/Mankoff_2020/ice/latest/mask/catchment_D.nc` (an SID `catchment.nc`). Catchments without an SID estimate get D = 0, recorded in `D_ROI_flag`
+- D — ice discharge from [Mankoff 2020](https://doi.org/10.22008/promice/data/ice_discharge). Sector and region D are summed from the gates in `$DATADIR/Mankoff_2020/ice/latest/gate.nc`; catchment D is read per catchment from `$DATADIR/Mankoff_2020/ice/latest/mask/catchment.nc` (`out/catchment.nc` from an SID mask-branch run, as written by SID). Catchments without an SID estimate get D = 0, recorded in `D_ROI_flag`
 - BMB (`tmp/BMB.nc`) — geothermal + velocity + VHD
 - Historical reconstruction — [Kjeldsen 2015](https://doi.org/10.1038/nature16183) for 1840–1985, scaled to match the RCM-era observations
 
